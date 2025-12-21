@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQ1 Training Timer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        .app-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Navigation Bar */
+        .top-navbar {
+            background: #2d2d2d;
+            border-bottom: 1px solid #404040;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-button {
+            background: #3a3a3a;
+            border: 1px solid #505050;
+            color: #e0e0e0;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .nav-button:hover {
+            background: #454545;
+            border-color: #606060;
+        }
+
+        .nav-button.primary {
+            background: #0066cc;
+            border-color: #0077dd;
+        }
+
+        .nav-button.primary:hover {
+            background: #0077dd;
+        }
+
+        .case-count {
+            color: #888;
+            font-size: 13px;
+        }
+
+        /* Scramble Bar */
+        .scramble-bar {
+            background: #252525;
+            border-bottom: 1px solid #404040;
+            padding: 16px 20px;
+            text-align: center;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .scramble-text {
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            color: #b0b0b0;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Timer Zone */
+        .timer-zone {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .timer-display {
+            font-size: 6rem;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            color: #e0e0e0;
+            letter-spacing: 6px;
+        }
+
+        .timer-display.ready {
+            color: #22c55e;
+        }
+
+        .timer-display.preparing {
+            color: #ef4444;
+        }
+
+        /* Scramble Visualization */
+        .scramble-viz {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #2d2d2d;
+            border: 1px solid #404040;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            z-index: 50;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #2d2d2d;
+            border: 1px solid #404040;
+            border-radius: 12px;
+            max-width: 800px;
+            max-height: 80vh;
+            width: 90%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #404040;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+        }
+
+        .close-btn:hover {
+            background: #3a3a3a;
+            color: #e0e0e0;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        /* Tree View Styles */
+        .tree-view {
+            font-size: 14px;
+        }
+
+        .tree-node {
+            margin-left: 20px;
+        }
+
+        .tree-node-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .tree-node-header:hover {
+            background: #3a3a3a;
+        }
+
+        .tree-toggle {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #888;
+            font-size: 12px;
+        }
+
+        .tree-checkbox {
+            margin: 0;
+        }
+
+        .tree-label {
+            flex: 1;
+            color: #e0e0e0;
+        }
+
+        .tree-children {
+            display: none;
+        }
+
+        .tree-children.expanded {
+            display: block;
+        }
+
+        /* Settings Form */
+        .settings-group {
+            margin-bottom: 20px;
+        }
+
+        .settings-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #b0b0b0;
+            font-size: 14px;
+        }
+
+        .settings-input {
+            width: 100%;
+            background: #1a1a1a;
+            border: 1px solid #404040;
+            color: #e0e0e0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .settings-input:focus {
+            outline: none;
+            border-color: #0066cc;
+        }
+
+        textarea.settings-input {
+            min-height: 300px;
+            font-family: 'Courier New', monospace;
+            resize: vertical;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #0066cc;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0077dd;
+        }
+
+        .btn-secondary {
+            background: #3a3a3a;
+            color: #e0e0e0;
+            border: 1px solid #505050;
+        }
+
+        .btn-secondary:hover {
+            background: #454545;
+        }
+
+        .error-message {
+            background: #991b1b;
+            color: #fecaca;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+
+        .success-message {
+            background: #065f46;
+            color: #a7f3d0;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container" id="app"></div>
+
+    <script src="src/getSpecificHex.js"></script>
+    <script src="src/draw-scramble.js"></script>
+    
+    <script>
+        // Application State
+        const AppState = {
+            selectedCases: [],
+            currentScramble: null,
+            timerState: 'idle', // idle, preparing, running
+            timerStart: 0,
+            timerElapsed: 0,
+            holdStart: 0,
+            algsetData: null,
+            settings: {
+                visualizationSize: 200
+            }
+        };
+
+        // Default algset structure
+        const DEFAULT_ALGSET = {
+            "New Folder": {
+                "icon": "RRRRRRRRRRRRRRRRRRRRRRRR",
+                "New Folder": {
+                    "icon": "RRRRRRRRRRRRRRRRRRRRRRRR",
+                    "New Case": {
+                        "icon": "RRRRRRRRRRRRRRRRRRRRRRRR",
+                        "caseName": "New Case",
+                        "inputTop": ["RRRRRRRRRRRR"],
+                        "inputBottom": ["RRRRRRRRRRRR"],
+                        "equator": {"/": 1, "|": 1},
+                        "parity": {"even": 1, "odd": 1},
+                        "constraints": {},
+                        "abf": {"U0-D0": 1},
+                        "rul": {},
+                        "rdl": {},
+                        "rblSpecific": [],
+                        "caseWeight": 1,
+                        "hint": "",
+                        "alg": "",
+                        "comment": ""
+                    }
+                }
+            }
+        };
+
+        // Load algset from localStorage or use default
+        function loadAlgset() {
+            const saved = localStorage.getItem('sq1AlgsetData');
+            if (saved) {
+                try {
+                    AppState.algsetData = JSON.parse(saved);
+                } catch (e) {
+                    console.error('Error loading algset:', e);
+                    AppState.algsetData = DEFAULT_ALGSET;
+                }
+            } else {
+                AppState.algsetData = DEFAULT_ALGSET;
+            }
+        }
+
+        // Save algset to localStorage
+        function saveAlgset() {
+            localStorage.setItem('sq1AlgsetData', JSON.stringify(AppState.algsetData));
+        }
+
+        // Load selected cases from localStorage
+        function loadSelectedCases() {
+            const saved = localStorage.getItem('sq1SelectedCases');
+            if (saved) {
+                try {
+                    AppState.selectedCases = JSON.parse(saved);
+                } catch (e) {
+                    console.error('Error loading selected cases:', e);
+                    AppState.selectedCases = [];
+                }
+            }
+        }
+
+        // Save selected cases to localStorage
+        function saveSelectedCases() {
+            localStorage.setItem('sq1SelectedCases', JSON.stringify(AppState.selectedCases));
+        }
+
+        // Initialize app
+        function initApp() {
+            loadAlgset();
+            loadSelectedCases();
+            renderApp();
+            setupEventListeners();
+            if (AppState.selectedCases.length > 0) {
+                generateNewScramble();
+            }
+        }
+
+        // Render main app structure
+        function renderApp() {
+            const app = document.getElementById('app');
+            app.innerHTML = `
+                <div class="top-navbar">
+                    <div class="nav-left">
+                        <button class="nav-button primary" id="selectCasesBtn">Select Cases</button>
+                        <span class="case-count" id="caseCount">${AppState.selectedCases.length} case(s) selected</span>
+                    </div>
+                    <div class="nav-right">
+                        <button class="nav-button" id="prevScrambleBtn">← Previous</button>
+                        <button class="nav-button" id="nextScrambleBtn">Next →</button>
+                        <button class="nav-button" id="settingsBtn">⚙️ Settings</button>
+                    </div>
+                </div>
+
+                <div class="scramble-bar">
+                    <div class="scramble-text" id="scrambleDisplay">
+                        ${AppState.currentScramble ? AppState.currentScramble.hexState : 'No scramble generated'}
+                    </div>
+                </div>
+
+                <div class="main-content">
+                    <div class="timer-zone" id="timerZone">
+                        <div class="timer-display" id="timerDisplay">0.000</div>
+                    </div>
+
+                    ${AppState.currentScramble ? `
+                        <div class="scramble-viz" id="scrambleViz">
+                            ${generateVisualization(AppState.currentScramble.hexState)}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            setupEventListeners();
+        }
+
+        // Generate visualization from hex state
+        function generateVisualization(hexState) {
+            if (typeof window.Square1VisualizerLibraryWithSillyNames !== 'undefined') {
+                const colors = {
+                    topColor: '#000000',
+                    bottomColor: '#FFFFFF',
+                    frontColor: '#CC0000',
+                    rightColor: '#00AA00',
+                    backColor: '#FF8C00',
+                    leftColor: '#0066CC',
+                    dividerColor: '#7a0000',
+                    circleColor: 'transparent'
+                };
+                return window.Square1VisualizerLibraryWithSillyNames.visualizeFromHexCodePlease(
+                    hexState,
+                    AppState.settings.visualizationSize,
+                    colors,
+                    5
+                );
+            }
+            return '<div style="color: #888;">Visualization unavailable</div>';
+        }
+
+        // Generate new scramble from selected cases
+        function generateNewScramble() {
+            if (AppState.selectedCases.length === 0) {
+                AppState.currentScramble = null;
+                renderApp();
+                return;
+            }
+
+            const randomCase = AppState.selectedCases[Math.floor(Math.random() * AppState.selectedCases.length)];
+            
+            try {
+                const config = {
+                    topLayer: randomCase.inputTop[0],
+                    bottomLayer: randomCase.inputBottom[0],
+                    middleLayer: Object.keys(randomCase.equator),
+                    RUL: Object.keys(randomCase.rul).map(Number),
+                    RDL: Object.keys(randomCase.rdl).map(Number),
+                    AUF: Object.keys(randomCase.abf),
+                    ADF: ['D0'],
+                    constraints: randomCase.constraints,
+                    parity: Object.keys(randomCase.parity).map(p => p === 'even' ? 'on' : 'op')
+                };
+
+                if (config.RUL.length === 0) config.RUL = [0];
+                if (config.RDL.length === 0) config.RDL = [0];
+                if (config.AUF.length === 0) config.AUF = ['U0'];
+
+                const result = generateHexState(config);
+                AppState.currentScramble = result;
+                renderApp();
+            } catch (error) {
+                console.error('Error generating scramble:', error);
+                AppState.currentScramble = { hexState: 'Error generating scramble' };
+                renderApp();
+            }
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            document.getElementById('selectCasesBtn').addEventListener('click', openCaseSelectionModal);
+            document.getElementById('prevScrambleBtn').addEventListener('click', () => {
+                // For now, just generate a new scramble
+                generateNewScramble();
+            });
+            document.getElementById('nextScrambleBtn').addEventListener('click', generateNewScramble);
+            document.getElementById('settingsBtn').addEventListener('click', openSettingsModal);
+
+            const timerZone = document.getElementById('timerZone');
+            timerZone.addEventListener('mousedown', handleTimerMouseDown);
+            timerZone.addEventListener('mouseup', handleTimerMouseUp);
+            timerZone.addEventListener('touchstart', handleTimerTouchStart);
+            timerZone.addEventListener('touchend', handleTimerTouchEnd);
+
+            document.addEventListener('keydown', handleKeyDown);
+            document.addEventListener('keyup', handleKeyUp);
+        }
+
+        // Timer handlers
+        let spacePressed = false;
+
+        function handleTimerMouseDown() {
+            if (AppState.timerState === 'idle') {
+                AppState.timerState = 'preparing';
+                AppState.holdStart = Date.now();
+                updateTimerDisplay();
+            }
+        }
+
+        function handleTimerMouseUp() {
+            if (AppState.timerState === 'preparing') {
+                const holdDuration = Date.now() - AppState.holdStart;
+                if (holdDuration >= 200) {
+                    startTimer();
+                } else {
+                    AppState.timerState = 'idle';
+                    updateTimerDisplay();
+                }
+            } else if (AppState.timerState === 'running') {
+                stopTimer();
+            }
+        }
+
+        function handleTimerTouchStart(e) {
+            e.preventDefault();
+            handleTimerMouseDown();
+        }
+
+        function handleTimerTouchEnd(e) {
+            e.preventDefault();
+            handleTimerMouseUp();
+        }
+
+        function handleKeyDown(e) {
+            if (e.code === 'Space' && !e.repeat) {
+                e.preventDefault();
+                if (!spacePressed) {
+                    spacePressed = true;
+                    if (AppState.timerState === 'idle') {
+                        AppState.timerState = 'preparing';
+                        AppState.holdStart = Date.now();
+                        updateTimerDisplay();
+                    }
+                }
+            }
+        }
+
+        function handleKeyUp(e) {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (spacePressed) {
+                    spacePressed = false;
+                    if (AppState.timerState === 'preparing') {
+                        const holdDuration = Date.now() - AppState.holdStart;
+                        if (holdDuration >= 200) {
+                            startTimer();
+                        } else {
+                            AppState.timerState = 'idle';
+                            updateTimerDisplay();
+                        }
+                    } else if (AppState.timerState === 'running') {
+                        stopTimer();
+                    }
+                }
+            }
+        }
+
+        function startTimer() {
+            AppState.timerState = 'running';
+            AppState.timerStart = Date.now();
+            AppState.timerElapsed = 0;
+            updateTimerDisplay();
+            requestAnimationFrame(updateTimer);
+        }
+
+        function stopTimer() {
+            AppState.timerState = 'idle';
+            updateTimerDisplay();
+            generateNewScramble();
+        }
+
+        function updateTimer() {
+            if (AppState.timerState === 'running') {
+                AppState.timerElapsed = Date.now() - AppState.timerStart;
+                updateTimerDisplay();
+                requestAnimationFrame(updateTimer);
+            }
+        }
+
+        function updateTimerDisplay() {
+            const display = document.getElementById('timerDisplay');
+            if (!display) return;
+
+            display.className = 'timer-display';
+            
+            if (AppState.timerState === 'preparing') {
+                const holdDuration = Date.now() - AppState.holdStart;
+                if (holdDuration >= 200) {
+                    display.classList.add('ready');
+                } else {
+                    display.classList.add('preparing');
+                }
+            } else if (AppState.timerState === 'running') {
+                const seconds = (AppState.timerElapsed / 1000).toFixed(3);
+                display.textContent = seconds;
+            } else {
+                display.textContent = '0.000';
+            }
+        }
+
+        // Case selection modal
+        function openCaseSelectionModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Select Cases</h2>
+                        <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="tree-view" id="caseTree"></div>
+                        <div class="button-group">
+                            <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                            <button class="btn btn-primary" onclick="saveCaseSelection()">Save Selection</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            renderCaseTree();
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+        }
+
+        // Render case tree
+        function renderCaseTree() {
+            const treeContainer = document.getElementById('caseTree');
+            if (!treeContainer) return;
+
+            treeContainer.innerHTML = renderTreeNode(AppState.algsetData, []);
+        }
+
+        function renderTreeNode(node, path) {
+            let html = '';
+            
+            for (const [key, value] of Object.entries(node)) {
+                const currentPath = [...path, key];
+                const pathString = currentPath.join('.');
+                const isCase = value.caseName !== undefined;
+                const hasChildren = !isCase && Object.keys(value).some(k => k !== 'icon');
+                
+                if (isCase) {
+                    const isSelected = AppState.selectedCases.some(c => c._path === pathString);
+                    html += `
+                        <div class="tree-node">
+                            <div class="tree-node-header">
+                                <span class="tree-toggle"></span>
+                                <input type="checkbox" class="tree-checkbox" 
+                                    ${isSelected ? 'checked' : ''} 
+                                    onchange="toggleCaseSelection('${pathString}', this.checked)"
+                                >
+                                <span class="tree-label">${value.caseName || key}</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="tree-node">
+                            <div class="tree-node-header" onclick="toggleTreeNode(this)">
+                                <span class="tree-toggle">▶</span>
+                                <span class="tree-label">${key}</span>
+                            </div>
+                            <div class="tree-children">
+                                ${renderTreeNode(value, currentPath)}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            
+            return html;
+        }
+
+        window.toggleTreeNode = function(header) {
+            const children = header.nextElementSibling;
+            const toggle = header.querySelector('.tree-toggle');
+            
+            if (children.classList.contains('expanded')) {
+                children.classList.remove('expanded');
+                toggle.textContent = '▶';
+            } else {
+                children.classList.add('expanded');
+                toggle.textContent = '▼';
+            }
+        };
+
+        window.toggleCaseSelection = function(path, checked) {
+            const pathParts = path.split('.');
+            let current = AppState.algsetData;
+            
+            for (const part of pathParts) {
+                current = current[part];
+            }
+            
+            if (checked) {
+                if (!AppState.selectedCases.some(c => c._path === path)) {
+                    AppState.selectedCases.push({...current, _path: path});
+                }
+            } else {
+                AppState.selectedCases = AppState.selectedCases.filter(c => c._path !== path);
+            }
+        };
+
+        window.saveCaseSelection = function() {
+            saveSelectedCases();
+            document.querySelector('.modal').remove();
+            document.getElementById('caseCount').textContent = `${AppState.selectedCases.length} case(s) selected`;
+            generateNewScramble();
+        };
+
+        // Settings modal
+        function openSettingsModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Settings</h2>
+                        <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="settingsMessage"></div>
+                        <div class="settings-group">
+                            <label class="settings-label">Import/Create Algset (JSON)</label>
+                            <textarea class="settings-input" id="algsetInput">${JSON.stringify(AppState.algsetData, null, 2)}</textarea>
+                        </div>
+                        <div class="button-group">
+                            <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                            <button class="btn btn-primary" onclick="saveAlgsetSettings()">Save Algset</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+        }
+
+        window.saveAlgsetSettings = function() {
+            const input = document.getElementById('algsetInput').value;
+            const messageDiv = document.getElementById('settingsMessage');
+            
+            try {
+                const parsed = JSON.parse(input);
+                AppState.algsetData = parsed;
+                saveAlgset();
+                
+                messageDiv.innerHTML = '<div class="success-message">Algset saved successfully!</div>';
+                setTimeout(() => {
+                    document.querySelector('.modal').remove();
+                    renderApp();
+                }, 1000);
+            } catch (error) {
+                messageDiv.innerHTML = `<div class="error-message">Invalid JSON: ${error.message}</div>`;
+            }
+        };
+
+        // Start the app
+        initApp();
+    </script>
+</body>
+</html>
