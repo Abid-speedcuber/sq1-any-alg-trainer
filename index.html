@@ -355,6 +355,324 @@
             margin-bottom: 16px;
             font-size: 13px;
         }
+
+        /* JSON Creator Fullscreen Styles */
+        .json-creator-fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #1e1e1e;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .json-creator-topbar {
+            background: #323233;
+            border-bottom: 1px solid #1e1e1e;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            color: #cccccc;
+        }
+
+        .json-creator-topbar h2 {
+            font-size: 14px;
+            font-weight: 400;
+            margin: 0;
+            flex: 1;
+        }
+
+        .json-creator-close-btn {
+            background: #0e639c;
+            border: none;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 2px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .json-creator-close-btn:hover {
+            background: #1177bb;
+        }
+
+        .json-creator-main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .json-creator-sidebar {
+            width: 280px;
+            background: #252526;
+            border-right: 1px solid #1e1e1e;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .json-creator-sidebar.hidden {
+            display: none;
+        }
+
+        .json-creator-toolbar {
+            padding: 8px;
+            border-bottom: 1px solid #1e1e1e;
+            display: flex;
+            gap: 4px;
+        }
+
+        .json-creator-toolbar-btn {
+            background: transparent;
+            border: none;
+            color: #cccccc;
+            padding: 6px;
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 16px;
+        }
+
+        .json-creator-toolbar-btn:hover {
+            background: #2a2d2e;
+        }
+
+        .json-creator-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+
+        .json-creator-tree-item {
+            padding: 4px 8px 4px 0;
+            cursor: pointer;
+            color: #cccccc;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            user-select: none;
+        }
+
+        .json-creator-tree-item:hover {
+            background: #2a2d2e;
+        }
+
+        .json-creator-tree-item.selected {
+            background: #094771;
+        }
+
+        .json-creator-tree-item.multi-selected {
+            background: #37373d;
+        }
+
+        .json-creator-tree-item.editing .tree-item-text {
+            display: none;
+        }
+
+        .json-creator-tree-item.editing .tree-item-input {
+            display: block;
+        }
+
+        .tree-item-input {
+            display: none;
+            background: #3c3c3c;
+            border: 1px solid #0e639c;
+            color: #cccccc;
+            padding: 2px 4px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .tree-expand-icon {
+            width: 16px;
+            text-align: center;
+            font-size: 10px;
+            flex-shrink: 0;
+        }
+
+        .tree-icon {
+            flex-shrink: 0;
+        }
+
+        .json-creator-content {
+            flex: 1;
+            background: #1e1e1e;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .json-creator-content-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #2d2d2d;
+            color: #cccccc;
+        }
+
+        .json-creator-content-header h3 {
+            margin: 0 0 4px 0;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .json-creator-content-header p {
+            margin: 0;
+            font-size: 12px;
+            color: #858585;
+        }
+
+        .json-creator-content-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .json-creator-form-group {
+            margin-bottom: 20px;
+        }
+
+        .json-creator-form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: #cccccc;
+            font-size: 13px;
+        }
+
+        .json-creator-form-group input,
+        .json-creator-form-group textarea {
+            width: 100%;
+            background: #3c3c3c;
+            border: 1px solid #555555;
+            color: #cccccc;
+            padding: 6px 8px;
+            font-size: 13px;
+            border-radius: 2px;
+        }
+
+        .json-creator-form-group input:focus,
+        .json-creator-form-group textarea:focus {
+            outline: none;
+            border-color: #0e639c;
+        }
+
+        .json-creator-form-group textarea {
+            min-height: 80px;
+            font-family: 'Courier New', monospace;
+            resize: vertical;
+        }
+
+        .json-creator-section {
+            background: #252526;
+            border: 1px solid #2d2d2d;
+            border-radius: 4px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .json-creator-section h4 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            color: #cccccc;
+            font-weight: 500;
+        }
+
+        .json-creator-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 8px;
+        }
+
+        .json-creator-grid-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #cccccc;
+        }
+
+        .json-creator-grid-item input[type="checkbox"] {
+            width: auto;
+        }
+
+        .json-creator-grid-item input[type="number"] {
+            width: 60px;
+            padding: 2px 4px;
+        }
+
+        .context-menu {
+            position: fixed;
+            background: #3c3c3c;
+            border: 1px solid #555555;
+            border-radius: 3px;
+            padding: 4px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            z-index: 100000;
+            min-width: 180px;
+        }
+
+        .context-menu-item {
+            padding: 6px 20px;
+            color: #cccccc;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .context-menu-item:hover {
+            background: #094771;
+        }
+
+        .context-menu-item.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .context-menu-separator {
+            height: 1px;
+            background: #555555;
+            margin: 4px 0;
+        }
+
+        .json-creator-welcome {
+            text-align: center;
+            padding: 60px 20px;
+            color: #858585;
+        }
+
+        .json-creator-welcome h3 {
+            color: #cccccc;
+            margin-bottom: 12px;
+        }
+
+        .json-creator-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .json-creator-btn {
+            background: #0e639c;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 2px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .json-creator-btn:hover {
+            background: #1177bb;
+        }
+
+        .json-creator-btn-secondary {
+            background: #3c3c3c;
+            border: 1px solid #555555;
+        }
+
+        .json-creator-btn-secondary:hover {
+            background: #505050;
+        }
     </style>
 </head>
 <body>
@@ -1114,6 +1432,11 @@
             openSettingsModal();
         };
 
+        window.openJsonCreator = function() {
+            document.querySelector('.modal').remove();
+            showJsonCreatorFullscreen();
+        };
+
         window.saveAlgsetSettings = function() {
             const input = document.getElementById('algsetInput').value;
             const messageDiv = document.getElementById('settingsMessage');
@@ -1132,6 +1455,525 @@
                 messageDiv.innerHTML = `<div class="error-message">Invalid JSON: ${error.message}</div>`;
             }
         };
+
+        // JSON Creator Implementation
+        class JSONCreator {
+            constructor() {
+                this.treeData = {};
+                this.selectedPath = '';
+                this.selectedItem = null;
+                this.clipboard = null;
+                this.clipboardOperation = '';
+                this.expandedFolders = new Set();
+                this.contextMenu = null;
+            }
+
+            show() {
+                // Load current algset data
+                this.treeData = JSON.parse(JSON.stringify(AppState.algsetData));
+                
+                const fullscreen = document.createElement('div');
+                fullscreen.className = 'json-creator-fullscreen';
+                fullscreen.id = 'jsonCreatorFullscreen';
+                
+                fullscreen.innerHTML = `
+                    <div class="json-creator-topbar">
+                        <h2>JSON Creator</h2>
+                        <button class="json-creator-close-btn" onclick="closeJsonCreator()">Save & Close</button>
+                    </div>
+                    <div class="json-creator-main">
+                        <div class="json-creator-sidebar" id="jsonCreatorSidebar">
+                            <div class="json-creator-toolbar">
+                                <button class="json-creator-toolbar-btn" onclick="jsonCreator.newCase()" title="New Case">📄</button>
+                                <button class="json-creator-toolbar-btn" onclick="jsonCreator.newFolder()" title="New Folder">📁</button>
+                                <button class="json-creator-toolbar-btn" onclick="jsonCreator.copy()" title="Copy">📋</button>
+                                <button class="json-creator-toolbar-btn" onclick="jsonCreator.paste()" title="Paste">📌</button>
+                                <button class="json-creator-toolbar-btn" onclick="jsonCreator.delete()" title="Delete">🗑️</button>
+                            </div>
+                            <div class="json-creator-tree" id="jsonCreatorTree"></div>
+                        </div>
+                        <div class="json-creator-content">
+                            <div class="json-creator-content-header">
+                                <h3 id="jsonCreatorTitle">JSON Creator</h3>
+                                <p id="jsonCreatorSubtitle">Select or create an item to begin</p>
+                            </div>
+                            <div class="json-creator-content-body" id="jsonCreatorBody">
+                                <div class="json-creator-welcome">
+                                    <h3>Welcome to JSON Creator</h3>
+                                    <p>Create and organize your Square-1 algset cases.</p>
+                                    <p>Use the toolbar to add folders and cases.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(fullscreen);
+                this.renderTree();
+                this.setupEventListeners();
+            }
+
+            setupEventListeners() {
+                document.addEventListener('keydown', (e) => {
+                    const fullscreen = document.getElementById('jsonCreatorFullscreen');
+                    if (!fullscreen) return;
+
+                    if (e.ctrlKey || e.metaKey) {
+                        switch (e.key.toLowerCase()) {
+                            case 'c':
+                                e.preventDefault();
+                                this.copy();
+                                break;
+                            case 'v':
+                                e.preventDefault();
+                                this.paste();
+                                break;
+                            case 'n':
+                                e.preventDefault();
+                                if (e.shiftKey) {
+                                    this.newFolder();
+                                } else {
+                                    this.newCase();
+                                }
+                                break;
+                        }
+                    } else if (e.key === 'Delete') {
+                        e.preventDefault();
+                        this.delete();
+                    }
+                });
+
+                document.addEventListener('click', () => {
+                    this.hideContextMenu();
+                });
+            }
+
+            renderTree() {
+                const container = document.getElementById('jsonCreatorTree');
+                if (!container) return;
+                container.innerHTML = '';
+                this.renderTreeNode(this.treeData, container, '', 0);
+            }
+
+            renderTreeNode(node, container, path, level) {
+                Object.keys(node).forEach(key => {
+                    const item = node[key];
+                    if (typeof item !== 'object' || item === null) return;
+
+                    const currentPath = path ? `${path}/${key}` : key;
+                    const isFolder = !item.caseName;
+                    const isExpanded = this.expandedFolders.has(currentPath);
+
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'json-creator-tree-item';
+                    itemDiv.style.paddingLeft = `${level * 16 + 8}px`;
+                    itemDiv.dataset.path = currentPath;
+
+                    if (this.selectedPath === currentPath) {
+                        itemDiv.classList.add('selected');
+                    }
+
+                    if (isFolder) {
+                        const expandIcon = document.createElement('div');
+                        expandIcon.className = 'tree-expand-icon';
+                        expandIcon.textContent = isExpanded ? '▼' : '▶';
+                        itemDiv.appendChild(expandIcon);
+                    } else {
+                        const spacer = document.createElement('div');
+                        spacer.style.width = '16px';
+                        itemDiv.appendChild(spacer);
+                    }
+
+                    const icon = document.createElement('div');
+                    icon.className = 'tree-icon';
+                    icon.textContent = isFolder ? (isExpanded ? '📂' : '📁') : '📄';
+                    itemDiv.appendChild(icon);
+
+                    const textSpan = document.createElement('span');
+                    textSpan.className = 'tree-item-text';
+                    textSpan.textContent = key;
+                    itemDiv.appendChild(textSpan);
+
+                    const input = document.createElement('input');
+                    input.className = 'tree-item-input';
+                    input.value = key;
+                    itemDiv.appendChild(input);
+
+                    itemDiv.onclick = (e) => this.handleItemClick(e, currentPath, item, key);
+                    itemDiv.ondblclick = (e) => this.startRename(itemDiv, input, key);
+                    itemDiv.oncontextmenu = (e) => this.showContextMenu(e, currentPath, item, key);
+
+                    input.onblur = () => this.finishRename(currentPath, key, itemDiv, input);
+                    input.onkeydown = (e) => {
+                        if (e.key === 'Enter') input.blur();
+                        if (e.key === 'Escape') { input.value = key; input.blur(); }
+                        e.stopPropagation();
+                    };
+
+                    container.appendChild(itemDiv);
+
+                    if (isFolder && isExpanded) {
+                        this.renderTreeNode(item, container, currentPath, level + 1);
+                    }
+                });
+            }
+
+            handleItemClick(e, path, item, key) {
+                e.stopPropagation();
+
+                if (!item.caseName) {
+                    if (this.selectedPath === path) {
+                        this.toggleFolder(path);
+                    } else {
+                        this.selectedPath = path;
+                        this.selectedItem = item;
+                        this.renderTree();
+                        this.showFolderView(key);
+                    }
+                } else {
+                    this.selectedPath = path;
+                    this.selectedItem = item;
+                    this.renderTree();
+                    this.showCaseEditor(item, key);
+                }
+            }
+
+            toggleFolder(path) {
+                if (this.expandedFolders.has(path)) {
+                    this.expandedFolders.delete(path);
+                } else {
+                    this.expandedFolders.add(path);
+                }
+                this.renderTree();
+            }
+
+            startRename(itemDiv, input, currentName) {
+                itemDiv.classList.add('editing');
+                input.value = currentName;
+                input.focus();
+                input.select();
+            }
+
+            finishRename(path, originalName, itemDiv, input) {
+                itemDiv.classList.remove('editing');
+                const newName = input.value.trim();
+                if (!newName || newName === originalName) return;
+
+                const pathParts = path.split('/');
+                pathParts.pop();
+                let parent = this.treeData;
+                pathParts.forEach(part => parent = parent[part]);
+
+                if (parent[newName]) {
+                    alert('An item with this name already exists');
+                    return;
+                }
+
+                const item = parent[originalName];
+                delete parent[originalName];
+                parent[newName] = item;
+
+                if (item.caseName) {
+                    item.caseName = newName;
+                }
+
+                this.renderTree();
+            }
+
+            newCase() {
+                const parent = this.getTargetFolder();
+                const name = this.getUniqueName(parent, 'New Case');
+
+                parent[name] = {
+                    caseName: name,
+                    inputTop: ['RRRRRRRRRRRR'],
+                    inputBottom: ['RRRRRRRRRRRR'],
+                    equator: { '/': 1, '|': 1 },
+                    parity: { even: 1, odd: 1 },
+                    constraints: {},
+                    auf: ['U0'],
+                    adf: ['D0'],
+                    rul: [0],
+                    rdl: [0],
+                    alg: ''
+                };
+
+                this.renderTree();
+            }
+
+            newFolder() {
+                const parent = this.getTargetFolder();
+                const name = this.getUniqueName(parent, 'New Folder');
+                parent[name] = {};
+                this.renderTree();
+            }
+
+            getTargetFolder() {
+                if (!this.selectedPath) return this.treeData;
+                
+                const pathParts = this.selectedPath.split('/');
+                let current = this.treeData;
+                
+                for (const part of pathParts) {
+                    current = current[part];
+                }
+                
+                if (current.caseName) {
+                    pathParts.pop();
+                    current = this.treeData;
+                    for (const part of pathParts) {
+                        current = current[part];
+                    }
+                }
+                
+                return current;
+            }
+
+            getUniqueName(parent, baseName) {
+                let name = baseName;
+                let counter = 1;
+                while (parent[name]) {
+                    name = `${baseName} ${counter}`;
+                    counter++;
+                }
+                return name;
+            }
+
+            copy() {
+                if (!this.selectedItem) return;
+                const name = this.selectedPath.split('/').pop();
+                this.clipboard = {
+                    item: JSON.parse(JSON.stringify(this.selectedItem)),
+                    name: name
+                };
+                this.clipboardOperation = 'copy';
+            }
+
+            paste() {
+                if (!this.clipboard) return;
+                
+                const parent = this.getTargetFolder();
+                const name = this.getUniqueName(parent, this.clipboard.name);
+                parent[name] = JSON.parse(JSON.stringify(this.clipboard.item));
+                
+                if (parent[name].caseName) {
+                    parent[name].caseName = name;
+                }
+                
+                this.renderTree();
+            }
+
+            delete() {
+                if (!this.selectedPath) return;
+                
+                const confirm = window.confirm(`Delete "${this.selectedPath.split('/').pop()}"?`);
+                if (!confirm) return;
+
+                const pathParts = this.selectedPath.split('/');
+                const itemName = pathParts.pop();
+                let parent = this.treeData;
+                pathParts.forEach(part => parent = parent[part]);
+
+                delete parent[itemName];
+                this.selectedPath = '';
+                this.selectedItem = null;
+                this.renderTree();
+                this.showWelcome();
+            }
+
+            showWelcome() {
+                const body = document.getElementById('jsonCreatorBody');
+                const title = document.getElementById('jsonCreatorTitle');
+                const subtitle = document.getElementById('jsonCreatorSubtitle');
+                
+                title.textContent = 'JSON Creator';
+                subtitle.textContent = 'Select or create an item to begin';
+                body.innerHTML = `
+                    <div class="json-creator-welcome">
+                        <h3>Welcome to JSON Creator</h3>
+                        <p>Create and organize your Square-1 algset cases.</p>
+                        <p>Use the toolbar to add folders and cases.</p>
+                    </div>
+                `;
+            }
+
+            showFolderView(name) {
+                const title = document.getElementById('jsonCreatorTitle');
+                const subtitle = document.getElementById('jsonCreatorSubtitle');
+                const body = document.getElementById('jsonCreatorBody');
+                
+                title.textContent = `Folder: ${name}`;
+                subtitle.textContent = 'Contains cases and subfolders';
+                body.innerHTML = `
+                    <div class="json-creator-welcome">
+                        <h3>${name}</h3>
+                        <p>This is a folder. Use the toolbar to add cases or subfolders.</p>
+                    </div>
+                `;
+            }
+
+            showCaseEditor(item, name) {
+                const title = document.getElementById('jsonCreatorTitle');
+                const subtitle = document.getElementById('jsonCreatorSubtitle');
+                const body = document.getElementById('jsonCreatorBody');
+                
+                title.textContent = `Case: ${name}`;
+                subtitle.textContent = 'Configure case parameters';
+                
+                body.innerHTML = `
+                    <div class="json-creator-section">
+                        <h4>Basic Information</h4>
+                        <div class="json-creator-form-group">
+                            <label>Case Name</label>
+                            <input type="text" value="${item.caseName}" onchange="jsonCreator.updateField('caseName', this.value)">
+                        </div>
+                        <div class="json-creator-form-group">
+                            <label>Algorithm</label>
+                            <textarea onchange="jsonCreator.updateField('alg', this.value)">${item.alg || ''}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="json-creator-section">
+                        <h4>Shape Input</h4>
+                        <div class="json-creator-form-group">
+                            <label>Top Layer (12 chars)</label>
+                            <input type="text" maxlength="12" value="${item.inputTop[0] || 'RRRRRRRRRRRR'}" 
+                                   onchange="jsonCreator.updateField('inputTop', [this.value])" style="font-family: monospace;">
+                        </div>
+                        <div class="json-creator-form-group">
+                            <label>Bottom Layer (12 chars)</label>
+                            <input type="text" maxlength="12" value="${item.inputBottom[0] || 'RRRRRRRRRRRR'}" 
+                                   onchange="jsonCreator.updateField('inputBottom', [this.value])" style="font-family: monospace;">
+                        </div>
+                    </div>
+
+                    <div class="json-creator-section">
+                        <h4>Equator</h4>
+                        <div class="json-creator-grid">
+                            <div class="json-creator-grid-item">
+                                <input type="checkbox" ${item.equator['/'] > 0 ? 'checked' : ''} 
+                                       onchange="jsonCreator.updateEquator('/', this.checked ? 1 : 0)">
+                                <label>Slash (/)</label>
+                            </div>
+                            <div class="json-creator-grid-item">
+                                <input type="checkbox" ${item.equator['|'] > 0 ? 'checked' : ''} 
+                                       onchange="jsonCreator.updateEquator('|', this.checked ? 1 : 0)">
+                                <label>Bar (|)</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="json-creator-section">
+                        <h4>Parity</h4>
+                        <div class="json-creator-grid">
+                            <div class="json-creator-grid-item">
+                                <input type="checkbox" ${item.parity.even > 0 ? 'checked' : ''} 
+                                       onchange="jsonCreator.updateParity('even', this.checked ? 1 : 0)">
+                                <label>Even</label>
+                            </div>
+                            <div class="json-creator-grid-item">
+                                <input type="checkbox" ${item.parity.odd > 0 ? 'checked' : ''} 
+                                       onchange="jsonCreator.updateParity('odd', this.checked ? 1 : 0)">
+                                <label>Odd</label>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            updateField(field, value) {
+                if (this.selectedItem) {
+                    this.selectedItem[field] = value;
+                }
+            }
+
+            updateEquator(symbol, value) {
+                if (this.selectedItem) {
+                    this.selectedItem.equator[symbol] = value;
+                }
+            }
+
+            updateParity(type, value) {
+                if (this.selectedItem) {
+                    this.selectedItem.parity[type] = value;
+                }
+            }
+
+            showContextMenu(e, path, item, key) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.hideContextMenu();
+
+                const menu = document.createElement('div');
+                menu.className = 'context-menu';
+                menu.style.left = `${e.pageX}px`;
+                menu.style.top = `${e.pageY}px`;
+
+                const isFolder = !item.caseName;
+                const items = [];
+
+                if (isFolder) {
+                    items.push({ text: 'New Case', action: () => this.newCase() });
+                    items.push({ text: 'New Folder', action: () => this.newFolder() });
+                    items.push({ separator: true });
+                }
+
+                items.push({ text: 'Copy', action: () => this.copy() });
+                items.push({ text: 'Paste', action: () => this.paste(), disabled: !this.clipboard });
+                items.push({ separator: true });
+                items.push({ text: 'Delete', action: () => this.delete() });
+
+                items.forEach(item => {
+                    if (item.separator) {
+                        const sep = document.createElement('div');
+                        sep.className = 'context-menu-separator';
+                        menu.appendChild(sep);
+                    } else {
+                        const menuItem = document.createElement('div');
+                        menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
+                        menuItem.textContent = item.text;
+                        if (!item.disabled) {
+                            menuItem.onclick = () => {
+                                this.hideContextMenu();
+                                item.action();
+                            };
+                        }
+                        menu.appendChild(menuItem);
+                    }
+                });
+
+                document.body.appendChild(menu);
+                this.contextMenu = menu;
+            }
+
+            hideContextMenu() {
+                if (this.contextMenu) {
+                    document.body.removeChild(this.contextMenu);
+                    this.contextMenu = null;
+                }
+            }
+
+            close() {
+                AppState.algsetData = this.treeData;
+                saveAlgset();
+                const fullscreen = document.getElementById('jsonCreatorFullscreen');
+                if (fullscreen) {
+                    fullscreen.remove();
+                }
+                renderApp();
+            }
+        }
+
+        let jsonCreator = new JSONCreator();
+
+        function showJsonCreatorFullscreen() {
+            jsonCreator = new JSONCreator();
+            jsonCreator.show();
+        }
+
+        function closeJsonCreator() {
+            jsonCreator.close();
+        }
 
         // Start the app
         initApp();
