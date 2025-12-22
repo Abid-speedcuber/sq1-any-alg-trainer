@@ -690,7 +690,10 @@
             timerStart: 0,
             timerElapsed: 0,
             holdStart: 0,
-            algsetData: null,
+            trainingJSONs: {}, // Multiple training JSONs: { name: data }
+            activeTrainingJSON: null, // Currently selected training JSON
+            developingJSONs: {}, // Multiple developing JSONs for JSON creator
+            activeDevelopingJSON: 'default', // Currently selected root in JSON creator
             settings: {
                 visualizationSize: 200
             }
@@ -723,24 +726,58 @@
             }
         };
 
-        // Load algset from localStorage or use default
-        function loadAlgset() {
-            const saved = localStorage.getItem('sq1AlgsetData');
+        // Load training JSONs from localStorage
+        function loadTrainingJSONs() {
+            const saved = localStorage.getItem('sq1TrainingJSONs');
             if (saved) {
                 try {
-                    AppState.algsetData = JSON.parse(saved);
+                    AppState.trainingJSONs = JSON.parse(saved);
                 } catch (e) {
-                    console.error('Error loading algset:', e);
-                    AppState.algsetData = DEFAULT_ALGSET;
+                    console.error('Error loading training JSONs:', e);
+                    AppState.trainingJSONs = {};
                 }
-            } else {
-                AppState.algsetData = DEFAULT_ALGSET;
+            }
+            
+            const activeJSON = localStorage.getItem('sq1ActiveTrainingJSON');
+            if (activeJSON && AppState.trainingJSONs[activeJSON]) {
+                AppState.activeTrainingJSON = activeJSON;
+            } else if (Object.keys(AppState.trainingJSONs).length > 0) {
+                AppState.activeTrainingJSON = Object.keys(AppState.trainingJSONs)[0];
             }
         }
 
-        // Save algset to localStorage
-        function saveAlgset() {
-            localStorage.setItem('sq1AlgsetData', JSON.stringify(AppState.algsetData));
+        // Save training JSONs to localStorage
+        function saveTrainingJSONs() {
+            localStorage.setItem('sq1TrainingJSONs', JSON.stringify(AppState.trainingJSONs));
+            if (AppState.activeTrainingJSON) {
+                localStorage.setItem('sq1ActiveTrainingJSON', AppState.activeTrainingJSON);
+            }
+        }
+
+        // Load developing JSONs from localStorage
+        function loadDevelopingJSONs() {
+            const saved = localStorage.getItem('sq1DevelopingJSONs');
+            if (saved) {
+                try {
+                    AppState.developingJSONs = JSON.parse(saved);
+                } catch (e) {
+                    console.error('Error loading developing JSONs:', e);
+                    AppState.developingJSONs = { 'default': DEFAULT_ALGSET };
+                }
+            } else {
+                AppState.developingJSONs = { 'default': DEFAULT_ALGSET };
+            }
+            
+            const activeRoot = localStorage.getItem('sq1ActiveDevelopingJSON');
+            if (activeRoot && AppState.developingJSONs[activeRoot]) {
+                AppState.activeDevelopingJSON = activeRoot;
+            }
+        }
+
+        // Save developing JSONs to localStorage
+        function saveDevelopingJSONs() {
+            localStorage.setItem('sq1DevelopingJSONs', JSON.stringify(AppState.developingJSONs));
+            localStorage.setItem('sq1ActiveDevelopingJSON', AppState.activeDevelopingJSON);
         }
 
         // Load selected cases from localStorage
@@ -763,7 +800,8 @@
 
         // Initialize app
         function initApp() {
-            loadAlgset();
+            loadTrainingJSONs();
+            loadDevelopingJSONs();
             loadSelectedCases();
             renderApp();
             setupEventListeners();
@@ -779,7 +817,7 @@
                 <div class="top-navbar">
                     <div class="nav-left">
                         <button class="nav-button primary" id="selectCasesBtn">Select Cases</button>
-                        <span class="case-count" id="caseCount">${AppState.selectedCases.length} case(s) selected</span>
+                        <span class="case-count" id="caseCount">${AppState.selectedCases.length} case(s) selected${AppState.activeTrainingJSON ? ` - ${AppState.activeTrainingJSON}` : ''}</span>
                     </div>
                     <div class="nav-right">
                         <button class="nav-button" id="prevScrambleBtn">← Previous</button>
@@ -788,7 +826,7 @@
                     </div>
                 </div>
 
-                <div class="scramble-bar">
+                <div class="scramble-bar" style="cursor: pointer;" onclick="openScrambleDetailModal()">
                     <div class="scramble-text" id="scrambleDisplay">
                         ${AppState.currentScramble ? AppState.currentScramble.hexState : 'No scramble generated'}
                     </div>
@@ -843,25 +881,27 @@
             const randomCase = AppState.selectedCases[Math.floor(Math.random() * AppState.selectedCases.length)];
             
             try {
+                // Convert case format to config format
                 const config = {
-                    topLayer: randomCase.inputTop,
-                    bottomLayer: randomCase.inputBottom,
-                    middleLayer: randomCase.equator,
-                    RUL: randomCase.rul,
-                    RDL: randomCase.rdl,
-                    AUF: randomCase.auf,
-                    ADF: randomCase.adf,
-                    constraints: randomCase.constraints,
-                    parity: randomCase.parity
+                    topLayer: Array.isArray(randomCase.inputTop) ? randomCase.inputTop[0] : randomCase.inputTop,
+                    bottomLayer: Array.isArray(randomCase.inputBottom) ? randomCase.inputBottom[0] : randomCase.inputBottom,
+                    middleLayer: randomCase.equator ? (typeof randomCase.equator === 'object' ? Object.keys(randomCase.equator).filter(k => randomCase.equator[k] > 0) : randomCase.equator) : ['/'],
+                    RUL: Array.isArray(randomCase.rul) ? randomCase.rul : [0],
+                    RDL: Array.isArray(randomCase.rdl) ? randomCase.rdl : [0],
+                    AUF: Array.isArray(randomCase.auf) ? randomCase.auf : ['U0'],
+                    ADF: Array.isArray(randomCase.adf) ? randomCase.adf : ['D0'],
+                    constraints: randomCase.constraints || {},
+                    parity: Array.isArray(randomCase.parity) ? randomCase.parity : (typeof randomCase.parity === 'object' ? Object.keys(randomCase.parity).filter(k => randomCase.parity[k] > 0) : ['on'])
                 };
 
                 if (config.RUL.length === 0) config.RUL = [0];
                 if (config.RDL.length === 0) config.RDL = [0];
                 if (config.AUF.length === 0) config.AUF = ['U0'];
                 if (config.ADF.length === 0) config.ADF = ['D0'];
+                if (config.middleLayer.length === 0) config.middleLayer = ['/'];
 
                 const result = generateHexState(config);
-                AppState.currentScramble = result;
+                AppState.currentScramble = { ...result, caseName: randomCase.caseName, alg: randomCase.alg };
                 renderApp();
             } catch (error) {
                 console.error('Error generating scramble:', error);
@@ -1003,14 +1043,29 @@
         }
 
         // Case selection modal
+        // Case selection modal
         function openCaseSelectionModal() {
+            if (Object.keys(AppState.trainingJSONs).length === 0) {
+                alert('Please import a training JSON first from Settings');
+                return;
+            }
+
             const modal = document.createElement('div');
             modal.className = 'modal active';
+            
+            const trainingJSONNames = Object.keys(AppState.trainingJSONs);
+            const tabs = trainingJSONNames.map((name, idx) => 
+                `<button class="nav-button ${name === AppState.activeTrainingJSON ? 'primary' : ''}" onclick="switchTrainingTab('${name}')" id="tab-${name}" style="margin-right: 8px;">${name}</button>`
+            ).join('');
+
             modal.innerHTML = `
                 <div class="modal-content">
                     <div class="modal-header">
                         <h2>Select Cases</h2>
                         <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+                    </div>
+                    <div style="padding: 12px 20px; background: #252525; border-bottom: 1px solid #404040;">
+                        <div id="trainingTabs">${tabs}</div>
                     </div>
                     <div class="modal-body">
                         <div class="tree-view" id="caseTree"></div>
@@ -1031,12 +1086,30 @@
             });
         }
 
+        window.switchTrainingTab = function(name) {
+            AppState.activeTrainingJSON = name;
+            saveTrainingJSONs();
+            
+            // Update tab styles
+            const allTabs = document.querySelectorAll('#trainingTabs button');
+            allTabs.forEach(tab => {
+                if (tab.id === `tab-${name}`) {
+                    tab.classList.add('primary');
+                } else {
+                    tab.classList.remove('primary');
+                }
+            });
+            
+            renderCaseTree();
+        };
+
         // Render case tree
         function renderCaseTree() {
             const treeContainer = document.getElementById('caseTree');
             if (!treeContainer) return;
 
-            treeContainer.innerHTML = renderTreeNode(AppState.algsetData, []);
+            const activeData = AppState.trainingJSONs[AppState.activeTrainingJSON] || {};
+            treeContainer.innerHTML = renderTreeNode(activeData, []);
         }
 
         function renderTreeNode(node, path) {
@@ -1095,7 +1168,8 @@
 
         window.toggleCaseSelection = function(path, checked) {
             const pathParts = path.split('.');
-            let current = AppState.algsetData;
+            const activeData = AppState.trainingJSONs[AppState.activeTrainingJSON];
+            let current = activeData;
             
             for (const part of pathParts) {
                 current = current[part];
@@ -1103,7 +1177,7 @@
             
             if (checked) {
                 if (!AppState.selectedCases.some(c => c._path === path)) {
-                    AppState.selectedCases.push({...current, _path: path});
+                    AppState.selectedCases.push({...current, _path: path, _jsonName: AppState.activeTrainingJSON});
                 }
             } else {
                 AppState.selectedCases = AppState.selectedCases.filter(c => c._path !== path);
@@ -1118,6 +1192,7 @@
         };
 
         // Settings modal
+        // Settings modal
         function openSettingsModal() {
             const modal = document.createElement('div');
             modal.className = 'modal active';
@@ -1130,13 +1205,182 @@
                     <div class="modal-body">
                         <div id="settingsMessage"></div>
                         <div class="settings-group">
-                            <label class="settings-label">Import/Create Algset (JSON)</label>
-                            <textarea class="settings-input" id="algsetInput">${JSON.stringify(AppState.algsetData, null, 2)}</textarea>
+                            <label class="settings-label">Loaded Training Sets</label>
+                            <div id="trainingSetsList" style="background: #1a1a1a; padding: 12px; border-radius: 6px; margin-bottom: 12px; max-height: 200px; overflow-y: auto;">
+                                ${Object.keys(AppState.trainingJSONs).length === 0 ? 
+                                    '<p style="color: #888;">No training sets loaded</p>' : 
+                                    Object.keys(AppState.trainingJSONs).map(name => `
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: ${AppState.activeTrainingJSON === name ? '#0066cc' : '#2d2d2d'}; border-radius: 4px; margin-bottom: 8px;">
+                                            <span style="color: #e0e0e0;">${name}</span>
+                                            <div style="display: flex; gap: 8px;">
+                                                ${AppState.activeTrainingJSON !== name ? `<button class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" onclick="setActiveTrainingJSON('${name}')">Activate</button>` : '<span style="color: #22c55e; font-size: 12px;">Active</span>'}
+                                                <button class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px; background: #991b1b;" onclick="removeTrainingJSON('${name}')">Remove</button>
+                                            </div>
+                                        </div>
+                                    `).join('')
+                                }
+                            </div>
+                            <button class="btn btn-primary" onclick="openImportJSONModal()">Import Training JSON</button>
                         </div>
                         <div class="button-group">
                             <button class="btn btn-secondary" onclick="openJsonCreator()">JSON Creator</button>
+                            <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+        }
+
+        // Import JSON modal
+        window.openImportJSONModal = function() {
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Import Training JSON</h2>
+                        <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="importMessage"></div>
+                        <div class="settings-group">
+                            <label class="settings-label">JSON Name</label>
+                            <input type="text" id="importJSONName" class="settings-input" placeholder="Enter a name for this training set" style="margin-bottom: 12px;">
+                        </div>
+                        <div class="settings-group">
+                            <label class="settings-label">Paste JSON or Drag & Drop File</label>
+                            <textarea class="settings-input" id="importJSONInput" placeholder="Paste your JSON here..."
+                                ondragover="event.preventDefault();"
+                                ondrop="handleJSONFileDrop(event)"
+                                style="min-height: 300px; font-family: 'Courier New', monospace;"></textarea>
+                        </div>
+                        <div class="button-group">
                             <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
-                            <button class="btn btn-primary" onclick="saveAlgsetSettings()">Save Algset</button>
+                            <button class="btn btn-primary" onclick="importTrainingJSON()">Import</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+        };
+
+        window.handleJSONFileDrop = function(event) {
+            event.preventDefault();
+            const file = event.dataTransfer.files[0];
+            if (file && file.type === 'application/json') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('importJSONInput').value = e.target.result;
+                    if (!document.getElementById('importJSONName').value) {
+                        document.getElementById('importJSONName').value = file.name.replace('.json', '');
+                    }
+                };
+                reader.readAsText(file);
+            }
+        };
+
+        window.importTrainingJSON = function() {
+            const name = document.getElementById('importJSONName').value.trim();
+            const jsonText = document.getElementById('importJSONInput').value.trim();
+            const messageDiv = document.getElementById('importMessage');
+
+            if (!name) {
+                messageDiv.innerHTML = '<div class="error-message">Please enter a name for this training set</div>';
+                return;
+            }
+
+            if (!jsonText) {
+                messageDiv.innerHTML = '<div class="error-message">Please paste or drop a JSON file</div>';
+                return;
+            }
+
+            try {
+                const parsed = JSON.parse(jsonText);
+                AppState.trainingJSONs[name] = parsed;
+                if (!AppState.activeTrainingJSON) {
+                    AppState.activeTrainingJSON = name;
+                }
+                saveTrainingJSONs();
+                
+                messageDiv.innerHTML = '<div class="success-message">Training JSON imported successfully!</div>';
+                setTimeout(() => {
+                    document.querySelector('.modal').remove();
+                    openSettingsModal();
+                }, 1000);
+            } catch (error) {
+                messageDiv.innerHTML = `<div class="error-message">Invalid JSON: ${error.message}</div>`;
+            }
+        };
+
+        window.setActiveTrainingJSON = function(name) {
+            AppState.activeTrainingJSON = name;
+            saveTrainingJSONs();
+            AppState.selectedCases = [];
+            saveSelectedCases();
+            document.querySelector('.modal').remove();
+            openSettingsModal();
+            renderApp();
+        };
+
+        window.removeTrainingJSON = function(name) {
+            if (!confirm(`Remove training set "${name}"?`)) return;
+            delete AppState.trainingJSONs[name];
+            if (AppState.activeTrainingJSON === name) {
+                AppState.activeTrainingJSON = Object.keys(AppState.trainingJSONs)[0] || null;
+                AppState.selectedCases = [];
+                saveSelectedCases();
+            }
+            saveTrainingJSONs();
+            document.querySelector('.modal').remove();
+            openSettingsModal();
+            renderApp();
+        };
+
+        // Scramble detail modal
+        function openScrambleDetailModal() {
+            if (!AppState.currentScramble || !AppState.currentScramble.hexState) return;
+            
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 900px;">
+                    <div class="modal-header">
+                        <h2>Scramble Details</h2>
+                        <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="margin-bottom: 20px;">
+                            <h3 style="color: #b0b0b0; font-size: 14px; margin-bottom: 8px;">Case Name</h3>
+                            <div style="color: #e0e0e0; font-size: 16px;">${AppState.currentScramble.caseName || 'Unknown Case'}</div>
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <h3 style="color: #b0b0b0; font-size: 14px; margin-bottom: 8px;">Hex State</h3>
+                            <div style="color: #e0e0e0; font-family: monospace; font-size: 14px;">${AppState.currentScramble.hexState}</div>
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <h3 style="color: #b0b0b0; font-size: 14px; margin-bottom: 12px;">Visualization</h3>
+                            <div style="display: flex; justify-content: center; background: #1a1a1a; padding: 20px; border-radius: 8px;">
+                                ${generateVisualization(AppState.currentScramble.hexState)}
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <h3 style="color: #b0b0b0; font-size: 14px; margin-bottom: 8px;">Algorithm</h3>
+                            <div style="color: #e0e0e0; font-family: monospace; font-size: 14px; background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                                ${AppState.currentScramble.alg || 'No algorithm provided'}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1425,35 +1669,10 @@
                 alert('Error saving: ' + error.message);
             }
         };
-
-        window.exportJsonFromCreator = function() {
-            document.getElementById('algsetInput').value = JSON.stringify(window.jsonCreatorState.tree, null, 2);
-            document.querySelector('.modal').remove();
-            openSettingsModal();
-        };
-
+        
         window.openJsonCreator = function() {
             document.querySelector('.modal').remove();
             showJsonCreatorFullscreen();
-        };
-
-        window.saveAlgsetSettings = function() {
-            const input = document.getElementById('algsetInput').value;
-            const messageDiv = document.getElementById('settingsMessage');
-            
-            try {
-                const parsed = JSON.parse(input);
-                AppState.algsetData = parsed;
-                saveAlgset();
-                
-                messageDiv.innerHTML = '<div class="success-message">Algset saved successfully!</div>';
-                setTimeout(() => {
-                    document.querySelector('.modal').remove();
-                    renderApp();
-                }, 1000);
-            } catch (error) {
-                messageDiv.innerHTML = `<div class="error-message">Invalid JSON: ${error.message}</div>`;
-            }
         };
 
         // JSON Creator Implementation
@@ -1469,8 +1688,8 @@
             }
 
             show() {
-                // Load current algset data
-                this.treeData = JSON.parse(JSON.stringify(AppState.algsetData));
+                // Load current developing JSON
+                this.treeData = JSON.parse(JSON.stringify(AppState.developingJSONs[AppState.activeDevelopingJSON] || DEFAULT_ALGSET));
                 
                 const fullscreen = document.createElement('div');
                 fullscreen.className = 'json-creator-fullscreen';
@@ -1479,7 +1698,16 @@
                 fullscreen.innerHTML = `
                     <div class="json-creator-topbar">
                         <h2>JSON Creator</h2>
-                        <button class="json-creator-close-btn" onclick="closeJsonCreator()">Save & Close</button>
+                        <select id="rootSelector" style="background: #3c3c3c; border: 1px solid #555555; color: #cccccc; padding: 4px 8px; border-radius: 2px; margin-right: 12px;">
+                            ${Object.keys(AppState.developingJSONs).map(root => 
+                                `<option value="${root}" ${root === AppState.activeDevelopingJSON ? 'selected' : ''}>${root}</option>`
+                            ).join('')}
+                        </select>
+                        <button class="json-creator-close-btn" onclick="jsonCreator.addRoot()" style="margin-right: 8px;">Add Root</button>
+                        <button class="json-creator-close-btn" onclick="jsonCreator.renameRoot()" style="margin-right: 8px;">Rename Root</button>
+                        <button class="json-creator-close-btn" onclick="jsonCreator.copyJSON()" style="margin-right: 8px;">Copy JSON</button>
+                        <button class="json-creator-close-btn" onclick="jsonCreator.extractJSON()" style="margin-right: 8px;">Extract JSON</button>
+                        <button class="json-creator-close-btn" onclick="jsonCreator.runJSON()">Run</button>
                     </div>
                     <div class="json-creator-main">
                         <div class="json-creator-sidebar" id="jsonCreatorSidebar">
@@ -1543,9 +1771,12 @@
                     }
                 });
 
-                document.addEventListener('click', () => {
-                    this.hideContextMenu();
-                });
+                const rootSelector = document.getElementById('rootSelector');
+                if (rootSelector) {
+                    rootSelector.addEventListener('change', (e) => {
+                        this.switchRoot(e.target.value);
+                    });
+                }
             }
 
             renderTree() {
@@ -2156,14 +2387,104 @@
                 alert(`Running "${key}"\n\nCheck console for JSON output`);
             }
 
+            switchRoot(rootName) {
+                // Save current root
+                AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
+                saveDevelopingJSONs();
+                
+                // Switch to new root
+                AppState.activeDevelopingJSON = rootName;
+                this.treeData = JSON.parse(JSON.stringify(AppState.developingJSONs[rootName]));
+                this.selectedPath = '';
+                this.selectedItem = null;
+                this.renderTree();
+                this.showWelcome();
+            }
+
+            addRoot() {
+                const name = prompt('Enter name for new root:');
+                if (!name) return;
+                
+                if (AppState.developingJSONs[name]) {
+                    alert('A root with this name already exists');
+                    return;
+                }
+                
+                AppState.developingJSONs[name] = {};
+                saveDevelopingJSONs();
+                
+                // Update selector
+                const selector = document.getElementById('rootSelector');
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                selector.appendChild(option);
+                selector.value = name;
+                
+                this.switchRoot(name);
+            }
+
+            renameRoot() {
+                const currentName = AppState.activeDevelopingJSON;
+                const newName = prompt(`Rename root "${currentName}" to:`, currentName);
+                
+                if (!newName || newName === currentName) return;
+                
+                if (AppState.developingJSONs[newName]) {
+                    alert('A root with this name already exists');
+                    return;
+                }
+                
+                AppState.developingJSONs[newName] = AppState.developingJSONs[currentName];
+                delete AppState.developingJSONs[currentName];
+                AppState.activeDevelopingJSON = newName;
+                saveDevelopingJSONs();
+                
+                // Update selector
+                const selector = document.getElementById('rootSelector');
+                const options = Array.from(selector.options);
+                const currentOption = options.find(opt => opt.value === currentName);
+                if (currentOption) {
+                    currentOption.value = newName;
+                    currentOption.textContent = newName;
+                    selector.value = newName;
+                }
+            }
+
+            copyJSON() {
+                navigator.clipboard.writeText(JSON.stringify(this.treeData, null, 2))
+                    .then(() => alert('JSON copied to clipboard!'))
+                    .catch(err => alert('Failed to copy: ' + err));
+            }
+
+            extractJSON() {
+                const jsonString = JSON.stringify(this.treeData, null, 2);
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${AppState.activeDevelopingJSON}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            runJSON() {
+                console.log('Running JSON for root:', AppState.activeDevelopingJSON);
+                console.log(JSON.stringify(this.treeData, null, 2));
+                alert(`JSON for "${AppState.activeDevelopingJSON}" printed to console`);
+            }
+
             close() {
-                AppState.algsetData = this.treeData;
-                saveAlgset();
+                // Save current root before closing
+                AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
+                saveDevelopingJSONs();
+                
                 const fullscreen = document.getElementById('jsonCreatorFullscreen');
                 if (fullscreen) {
                     fullscreen.remove();
                 }
-                renderApp();
             }
         }
 
@@ -2175,7 +2496,9 @@
         }
 
         function closeJsonCreator() {
-            jsonCreator.close();
+            if (confirm('Close JSON Creator? All changes are auto-saved.')) {
+                jsonCreator.close();
+            }
         }
 
         // Start the app
