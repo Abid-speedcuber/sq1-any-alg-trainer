@@ -702,16 +702,24 @@ function setupInteractiveEvents(state, containerId) {
     });
 }
 
-// Left click to cycle pieces
-        newSlot.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const position = parseInt(newSlot.dataset.position);
-            const layer = newSlot.dataset.layer;
-            const isCornerZone = newSlot.classList.contains('corner-interaction-zone');
-
-            cyclePiece(state, position, layer, isCornerZone, 1);
-        });
+function cyclePiece(state, position, layer, isCornerZone, direction) {
+    const textPosition = layer === 'top' ? position : position - 12;
+    const currentText = state.getText(layer);
+    const currentPiece = currentText[textPosition];
+    
+    const availablePieces = isCornerZone ? CORNER_PIECES : EDGE_PIECES;
+    const currentIndex = availablePieces.indexOf(currentPiece);
+    
+    let newIndex;
+    if (currentIndex === -1) {
+        newIndex = 0;
+    } else {
+        newIndex = (currentIndex + direction + availablePieces.length) % availablePieces.length;
+    }
+    
+    const newPiece = availablePieces[newIndex];
+    state.updatePiece(position, layer, newPiece);
+}
 
 function showPieceSelectionModal(state, position, layer, isCornerZone, x, y) {
     const modal = document.getElementById('pieceSelectionModal');
