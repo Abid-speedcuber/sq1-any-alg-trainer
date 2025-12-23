@@ -226,7 +226,8 @@ function generateNewScramble() {
             if (typeof window.Square1Solver !== 'undefined' && typeof window.Square1Solver.solve === 'function') {
                 scramble = window.Square1Solver.solve(result.hexState);
             } else {
-                scramble = 'Solver not available';
+                console.error('Square1Solver not available:', typeof window.Square1Solver);
+                scramble = 'Solver not loaded - check console';
             }
         } catch (solverError) {
             console.error('Solver error:', solverError);
@@ -1038,36 +1039,36 @@ class JSONCreator {
 
         fullscreen.innerHTML = `
                     <div class="json-creator-topbar">
+    <button class="json-creator-icon-btn" onclick="jsonCreator.toggleSidebar()" title="Toggle Sidebar" style="margin-right: 8px;">
+        <img src="viz/hamburger-menu.svg" width="16" height="16">
+    </button>
     <h2>JSON Creator</h2>
     <div style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
-        <div style="position: relative; display: flex; align-items: center;">
-            <select id="rootSelector" style="background: #3c3c3c; border: 1px solid #555555; color: #cccccc; padding: 4px 32px 4px 8px; border-radius: 2px; appearance: none;">
+        <div style="position: relative;">
+            <select id="rootSelector" style="background: #f5f5f5; border: 1px solid #d0d0d0; color: #1a1a1a; padding: 4px 8px; border-radius: 4px;">
                 ${Object.keys(AppState.developingJSONs).map(root => 
                     `<option value="${root}" ${root === AppState.activeDevelopingJSON ? 'selected' : ''}>${root}</option>`
                 ).join('')}
             </select>
-            <div style="position: absolute; right: 4px; display: flex; gap: 2px; pointer-events: none;">
-                <img src="viz/add.svg" width="14" height="14" style="opacity: 0.7;">
-                <img src="viz/rename.svg" width="14" height="14" style="opacity: 0.7;">
-                <img src="viz/delete.svg" width="14" height="14" style="opacity: 0.7;">
+            <div style="position: absolute; bottom: -48px; left: 0; right: 0; background: #f5f5f5; border: 1px solid #d0d0d0; border-top: none; border-radius: 0 0 4px 4px; display: none; z-index: 1000;" id="rootActions">
+                <button onclick="jsonCreator.addRoot()" style="width: 100%; padding: 6px 8px; background: transparent; border: none; display: flex; align-items: center; gap: 8px; cursor: pointer; color: #1a1a1a; font-size: 13px;" onmouseover="this.style.background='#e0e0e0'" onmouseout="this.style.background='transparent'">
+                    <img src="viz/add.svg" width="14" height="14"> Add Root
+                </button>
+                <button onclick="jsonCreator.renameRoot()" style="width: 100%; padding: 6px 8px; background: transparent; border: none; display: flex; align-items: center; gap: 8px; cursor: pointer; color: #1a1a1a; font-size: 13px; border-top: 1px solid #d0d0d0;" onmouseover="this.style.background='#e0e0e0'" onmouseout="this.style.background='transparent'">
+                    <img src="viz/rename.svg" width="14" height="14"> Rename Root
+                </button>
+                <button onclick="jsonCreator.deleteRoot()" style="width: 100%; padding: 6px 8px; background: transparent; border: none; display: flex; align-items: center; gap: 8px; cursor: pointer; color: #1a1a1a; font-size: 13px; border-top: 1px solid #d0d0d0;" onmouseover="this.style.background='#e0e0e0'" onmouseout="this.style.background='transparent'">
+                    <img src="viz/delete.svg" width="14" height="14"> Delete Root
+                </button>
             </div>
         </div>
-        <button class="json-creator-icon-btn" onclick="jsonCreator.addRoot()" title="Add Root">
-            <img src="viz/add.svg" width="16" height="16">
-        </button>
-        <button class="json-creator-icon-btn" onclick="jsonCreator.renameRoot()" title="Rename Root">
-            <img src="viz/rename.svg" width="16" height="16">
-        </button>
-        <button class="json-creator-icon-btn" onclick="jsonCreator.deleteRoot()" title="Delete Root">
-            <img src="viz/delete.svg" width="16" height="16">
-        </button>
         <button class="json-creator-icon-btn" onclick="jsonCreator.extractJSON()" title="Extract JSON">
             <img src="viz/extract.svg" width="16" height="16">
         </button>
         <button class="json-creator-icon-btn" onclick="jsonCreator.runJSON()" title="Run">
             <img src="viz/run.svg" width="16" height="16">
         </button>
-        <button class="json-creator-icon-btn" onclick="jsonCreator.close()" title="Quit" style="background: #d32f2f;">
+        <button class="json-creator-icon-btn" onclick="jsonCreator.close()" title="Quit">
             <img src="viz/exit.svg" width="16" height="16">
         </button>
     </div>
@@ -1149,7 +1150,34 @@ class JSONCreator {
             rootSelector.addEventListener('change', (e) => {
                 this.switchRoot(e.target.value);
             });
+            
+            rootSelector.addEventListener('focus', () => {
+                document.getElementById('rootActions').style.display = 'block';
+            });
+            
+            rootSelector.addEventListener('blur', () => {
+                setTimeout(() => {
+                    document.getElementById('rootActions').style.display = 'none';
+                }, 200);
+            });
         }
+
+        // Click outside to deselect
+        document.getElementById('jsonCreatorTree').addEventListener('click', (e) => {
+            if (e.target.id === 'jsonCreatorTree') {
+                this.selectedPath = '';
+                this.selectedItem = null;
+                this.renderTree();
+            }
+        });
+
+        // Right-click on tree root
+        document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) => {
+            if (e.target.id === 'jsonCreatorTree') {
+                e.preventDefault();
+                this.showRootContextMenu(e);
+            }
+        });
     }
 
     renderTree() {
@@ -1304,6 +1332,11 @@ class JSONCreator {
             alg: ''
         };
 
+        // Auto-expand parent folder if not already expanded
+        if (this.selectedPath && !this.expandedFolders.has(this.selectedPath)) {
+            this.expandedFolders.add(this.selectedPath);
+        }
+
         this.renderTree();
 
         // Auto-start rename
@@ -1321,6 +1354,12 @@ class JSONCreator {
         const parent = this.getTargetFolder();
         const name = this.getUniqueName(parent, 'New Folder');
         parent[name] = {};
+        
+        // Auto-expand parent folder if not already expanded
+        if (this.selectedPath && !this.expandedFolders.has(this.selectedPath)) {
+            this.expandedFolders.add(this.selectedPath);
+        }
+        
         this.renderTree();
 
         // Auto-start rename
@@ -1386,7 +1425,22 @@ class JSONCreator {
             parent[name].caseName = name;
         }
 
+        // Auto-expand parent folder if not already expanded
+        if (this.selectedPath && !this.expandedFolders.has(this.selectedPath)) {
+            this.expandedFolders.add(this.selectedPath);
+        }
+
         this.renderTree();
+
+        // Auto-start rename
+        setTimeout(() => {
+            const newPath = this.selectedPath ? `${this.selectedPath}/${name}` : name;
+            const itemDiv = document.querySelector(`[data-path="${newPath}"]`);
+            if (itemDiv) {
+                const input = itemDiv.querySelector('.tree-item-input');
+                this.startRename(itemDiv, input, name);
+            }
+        }, 100);
     }
 
     delete() {
@@ -1424,18 +1478,13 @@ class JSONCreator {
     }
 
     showFolderView(name) {
+        // Don't change the screen, keep showing the last case
+        // Just update the title to show folder is selected
         const title = document.getElementById('jsonCreatorTitle');
         const subtitle = document.getElementById('jsonCreatorSubtitle');
-        const body = document.getElementById('jsonCreatorBody');
-
+        
         title.textContent = `Folder: ${name}`;
-        subtitle.textContent = 'Contains cases and subfolders';
-        body.innerHTML = `
-                    <div class="json-creator-welcome">
-                        <h3>${name}</h3>
-                        <p>This is a folder. Use the toolbar to add cases or subfolders.</p>
-                    </div>
-                `;
+        subtitle.textContent = 'Folder selected - use toolbar to add cases or subfolders';
     }
 
     showCaseEditor(item, name) {
@@ -1738,6 +1787,47 @@ class JSONCreator {
         this.contextMenu = menu;
     }
 
+    showRootContextMenu(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.hideContextMenu();
+
+        const menu = document.createElement('div');
+        menu.className = 'context-menu';
+        menu.style.left = `${e.pageX}px`;
+        menu.style.top = `${e.pageY}px`;
+
+        const items = [
+            { text: 'New Case', action: () => { this.selectedPath = ''; this.selectedItem = null; this.newCase(); } },
+            { text: 'New Folder', action: () => { this.selectedPath = ''; this.selectedItem = null; this.newFolder(); } },
+            { text: 'Paste', action: () => { this.selectedPath = ''; this.selectedItem = null; this.paste(); }, disabled: !this.clipboard },
+            { separator: true },
+            { text: 'Run All', action: () => this.runJSON() }
+        ];
+
+        items.forEach(item => {
+            if (item.separator) {
+                const sep = document.createElement('div');
+                sep.className = 'context-menu-separator';
+                menu.appendChild(sep);
+            } else {
+                const menuItem = document.createElement('div');
+                menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
+                menuItem.textContent = item.text;
+                if (!item.disabled) {
+                    menuItem.onclick = () => {
+                        this.hideContextMenu();
+                        item.action();
+                    };
+                }
+                menu.appendChild(menuItem);
+            }
+        });
+
+        document.body.appendChild(menu);
+        this.contextMenu = menu;
+    }
+
     hideContextMenu() {
         if (this.contextMenu) {
             document.body.removeChild(this.contextMenu);
@@ -1849,7 +1939,7 @@ class JSONCreator {
 
         this.switchRoot(AppState.activeDevelopingJSON);
     }
-    
+
     copyJSON() {
         navigator.clipboard.writeText(JSON.stringify(this.treeData, null, 2))
             .then(() => alert('JSON copied to clipboard!'))
@@ -2085,6 +2175,13 @@ close() {
         fullscreen.remove();
     }
 }
+
+toggleSidebar() {
+        const sidebar = document.querySelector('.json-creator-sidebar');
+        if (sidebar) {
+            sidebar.classList.toggle('hidden');
+        }
+    }
 }
 
 let jsonCreator = new JSONCreator();

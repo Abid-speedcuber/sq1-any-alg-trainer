@@ -356,20 +356,20 @@ textarea.settings-input {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: #1e1e1e;
+    background: #ffffff;
     z-index: 10000;
     display: flex;
     flex-direction: column;
 }
 
 .json-creator-topbar {
-    background: #323233;
-    border-bottom: 1px solid #1e1e1e;
+    background: #f5f5f5;
+    border-bottom: 1px solid #d0d0d0;
     padding: 8px 16px;
     display: flex;
     align-items: center;
     gap: 16px;
-    color: #cccccc;
+    color: #1a1a1a;
 }
 
 .json-creator-topbar h2 {
@@ -393,6 +393,21 @@ textarea.settings-input {
     background: #1177bb;
 }
 
+.json-creator-icon-btn {
+    background: #e0e0e0;
+    border: 1px solid #c0c0c0;
+    padding: 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.json-creator-icon-btn:hover {
+    background: #d0d0d0;
+}
+
 .json-creator-main {
     display: flex;
     flex: 1;
@@ -401,8 +416,8 @@ textarea.settings-input {
 
 .json-creator-sidebar {
     width: 280px;
-    background: #252526;
-    border-right: 1px solid #1e1e1e;
+    background: #f9f9f9;
+    border-right: 1px solid #d0d0d0;
     display: flex;
     flex-direction: column;
 }
@@ -413,7 +428,7 @@ textarea.settings-input {
 
 .json-creator-toolbar {
     padding: 8px;
-    border-bottom: 1px solid #1e1e1e;
+    border-bottom: 1px solid #d0d0d0;
     display: flex;
     gap: 4px;
 }
@@ -421,15 +436,18 @@ textarea.settings-input {
 .json-creator-toolbar-btn {
     background: transparent;
     border: none;
-    color: #cccccc;
+    color: #1a1a1a;
     padding: 6px;
     cursor: pointer;
     border-radius: 3px;
     font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .json-creator-toolbar-btn:hover {
-    background: #2a2d2e;
+    background: #e0e0e0;
 }
 
 .json-creator-tree {
@@ -441,7 +459,7 @@ textarea.settings-input {
 .json-creator-tree-item {
     padding: 4px 8px 4px 0;
     cursor: pointer;
-    color: #cccccc;
+    color: #1a1a1a;
     font-size: 13px;
     display: flex;
     align-items: center;
@@ -450,15 +468,16 @@ textarea.settings-input {
 }
 
 .json-creator-tree-item:hover {
-    background: #2a2d2e;
+    background: #e0e0e0;
 }
 
 .json-creator-tree-item.selected {
-    background: #094771;
+    background: #0078d4;
+    color: #ffffff;
 }
 
 .json-creator-tree-item.multi-selected {
-    background: #37373d;
+    background: #d0d0d0;
 }
 
 .json-creator-tree-item.editing .tree-item-text {
@@ -492,7 +511,7 @@ textarea.settings-input {
 
 .json-creator-content {
     flex: 1;
-    background: #1e1e1e;
+    background: #ffffff;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -500,8 +519,8 @@ textarea.settings-input {
 
 .json-creator-content-header {
     padding: 16px 20px;
-    border-bottom: 1px solid #2d2d2d;
-    color: #cccccc;
+    border-bottom: 1px solid #d0d0d0;
+    color: #1a1a1a;
 }
 
 .json-creator-content-header h3 {
@@ -513,7 +532,7 @@ textarea.settings-input {
 .json-creator-content-header p {
     margin: 0;
     font-size: 12px;
-    color: #858585;
+    color: #666666;
 }
 
 .json-creator-content-body {
@@ -536,9 +555,9 @@ textarea.settings-input {
 .json-creator-form-group input,
 .json-creator-form-group textarea {
     width: 100%;
-    background: #3c3c3c;
-    border: 1px solid #555555;
-    color: #cccccc;
+    background: #ffffff;
+    border: 1px solid #c0c0c0;
+    color: #1a1a1a;
     padding: 6px 8px;
     font-size: 13px;
     border-radius: 2px;
@@ -547,7 +566,7 @@ textarea.settings-input {
 .json-creator-form-group input:focus,
 .json-creator-form-group textarea:focus {
     outline: none;
-    border-color: #0e639c;
+    border-color: #0078d4;
 }
 
 .json-creator-form-group textarea {
@@ -557,8 +576,8 @@ textarea.settings-input {
 }
 
 .json-creator-section {
-    background: #252526;
-    border: 1px solid #2d2d2d;
+    background: #f9f9f9;
+    border: 1px solid #d0d0d0;
     border-radius: 4px;
     padding: 16px;
     margin-bottom: 20px;
@@ -567,7 +586,7 @@ textarea.settings-input {
 .json-creator-section h4 {
     margin: 0 0 12px 0;
     font-size: 14px;
-    color: #cccccc;
+    color: #1a1a1a;
     font-weight: 500;
 }
 

@@ -1,23 +1,23 @@
 //This code may contain a lot of redundant code, but I don't care :)
 //As long as it is working, I am happy :)
 
-const Shape_halflayer = [0, 3, 6, 12, 15, 24, 27, 30, 48, 51, 54, 60, 63];
-const Shape_ShapeIdx = [];
+const Solver_Shape_halflayer = [0, 3, 6, 12, 15, 24, 27, 30, 48, 51, 54, 60, 63];
+const Solver_Shape_ShapeIdx = [];
 
 (function initTrainingShapes() {
   let count = 0;
   for (let i = 0; i < 28561; i++) {
-    const dr = Shape_halflayer[i % 13];
-    const dl = Shape_halflayer[Math.floor(i / 13) % 13];
-    const ur = Shape_halflayer[Math.floor(i / 169) % 13];
-    const ul = Shape_halflayer[Math.floor(i / 2197)];
+    const dr = Solver_Shape_halflayer[i % 13];
+    const dl = Solver_Shape_halflayer[Math.floor(i / 13) % 13];
+    const ur = Solver_Shape_halflayer[Math.floor(i / 169) % 13];
+    const ul = Solver_Shape_halflayer[Math.floor(i / 2197)];
     const value = (ul << 18) | (ur << 12) | (dl << 6) | dr;
     let bits = 0, t = value;
     while (t) {
       bits += t & 1;
       t >>= 1;
     }
-    if (bits === 16) Shape_ShapeIdx[count++] = value;
+    if (bits === 16) Solver_Shape_ShapeIdx[count++] = value;
   }
 })();
 
@@ -91,8 +91,8 @@ function hexToShape(hex) {
 }
 
 function findShapeIndex(shape) {
-  for (let i = 0; i < Shape_ShapeIdx.length; i++) {
-    if (Shape_ShapeIdx[i] === shape) {
+  for (let i = 0; i < Solver_Shape_ShapeIdx.length; i++) {
+    if (Solver_Shape_ShapeIdx[i] === shape) {
       return i;
     }
   }
@@ -743,10 +743,10 @@ function initShapeTables() {
     Shape_ShapeIdxSolver = [];
     count = 0;
     for (i = 0; i < 28561; ++i) {
-        dr = Shape_halflayer[i % 13];
-        dl = Shape_halflayer[~~(i / 13) % 13];
-        ur = Shape_halflayer[~~(~~(i / 13) / 13) % 13];
-        ul = Shape_halflayer[~~(~~(~~(i / 13) / 13) / 13)];
+        dr = Solver_Shape_halflayer[i % 13];
+        dl = Solver_Shape_halflayer[~~(i / 13) % 13];
+        ur = Solver_Shape_halflayer[~~(~~(i / 13) / 13) % 13];
+        ul = Solver_Shape_halflayer[~~(~~(~~(i / 13) / 13) / 13)];
         value = ul << 18 | ur << 12 | dl << 6 | dr;
         
         let bits = 0;
@@ -980,7 +980,9 @@ class ShuangChenSearch {
             return -low - 1;
         }
         
-        return binarySearch(Shape_ShapeIdxSolver, this.FullCube_getParity(obj) << 24 | ulx << 18 | urx << 12 | dlx << 6 | drx) << 1 | this.FullCube_getParity(obj);
+        const shapeValue = this.FullCube_getParity(obj) << 24 | ulx << 18 | urx << 12 | dlx << 6 | drx;
+        const shapeIdx = binarySearch(Shape_ShapeIdxSolver, shapeValue & 0xffffff);
+        return shapeIdx << 1 | (shapeValue >> 24);
     }
     
     FullCube_getSquare(obj, sq) {
@@ -1346,6 +1348,11 @@ function invertScramble(s) {
 // ============================================================================
 
 function solveSquare1(hexInput) {
+    // Ensure solver is initialized
+    if (!solverInitialized) {
+        initializeSolver();
+    }
+    
     try {
         // Get shape index and parity
         const { shapeIndex, parity } = getShapeIndexAndParity(hexInput);
@@ -1418,8 +1425,17 @@ function solveSquare1(hexInput) {
 // INITIALIZATION
 // ============================================================================
 
-initSquareTables();
-initShapeTables();
+let solverInitialized = false;
+
+function initializeSolver() {
+    if (solverInitialized) return;
+    console.log('Initializing Square-1 Solver tables...');
+    initSquareTables();
+    initShapeTables();
+    solverInitialized = true;
+    console.log('Square-1 Solver tables initialized!');
+}
+
 const randomWalkSearch = new RandomWalkSearch();
 
 // ============================================================================
@@ -1427,11 +1443,15 @@ const randomWalkSearch = new RandomWalkSearch();
 // ============================================================================
 
 if (typeof window !== 'undefined') {
+    // Initialize synchronously on load
+    initializeSolver();
+    
     window.Square1Solver = {
         solve: solveSquare1,
         parseHexFormat: parseHexFormat,
         SqCubie: SqCubie,
-        getShapeIndexAndParity: getShapeIndexAndParity
+        getShapeIndexAndParity: getShapeIndexAndParity,
+        isInitialized: () => solverInitialized
     };
     
     console.log('Square-1 Solver loaded! Use: window.Square1Solver.solve("your-hex-here")');
