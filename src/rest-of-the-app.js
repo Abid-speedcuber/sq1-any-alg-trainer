@@ -109,6 +109,17 @@ function loadSelectedCases() {
     }
 }
 
+// Load last screen state
+function loadLastScreen() {
+    const lastScreen = localStorage.getItem('sq1LastScreen');
+    return lastScreen || 'training';
+}
+
+// Save last screen state
+function saveLastScreen(screen) {
+    localStorage.setItem('sq1LastScreen', screen);
+}
+
 // Save selected cases to localStorage
 function saveSelectedCases() {
     localStorage.setItem('sq1SelectedCases', JSON.stringify(AppState.selectedCases));
@@ -119,10 +130,17 @@ function initApp() {
     loadTrainingJSONs();
     loadDevelopingJSONs();
     loadSelectedCases();
-    renderApp();
-    setupEventListeners();
-    if (AppState.selectedCases.length > 0) {
-        generateNewScramble();
+    
+    const lastScreen = loadLastScreen();
+    if (lastScreen === 'jsonCreator') {
+        showJsonCreatorFullscreen();
+    } else {
+        saveLastScreen('training');
+        renderApp();
+        setupEventListeners();
+        if (AppState.selectedCases.length > 0) {
+            generateNewScramble();
+        }
     }
 }
 
@@ -1030,6 +1048,7 @@ class JSONCreator {
     }
 
     show() {
+        saveLastScreen('jsonCreator');
         // Load current developing JSON
         this.treeData = JSON.parse(JSON.stringify(AppState.developingJSONs[AppState.activeDevelopingJSON] || DEFAULT_ALGSET));
 
@@ -1503,143 +1522,264 @@ class JSONCreator {
         if (!item.constraints) item.constraints = {};
 
         body.innerHTML = `
+            <div class="case-editor-tabs">
+                <button class="case-editor-tab active" onclick="jsonCreator.switchCaseTab('shape')">Shape Input</button>
+                <button class="case-editor-tab" onclick="jsonCreator.switchCaseTab('additional')">Additional Information</button>
+            </div>
+            <div id="caseEditorContent"></div>
+        `;
+
+        this.currentCaseTab = 'shape';
+        this.renderCaseTab(item, name);
+    }
+
+    switchCaseTab(tab) {
+        this.currentCaseTab = tab;
+        const tabs = document.querySelectorAll('.case-editor-tab');
+        tabs.forEach(t => t.classList.remove('active'));
+        event.target.classList.add('active');
+        this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
+    }
+
+    renderCaseTab(item, name) {
+        const content = document.getElementById('caseEditorContent');
+        if (!content) return;
+
+        if (this.currentCaseTab === 'shape') {
+            // Initialize interactive states if they don't exist
+            if (!this.topState) {
+                this.topState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
+                    item.inputTop[0] || 'RRRRRRRRRRRR',
+                    '',
+                    window.InteractiveScrambleRenderer.DEFAULT_COLOR_SCHEME
+                );
+                this.topState.onChange(() => {
+                    if (this.selectedItem) {
+                        this.selectedItem.inputTop = [this.topState.topText];
+                        document.getElementById('topLayerInput').value = this.topState.topText;
+                    }
+                });
+            }
+
+            if (!this.bottomState) {
+                this.bottomState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
+                    '',
+                    item.inputBottom[0] || 'RRRRRRRRRRRR',
+                    window.InteractiveScrambleRenderer.DEFAULT_COLOR_SCHEME
+                );
+                this.bottomState.onChange(() => {
+                    if (this.selectedItem) {
+                        this.selectedItem.inputBottom = [this.bottomState.bottomText];
+                        document.getElementById('bottomLayerInput').value = this.bottomState.bottomText;
+                    }
+                });
+            }
+
+            content.innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                     <div class="json-creator-section">
-                        <h4>Basic Information</h4>
+                        <h4>Top Layer</h4>
                         <div class="json-creator-form-group">
-                            <label>Case Name</label>
-                            <input type="text" value="${item.caseName}" onchange="jsonCreator.updateField('caseName', this.value)">
+                            <input type="text" maxlength="12" id="topLayerInput" value="${item.inputTop[0] || 'RRRRRRRRRRRR'}" 
+                                   style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0;">
                         </div>
-                        <div class="json-creator-form-group">
-                            <label>Algorithm</label>
-                            <textarea onchange="jsonCreator.updateField('alg', this.value)">${item.alg || ''}</textarea>
-                        </div>
+                        <div id="topInteractive" style="display: flex; justify-content: center; margin-top: 12px;"></div>
                     </div>
 
                     <div class="json-creator-section">
-                        <h4>Shape Input</h4>
+                        <h4>Bottom Layer</h4>
                         <div class="json-creator-form-group">
-                            <label>Top Layer (12 chars)</label>
-                            <input type="text" maxlength="12" value="${item.inputTop[0] || 'RRRRRRRRRRRR'}" 
-                                   onchange="jsonCreator.updateField('inputTop', [this.value])" style="font-family: monospace;">
+                            <input type="text" maxlength="12" id="bottomLayerInput" value="${item.inputBottom[0] || 'RRRRRRRRRRRR'}" 
+                                   style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0;">
                         </div>
-                        <div class="json-creator-form-group">
-                            <label>Bottom Layer (12 chars)</label>
-                            <input type="text" maxlength="12" value="${item.inputBottom[0] || 'RRRRRRRRRRRR'}" 
-                                   onchange="jsonCreator.updateField('inputBottom', [this.value])" style="font-family: monospace;">
-                        </div>
+                        <div id="bottomInteractive" style="display: flex; justify-content: center; margin-top: 12px;"></div>
                     </div>
+                </div>
 
-                    <div class="json-creator-section">
-                        <h4>Constraints</h4>
-                        <div class="json-creator-form-group">
-                            <label>Position (e.g., A, BC, D)</label>
-                            <input type="text" id="constraintPosition" placeholder="Enter position...">
-                        </div>
-                        <div class="json-creator-form-group">
-                            <label>Allowed Pieces (comma-separated)</label>
-                            <input type="text" id="constraintValues" placeholder="e.g., 1,3,5,7">
-                        </div>
-                        <button class="json-creator-btn" onclick="jsonCreator.addConstraint()">Add Constraint</button>
-                        <div id="constraintsList" style="margin-top: 10px;">
-                            ${Object.entries(item.constraints || {}).map(([pos, vals]) => `
-                                <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 4px; background: #3c3c3c; border-radius: 2px;">
-                                    <span style="color: #cccccc; font-size: 12px;">${pos}: ${vals.join(', ')}</span>
-                                    <button onclick="jsonCreator.removeConstraint('${pos}')" style="background: #d32f2f; border: none; color: white; padding: 2px 8px; border-radius: 2px; cursor: pointer; font-size: 11px;">Remove</button>
-                                </div>
-                            `).join('')}
-                        </div>
+                <div class="json-creator-section">
+                    <h4>Constraints</h4>
+                    <div class="json-creator-form-group">
+                        <label>Position (e.g., A, BC, D)</label>
+                        <input type="text" id="constraintPosition" placeholder="Enter position...">
                     </div>
-
-                    <div class="json-creator-section">
-                        <h4>Equator</h4>
-                        <div class="json-creator-grid">
-                            <div class="json-creator-grid-item">
-                                <input type="checkbox" ${item.equator['/'] > 0 ? 'checked' : ''} 
-                                       onchange="jsonCreator.updateEquator('/', this.checked ? 1 : 0)">
-                                <label>Slash (/)</label>
+                    <div class="json-creator-form-group">
+                        <label>Allowed Pieces (comma-separated)</label>
+                        <input type="text" id="constraintValues" placeholder="e.g., 1,3,5,7">
+                    </div>
+                    <button class="json-creator-btn" onclick="jsonCreator.addConstraint()">Add Constraint</button>
+                    <div id="constraintsList" style="margin-top: 10px;">
+                        ${Object.entries(item.constraints || {}).map(([pos, vals]) => `
+                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 4px; background: #3c3c3c; border-radius: 2px;">
+                                <span style="color: #cccccc; font-size: 12px;">${pos}: ${vals.join(', ')}</span>
+                                <button onclick="jsonCreator.removeConstraint('${pos}')" style="background: #d32f2f; border: none; color: white; padding: 2px 8px; border-radius: 2px; cursor: pointer; font-size: 11px;">Remove</button>
                             </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            // Render interactive visualizations
+            const topContainer = document.getElementById('topInteractive');
+            const bottomContainer = document.getElementById('bottomInteractive');
+
+            if (topContainer) {
+                this.topState.topText = item.inputTop[0] || 'RRRRRRRRRRRR';
+                this.topState.bottomText = '';
+                this.topState.parse();
+                topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
+                window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
+            }
+
+            if (bottomContainer) {
+                this.bottomState.topText = '';
+                this.bottomState.bottomText = item.inputBottom[0] || 'RRRRRRRRRRRR';
+                this.bottomState.parse();
+                bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
+                window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
+            }
+
+            // Setup input listeners
+            const topInput = document.getElementById('topLayerInput');
+            const bottomInput = document.getElementById('bottomLayerInput');
+
+            if (topInput) {
+                topInput.addEventListener('input', (e) => {
+                    const value = e.target.value.toUpperCase().substring(0, 12);
+                    e.target.value = value;
+                    if (value.length === 12) {
+                        try {
+                            this.topState.topText = value;
+                            this.topState.parse();
+                            document.getElementById('topInteractive').innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
+                            window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
+                            this.selectedItem.inputTop = [value];
+                        } catch (error) {
+                            console.error('Parse error:', error);
+                            alert('Invalid input: ' + error.message);
+                        }
+                    }
+                });
+            }
+
+            if (bottomInput) {
+                bottomInput.addEventListener('input', (e) => {
+                    const value = e.target.value.toUpperCase().substring(0, 12);
+                    e.target.value = value;
+                    if (value.length === 12) {
+                        try {
+                            this.bottomState.bottomText = value;
+                            this.bottomState.parse();
+                            document.getElementById('bottomInteractive').innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
+                            window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
+                            this.selectedItem.inputBottom = [value];
+                        } catch (error) {
+                            console.error('Parse error:', error);
+                            alert('Invalid input: ' + error.message);
+                        }
+                    }
+                });
+            }
+
+        } else if (this.currentCaseTab === 'additional') {
+            content.innerHTML = `
+                <div class="json-creator-section">
+                    <h4>Equator</h4>
+                    <div class="json-creator-grid">
+                        <div class="json-creator-grid-item">
+                            <input type="checkbox" ${item.equator['/'] > 0 ? 'checked' : ''} 
+                                   onchange="jsonCreator.updateEquator('/', this.checked ? 1 : 0)">
+                            <label>Slash (/)</label>
+                        </div>
+                        <div class="json-creator-grid-item">
+                            <input type="checkbox" ${item.equator['|'] > 0 ? 'checked' : ''} 
+                                   onchange="jsonCreator.updateEquator('|', this.checked ? 1 : 0)">
+                            <label>Bar (|)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="json-creator-section">
+                    <h4>Parity (6 modes)</h4>
+                    <div class="json-creator-grid">
+                        ${['tnbn', 'tpbn', 'tnbp', 'tpbp', 'on', 'op'].map(mode => {
+                const labels = {
+                    'tnbn': 'tnbn (Top Normal, Bottom Normal)',
+                    'tpbn': 'tpbn (Top Parity, Bottom Normal)',
+                    'tnbp': 'tnbp (Top Normal, Bottom Parity)',
+                    'tpbp': 'tpbp (Top Parity, Bottom Parity)',
+                    'on': 'on (Overall Normal)',
+                    'op': 'op (Overall Parity)'
+                };
+                return `
+                    <div class="json-creator-grid-item">
+                        <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes(mode) ? 'checked' : ''} 
+                               onchange="jsonCreator.updateMoveArray('parity', '${mode}', this.checked)">
+                        <label>${labels[mode]}</label>
+                    </div>
+                `}).join('')}
+                    </div>
+                </div>
+
+                <div class="json-creator-section">
+                    <h4>AUF (Adjust U Face)</h4>
+                    <div class="json-creator-grid">
+                        ${['U0', 'U', 'U2', "U'"].map(move => `
                             <div class="json-creator-grid-item">
-                                <input type="checkbox" ${item.equator['|'] > 0 ? 'checked' : ''} 
-                                       onchange="jsonCreator.updateEquator('|', this.checked ? 1 : 0)">
-                                <label>Bar (|)</label>
+                                <input type="checkbox" ${item.auf.includes(move) ? 'checked' : ''} 
+                                       onchange="jsonCreator.updateMoveArray('auf', '${move}', this.checked)">
+                                <label>${move}</label>
                             </div>
-                        </div>
+                        `).join('')}
                     </div>
+                </div>
 
-                    <div class="json-creator-section">
-                        <h4>Parity (6 modes)</h4>
-                        <div class="json-creator-grid">
-                            ${['tnbn', 'tpbn', 'tnbp', 'tpbp', 'on', 'op'].map(mode => {
-            const labels = {
-                'tnbn': 'tnbn (Top Normal, Bottom Normal)',
-                'tpbn': 'tpbn (Top Parity, Bottom Normal)',
-                'tnbp': 'tnbp (Top Normal, Bottom Parity)',
-                'tpbp': 'tpbp (Top Parity, Bottom Parity)',
-                'on': 'on (Overall Normal)',
-                'op': 'op (Overall Parity)'
-            };
-            return `
-                                <div class="json-creator-grid-item">
-                                    <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes(mode) ? 'checked' : ''} 
-                                           onchange="jsonCreator.updateMoveArray('parity', '${mode}', this.checked)">
-                                    <label>${labels[mode]}</label>
-                                </div>
-                            `}).join('')}
-                        </div>
+                <div class="json-creator-section">
+                    <h4>ADF (Adjust D Face)</h4>
+                    <div class="json-creator-grid">
+                        ${['D0', 'D', 'D2', "D'"].map(move => `
+                            <div class="json-creator-grid-item">
+                                <input type="checkbox" ${item.adf.includes(move) ? 'checked' : ''} 
+                                       onchange="jsonCreator.updateMoveArray('adf', '${move}', this.checked)">
+                                <label>${move}</label>
+                            </div>
+                        `).join('')}
                     </div>
+                </div>
 
-                    <div class="json-creator-section">
-                        <h4>AUF (Adjust U Face)</h4>
-                        <div class="json-creator-grid">
-                            ${['U0', 'U', 'U2', "U'"].map(move => `
-                                <div class="json-creator-grid-item">
-                                    <input type="checkbox" ${item.auf.includes(move) ? 'checked' : ''} 
-                                           onchange="jsonCreator.updateMoveArray('auf', '${move}', this.checked)">
-                                    <label>${move}</label>
-                                </div>
-                            `).join('')}
-                        </div>
+                <div class="json-creator-section">
+                    <h4>RUL (Rotate Upper Layer)</h4>
+                    <div class="json-creator-grid">
+                        ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
+                            <div class="json-creator-grid-item">
+                                <input type="checkbox" ${Array.isArray(item.rul) && item.rul.includes(val) ? 'checked' : ''} 
+                                       onchange="jsonCreator.updateNumberArray('rul', ${val}, this.checked)">
+                                <label>${val}</label>
+                            </div>
+                        `).join('')}
                     </div>
+                </div>
 
-                    <div class="json-creator-section">
-                        <h4>ADF (Adjust D Face)</h4>
-                        <div class="json-creator-grid">
-                            ${['D0', 'D', 'D2', "D'"].map(move => `
-                                <div class="json-creator-grid-item">
-                                    <input type="checkbox" ${item.adf.includes(move) ? 'checked' : ''} 
-                                           onchange="jsonCreator.updateMoveArray('adf', '${move}', this.checked)">
-                                    <label>${move}</label>
-                                </div>
-                            `).join('')}
-                        </div>
+                <div class="json-creator-section">
+                    <h4>RDL (Rotate Down Layer)</h4>
+                    <div class="json-creator-grid">
+                        ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
+                            <div class="json-creator-grid-item">
+                                <input type="checkbox" ${Array.isArray(item.rdl) && item.rdl.includes(val) ? 'checked' : ''} 
+                                       onchange="jsonCreator.updateNumberArray('rdl', ${val}, this.checked)">
+                                <label>${val}</label>
+                            </div>
+                        `).join('')}
                     </div>
+                </div>
 
-                    <div class="json-creator-section">
-                        <h4>RUL (Rotate Upper Layer)</h4>
-                        <div class="json-creator-grid">
-                            ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
-                                <div class="json-creator-grid-item">
-                                    <input type="checkbox" ${item.rul.includes(val) ? 'checked' : ''} 
-                                           onchange="jsonCreator.updateNumberArray('rul', ${val}, this.checked)">
-                                    <label>${val}</label>
-                                </div>
-                            `).join('')}
-                        </div>
+                <div class="json-creator-section">
+                    <h4>Algorithm</h4>
+                    <div class="json-creator-form-group">
+                        <textarea onchange="jsonCreator.updateField('alg', this.value)" style="min-height: 80px;">${item.alg || ''}</textarea>
                     </div>
-
-                    <div class="json-creator-section">
-                        <h4>RDL (Rotate Down Layer)</h4>
-                        <div class="json-creator-grid">
-                            ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
-                                <div class="json-creator-grid-item">
-                                    <input type="checkbox" ${item.rdl.includes(val) ? 'checked' : ''} 
-                                           onchange="jsonCreator.updateNumberArray('rdl', ${val}, this.checked)">
-                                    <label>${val}</label>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
+                </div>
+            `;
+        }
     }
 
     updateField(field, value) {
@@ -1947,6 +2087,10 @@ class JSONCreator {
     }
 
     extractJSON() {
+        // Save current root before extracting
+        AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
+        saveDevelopingJSONs();
+        
         const jsonString = JSON.stringify(this.treeData, null, 2);
         
         const modal = document.createElement('div');
@@ -1958,26 +2102,38 @@ class JSONCreator {
                     <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
                 </div>
                 <div class="modal-body">
-                    <textarea readonly style="width: 100%; min-height: 400px; font-family: 'Courier New', monospace; background: #1a1a1a; color: #e0e0e0; border: 1px solid #404040; border-radius: 6px; padding: 12px;">${jsonString}</textarea>
+                    <textarea readonly id="extractedJSON" style="width: 100%; min-height: 400px; font-family: 'Courier New', monospace; background: #1a1a1a; color: #e0e0e0; border: 1px solid #404040; border-radius: 6px; padding: 12px;">${jsonString}</textarea>
                     <div class="button-group" style="margin-top: 12px;">
-                        <button class="btn btn-primary" onclick="navigator.clipboard.writeText(this.closest('.modal-body').querySelector('textarea').value).then(() => alert('JSON copied to clipboard!'))">Copy JSON</button>
-                        <button class="btn btn-primary" onclick="(() => {
-                            const json = this.closest('.modal-body').querySelector('textarea').value;
-                            const blob = new Blob([json], { type: 'application/json' });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = '${AppState.activeDevelopingJSON}.json';
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(url);
-                        })()">Download JSON</button>
+                        <button class="btn btn-primary" id="copyJSONBtn">Copy JSON</button>
+                        <button class="btn btn-primary" id="downloadJSONBtn">Download JSON</button>
                     </div>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
+
+        // Add event listeners after modal is in DOM
+        document.getElementById('copyJSONBtn').addEventListener('click', () => {
+            const textarea = document.getElementById('extractedJSON');
+            navigator.clipboard.writeText(textarea.value).then(() => {
+                alert('JSON copied to clipboard!');
+            }).catch(err => {
+                alert('Failed to copy: ' + err);
+            });
+        });
+
+        document.getElementById('downloadJSONBtn').addEventListener('click', () => {
+            const textarea = document.getElementById('extractedJSON');
+            const blob = new Blob([textarea.value], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${AppState.activeDevelopingJSON}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
 
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
@@ -2169,10 +2325,18 @@ close() {
     // Save current root before closing
     AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
     saveDevelopingJSONs();
+    saveLastScreen('training');
     
     const fullscreen = document.getElementById('jsonCreatorFullscreen');
     if (fullscreen) {
         fullscreen.remove();
+    }
+    
+    // Return to training screen
+    renderApp();
+    setupEventListeners();
+    if (AppState.selectedCases.length > 0) {
+        generateNewScramble();
     }
 }
 

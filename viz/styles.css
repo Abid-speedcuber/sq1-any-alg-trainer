@@ -805,3 +805,38 @@ textarea.settings-input {
     background: #555;
     cursor: not-allowed;
 }
+
+.case-editor-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #404040;
+}
+
+.case-editor-tab {
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    color: #b0b0b0;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+}
+
+.case-editor-tab:hover {
+    color: #e0e0e0;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.case-editor-tab.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+}
+
+#caseEditorContent {
+    max-height: calc(100vh - 250px);
+    overflow-y: auto;
+}
