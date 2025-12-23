@@ -233,10 +233,8 @@ function generateNewScramble() {
         if (config.AUF.length === 0) config.AUF = ['U0'];
         if (config.ADF.length === 0) config.ADF = ['D0'];
         if (config.middleLayer.length === 0) config.middleLayer = ['/'];
-
-        console.log('Config:', config);
+        
         const result = generateHexState(config);
-        console.log('Generated hex result:', result);
         
         // Generate scramble using solver
         let scramble = '';

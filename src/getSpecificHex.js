@@ -685,8 +685,6 @@ function solveWithBacktracking(clusteredSlots, constraints, parityModes, origina
                 }
             }
         }
-        
-        console.log(`Parity mode '${parityMode}' failed after ${attempts} attempts, trying next mode...`);
     }
 
     return null;
@@ -883,20 +881,6 @@ const testCases = [
         parity: ['tpbp']
     }
 ];
-/*
-// CLI interface
-if (require.main === module) {
-    const testCase = testCases[0];
-    console.log('Generating hex state...');
-    console.log('Input:', testCase);
-    
-    try {
-        const result = generateHexState(testCase);
-        console.log('\nResult:', result);
-    } catch (error) {
-        console.error('Error:', error.message);
-    }
-}*/
 
 // Export for use as module
 if (typeof module !== 'undefined' && module.exports) {

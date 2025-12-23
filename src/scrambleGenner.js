@@ -1357,8 +1357,6 @@ function solveSquare1(hexInput) {
         // Get shape index and parity
         const { shapeIndex, parity } = getShapeIndexAndParity(hexInput);
         
-        console.log(`Shape Index: ${shapeIndex}, Parity: ${parity}`);
-        
         // Decide which solver to use
         const useRandomWalk = 
             (shapeIndex === 1015 && parity === 'odd') ||
@@ -1367,7 +1365,6 @@ function solveSquare1(hexInput) {
             (shapeIndex === 2507 && parity === 'odd');
         
         if (useRandomWalk) {
-            console.log('Using Random Walk Solver...');
             const cubie = parseHexFormat(hexInput);
             const solution = randomWalkSearch.findSolution(cubie);
             
@@ -1377,30 +1374,22 @@ function solveSquare1(hexInput) {
                 throw new Error("No solution found or already solved");
             }
         } else {
-            console.log('Using Hex Randomizer Solver...');
             const enigma = new SQ1Enigma();
-            const depth = Math.floor(Math.random() * 3) + 2; // Random depth 2-4
+            const depth = Math.floor(Math.random() * 3); // Random depth 0-2
             const randomizedResult = enigma.encode(hexInput, depth);
             
-            console.log('Randomized state:', randomizedResult.encoded);
-            
             const invertedHint = invertScramble(randomizedResult.notation);
-            console.log('Inverted hint:', invertedHint);
             
             // Now solve the randomized state using Shuang Chen's solver
             const randomizedCubie = parseHexFormat(randomizedResult.encoded);
             const shuangChenSolution = shuangChenSolver.scrambleFromState(randomizedCubie);
-            
-            console.log('Shuang Chen solution:', shuangChenSolution);
             
             if (!shuangChenSolution) {
                 throw new Error('Could not generate scramble for randomized state');
             }
             
             // Combine: inverted hint + Shuang Chen's scramble
-            const combined = invertedHint + ' ' + shuangChenSolution;
-            console.log('Combined:', combined);
-            
+            const combined = invertedHint + ' ' + shuangChenSolution;            
             // Simplify the combined scramble
             const clean = normalizeInput(combined);
             const tokens = parseSets(clean);
@@ -1412,8 +1401,6 @@ function solveSquare1(hexInput) {
                 if (i === 0) return tok;
                 return " " + tok;
             }).join("").replace(/\/\s*\(/g, "/ (");
-
-            console.log('Final output:', finalOutput);
             return finalOutput;
         }
     } catch (error) {
@@ -1429,11 +1416,9 @@ let solverInitialized = false;
 
 function initializeSolver() {
     if (solverInitialized) return;
-    console.log('Initializing Square-1 Solver tables...');
     initSquareTables();
     initShapeTables();
     solverInitialized = true;
-    console.log('Square-1 Solver tables initialized!');
 }
 
 const randomWalkSearch = new RandomWalkSearch();
@@ -1453,8 +1438,6 @@ if (typeof window !== 'undefined') {
         getShapeIndexAndParity: getShapeIndexAndParity,
         isInitialized: () => solverInitialized
     };
-    
-    console.log('Square-1 Solver loaded! Use: window.Square1Solver.solve("your-hex-here")');
 }
 
 // ============================================================================
@@ -1465,14 +1448,11 @@ if (typeof require !== 'undefined' && require.main === module) {
     const hexInput = process.argv[2];
     
     if (!hexInput) {
-        console.log('Usage: node merged-solver.js <hex-string>');
-        console.log('Example: node merged-solver.js 011233455677/998bbaddcffe');
         process.exit(1);
     }
     
     try {
         const solution = solveSquare1(hexInput);
-        console.log('Solution:', solution);
     } catch (error) {
         console.error('Error:', error.message);
         process.exit(1);

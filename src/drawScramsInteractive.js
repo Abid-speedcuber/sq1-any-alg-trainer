@@ -658,11 +658,10 @@ function setupInteractiveEvents(state, containerId) {
 
             cyclePiece(state, position, layer, isCornerZone, 1);
             
-            // Force re-render after cycling
+            // Re-render just THIS container (topInteractive or bottomInteractive)
             const container = document.getElementById(containerId);
             if (container) {
-                const parent = container.parentElement;
-                parent.innerHTML = createInteractiveSVG(state, { size: 200 });
+                container.innerHTML = createInteractiveSVG(state, { size: 200 });
                 setupInteractiveEvents(state, containerId);
             }
         });

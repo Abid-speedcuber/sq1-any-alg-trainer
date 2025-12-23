@@ -822,25 +822,76 @@ class JSONCreator {
 
     renderCaseTab(item, name) {
         const content = document.getElementById('caseEditorContent');
-        if (!content) return;
+        if (!content) {
+            console.error('caseEditorContent not found!');
+            return;
+        }
 
         if (this.currentCaseTab === 'shape') {
-            // Initialize interactive states if they don't exist
-            if (!this.topState && window.InteractiveScrambleRenderer) {
+            // Check if we already rendered this tab - if so, just update the states
+            const alreadyRendered = content.querySelector('#topLayerInput');
+            
+            if (alreadyRendered) {                
+                // Update input values
+                const topInput = document.getElementById('topLayerInput');
+                const bottomInput = document.getElementById('bottomLayerInput');
+                if (topInput) topInput.value = item.inputTop[0] || 'RRRRRRRRRRRR';
+                if (bottomInput) bottomInput.value = item.inputBottom[0] || 'RRRRRRRRRRRR';
+                
+                // Update visualizations
+                if (this.topState && window.InteractiveScrambleRenderer) {
+                    this.topState.topText = item.inputTop[0] || 'RRRRRRRRRRRR';
+                    this.topState.bottomText = '';
+                    this.topState.parse();
+                    const topContainer = document.getElementById('topInteractive');
+                    if (topContainer) {
+                        topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
+                        window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
+                    }
+                }
+                
+                if (this.bottomState && window.InteractiveScrambleRenderer) {
+                    this.bottomState.topText = '';
+                    this.bottomState.bottomText = item.inputBottom[0] || 'RRRRRRRRRRRR';
+                    this.bottomState.parse();
+                    const bottomContainer = document.getElementById('bottomInteractive');
+                    if (bottomContainer) {
+                        bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
+                        window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
+                    }
+                }
+                
+                return;
+            }
+            
+            // Always recreate states to ensure they're fresh
+            if (window.InteractiveScrambleRenderer) {
                 this.topState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
                     item.inputTop[0] || 'RRRRRRRRRRRR',
                     '',
                     window.InteractiveScrambleRenderer.DEFAULT_COLOR_SCHEME
                 );
                 this.topState.onChange(() => {
+                    console.trace('Top state onChange call stack');
                     if (this.selectedItem) {
                         this.selectedItem.inputTop = [this.topState.topText];
-                        document.getElementById('topLayerInput').value = this.topState.topText;
+                        const topInput = document.getElementById('topLayerInput');
+                        if (topInput) {
+                            topInput.value = this.topState.topText;
+                            // Check again after a moment
+                            setTimeout(() => {
+                                const stillThere = document.getElementById('topLayerInput');
+                                if (stillThere) {
+                                }
+                            }, 100);
+                        } else {
+                            console.error('Top input element not found!');
+                        }
                     }
                 });
             }
 
-            if (!this.bottomState && window.InteractiveScrambleRenderer) {
+            if (window.InteractiveScrambleRenderer) {
                 this.bottomState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
                     '',
                     item.inputBottom[0] || 'RRRRRRRRRRRR',
@@ -849,7 +900,12 @@ class JSONCreator {
                 this.bottomState.onChange(() => {
                     if (this.selectedItem) {
                         this.selectedItem.inputBottom = [this.bottomState.bottomText];
-                        document.getElementById('bottomLayerInput').value = this.bottomState.bottomText;
+                        const bottomInput = document.getElementById('bottomLayerInput');
+                        if (bottomInput) {
+                            bottomInput.value = this.bottomState.bottomText;
+                        } else {
+                            console.error('Bottom input element not found!');
+                        }
                     }
                 });
             }
@@ -920,21 +976,45 @@ class JSONCreator {
             // Setup input listeners
             const topInput = document.getElementById('topLayerInput');
             const bottomInput = document.getElementById('bottomLayerInput');
+            // Debug: Watch for DOM removal
+            if (topInput) {
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        mutation.removedNodes.forEach((node) => {
+                            if (node === topInput || (node.contains && node.contains(topInput))) {
+                                console.error('TOP INPUT WAS REMOVED FROM DOM!');
+                                console.trace('Removal call stack');
+                            }
+                        });
+                    });
+                });
+                observer.observe(topInput.parentElement, { childList: true, subtree: true });
+            }
 
             if (topInput) {
                 topInput.addEventListener('input', (e) => {
                     const value = e.target.value.toUpperCase().substring(0, 12);
                     e.target.value = value;
+                    
+                    if (value.length < 12) {
+                        e.target.style.borderColor = '#ef4444';
+                        return;
+                    }
+                    
+                    e.target.style.borderColor = '#404040';
+                    
                     if (value.length === 12) {
                         try {
                             this.topState.topText = value;
                             this.topState.parse();
-                            document.getElementById('topInteractive').innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
+                            const topContainer = document.getElementById('topInteractive');
+                            topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
                             window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
                             this.selectedItem.inputTop = [value];
                         } catch (error) {
                             console.error('Parse error:', error);
                             alert('Invalid input: ' + error.message);
+                            e.target.style.borderColor = '#ef4444';
                         }
                     }
                 });
@@ -944,16 +1024,26 @@ class JSONCreator {
                 bottomInput.addEventListener('input', (e) => {
                     const value = e.target.value.toUpperCase().substring(0, 12);
                     e.target.value = value;
+                    
+                    if (value.length < 12) {
+                        e.target.style.borderColor = '#ef4444';
+                        return;
+                    }
+                    
+                    e.target.style.borderColor = '#404040';
+                    
                     if (value.length === 12) {
                         try {
                             this.bottomState.bottomText = value;
                             this.bottomState.parse();
-                            document.getElementById('bottomInteractive').innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
+                            const bottomContainer = document.getElementById('bottomInteractive');
+                            bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
                             window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
                             this.selectedItem.inputBottom = [value];
                         } catch (error) {
                             console.error('Parse error:', error);
                             alert('Invalid input: ' + error.message);
+                            e.target.style.borderColor = '#ef4444';
                         }
                     }
                 });
