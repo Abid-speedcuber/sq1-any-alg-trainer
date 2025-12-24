@@ -740,7 +740,8 @@ function showPieceSelectionModal(state, position, layer, isCornerZone, x, y) {
             closePieceModal();
         };
 
-        button.innerHTML = `<img src="viz/piece/piece_${piece}.svg" width="30" height="30"><span style="font-family: monospace; font-size: 12px;">${piece}</span>`;
+        const svgName = piece === 'E' ? 'piece_E_placeholder' : piece === 'C' ? 'piece_C_placeholder' : `piece_${piece}`;
+button.innerHTML = `<img src="viz/piece/${svgName}.svg" width="30" height="30"><span style="font-family: monospace; font-size: 12px;">${piece}</span>`;
         grid.appendChild(button);
     });
 

@@ -2,7 +2,8 @@
 window.openJsonCreator = function () {
     document.querySelector('.modal').remove();
     const modal = document.createElement('div');
-    modal.className = 'modal active';
+    modal.className = 'modal active extract-json-modal';
+    modal.style.zIndex = '20000'; // Higher than json-creator-fullscreen (10000)
     modal.innerHTML = `
                 <div class="modal-content" style="max-width: 1000px;">
                     <div class="modal-header">
@@ -1489,18 +1490,26 @@ class JSONCreator {
     }
 
     extractJSON() {
-        // Save current root before extracting
-        AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
-        saveDevelopingJSONs();
-        
-        const jsonString = JSON.stringify(this.treeData, null, 2);
-        
-        // Remove any existing modal first
-        const existingModal = document.querySelector('.modal.active');
-        if (existingModal) existingModal.remove();
+    console.log('[extractJSON] Starting extraction for:', AppState.activeDevelopingJSON);
+    
+    // Save current root before extracting
+    AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
+    saveDevelopingJSONs();
+    
+    const jsonString = JSON.stringify(this.treeData, null, 2);
+    console.log('[extractJSON] JSON string length:', jsonString.length);
+    
+    // Remove any existing extract modal first
+    const existingModal = document.querySelector('.extract-json-modal');
+    if (existingModal) {
+        console.log('[extractJSON] Removing existing modal');
+        existingModal.remove();
+    }
         
         const modal = document.createElement('div');
-        modal.className = 'modal active';
+        modal.className = 'modal active extract-json-modal';
+        modal.style.zIndex = '20000'; // Higher than json-creator-fullscreen (10000)
+        console.log('[extractJSON] Created modal element with z-index 20000');
         modal.innerHTML = `
             <div class="modal-content" style="max-width: 800px;">
                 <div class="modal-header">
@@ -1517,9 +1526,58 @@ class JSONCreator {
             </div>
         `;
         document.body.appendChild(modal);
+        console.log('[extractJSON] Modal appended to body');
+        console.log('[extractJSON] Modal in DOM:', document.body.contains(modal));
+        console.log('[extractJSON] Modal classes:', modal.className);
+        console.log('[extractJSON] Modal display style:', window.getComputedStyle(modal).display);
+        console.log('[extractJSON] Modal visibility:', window.getComputedStyle(modal).visibility);
+        console.log('[extractJSON] Modal z-index:', window.getComputedStyle(modal).zIndex);
+        console.log('[extractJSON] Modal position:', window.getComputedStyle(modal).position);
+        console.log('[extractJSON] Modal dimensions:', {
+            width: window.getComputedStyle(modal).width,
+            height: window.getComputedStyle(modal).height,
+            top: window.getComputedStyle(modal).top,
+            left: window.getComputedStyle(modal).left
+        });
+        console.log('[extractJSON] Body children count:', document.body.children.length);
+        console.log('[extractJSON] Last body child:', document.body.lastElementChild);
+        
+        // Check for elements that might be covering the modal
+        const allElements = Array.from(document.body.children);
+        console.log('[extractJSON] All body children:');
+        allElements.forEach((el, idx) => {
+            const styles = window.getComputedStyle(el);
+            console.log(`  [${idx}] ${el.tagName}.${el.className}:`, {
+                zIndex: styles.zIndex,
+                position: styles.position,
+                display: styles.display,
+                width: styles.width,
+                height: styles.height
+            });
+        });
+        
+        // Check if json-creator-fullscreen exists
+        const jsonCreatorFullscreen = document.getElementById('jsonCreatorFullscreen');
+        if (jsonCreatorFullscreen) {
+            console.log('[extractJSON] JSON Creator fullscreen detected:', {
+                zIndex: window.getComputedStyle(jsonCreatorFullscreen).zIndex,
+                display: window.getComputedStyle(jsonCreatorFullscreen).display
+            });
+        }
 
         // Add event listeners after modal is in DOM
-        document.getElementById('copyJSONBtn').addEventListener('click', () => {
+        const copyBtn = document.getElementById('copyJSONBtn');
+        const downloadBtn = document.getElementById('downloadJSONBtn');
+        
+        if (!copyBtn || !downloadBtn) {
+            console.error('[extractJSON] Buttons not found!', { copyBtn, downloadBtn });
+            return;
+        }
+        
+        console.log('[extractJSON] Attaching event listeners to buttons');
+        
+        copyBtn.addEventListener('click', () => {
+            console.log('[extractJSON] Copy button clicked');
             const textarea = document.getElementById('extractedJSON');
             navigator.clipboard.writeText(textarea.value).then(() => {
                 alert('JSON copied to clipboard!');
@@ -1528,7 +1586,8 @@ class JSONCreator {
             });
         });
 
-        document.getElementById('downloadJSONBtn').addEventListener('click', () => {
+        downloadBtn.addEventListener('click', () => {
+            console.log('[extractJSON] Download button clicked');
             const textarea = document.getElementById('extractedJSON');
             const blob = new Blob([textarea.value], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -1543,9 +1602,12 @@ class JSONCreator {
 
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
+                console.log('[extractJSON] Modal backdrop clicked, closing');
                 modal.remove();
             }
         });
+        
+        console.log('[extractJSON] Modal setup complete');
     }
 
     runJSON() {
