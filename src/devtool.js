@@ -295,6 +295,9 @@ class JSONCreator {
         saveLastScreen('jsonCreator');
         // Load current developing JSON
         this.treeData = JSON.parse(JSON.stringify(AppState.developingJSONs[AppState.activeDevelopingJSON] || DEFAULT_ALGSET));
+        
+        // Expand all folders on initialization
+        this.expandAllFolders(this.treeData, '');
 
         const fullscreen = document.createElement('div');
         fullscreen.className = 'json-creator-fullscreen';
@@ -376,6 +379,17 @@ class JSONCreator {
         document.body.appendChild(fullscreen);
         this.renderTree();
         this.setupEventListeners();
+    }
+
+    expandAllFolders(node, path) {
+        Object.keys(node).forEach(key => {
+            const item = node[key];
+            if (typeof item === 'object' && item !== null && !item.caseName) {
+                const currentPath = path ? `${path}/${key}` : key;
+                this.expandedFolders.add(currentPath);
+                this.expandAllFolders(item, currentPath);
+            }
+        });
     }
 
     setupEventListeners() {
@@ -554,14 +568,11 @@ class JSONCreator {
         e.stopPropagation();
 
         if (!item.caseName) {
-            if (this.selectedPath === path) {
-                this.toggleFolder(path);
-            } else {
-                this.selectedPath = path;
-                this.selectedItem = item;
-                this.renderTree();
-                this.showFolderView(key);
-            }
+            // Folders only toggle expansion
+            this.toggleFolder(path);
+            this.selectedPath = path;
+            this.selectedItem = item;
+            this.renderTree();
         } else {
             this.selectedPath = path;
             this.selectedItem = item;
@@ -791,7 +802,7 @@ class JSONCreator {
         const body = document.getElementById('jsonCreatorBody');
 
         title.textContent = `Case: ${name}`;
-        subtitle.textContent = 'Configure case parameters';
+        subtitle.textContent = '';
 
         // Initialize arrays if they don't exist
         if (!item.auf) item.auf = ['U0'];
@@ -1483,6 +1494,10 @@ class JSONCreator {
         saveDevelopingJSONs();
         
         const jsonString = JSON.stringify(this.treeData, null, 2);
+        
+        // Remove any existing modal first
+        const existingModal = document.querySelector('.modal.active');
+        if (existingModal) existingModal.remove();
         
         const modal = document.createElement('div');
         modal.className = 'modal active';

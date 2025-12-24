@@ -422,6 +422,21 @@ textarea.settings-input {
     flex-direction: column;
 }
 
+@media (max-width: 768px) {
+    .json-creator-sidebar {
+        position: fixed;
+        left: 0;
+        top: 41px;
+        bottom: 0;
+        z-index: 100;
+        box-shadow: 2px 0 8px rgba(0,0,0,0.2);
+    }
+    
+    .json-creator-sidebar.hidden {
+        transform: translateX(-100%);
+    }
+}
+
 .json-creator-sidebar.hidden {
     display: none;
 }
@@ -518,21 +533,19 @@ textarea.settings-input {
 }
 
 .json-creator-content-header {
-    padding: 16px 20px;
+    padding: 10px 20px;
     border-bottom: 1px solid #d0d0d0;
     color: #1a1a1a;
 }
 
 .json-creator-content-header h3 {
-    margin: 0 0 4px 0;
-    font-size: 16px;
+    margin: 0;
+    font-size: 15px;
     font-weight: 500;
 }
 
 .json-creator-content-header p {
-    margin: 0;
-    font-size: 12px;
-    color: #666666;
+    display: none;
 }
 
 .json-creator-content-body {
@@ -611,6 +624,12 @@ textarea.settings-input {
 .json-creator-grid-item input[type="number"] {
     width: 60px;
     padding: 2px 4px;
+}
+
+@media (max-width: 900px) {
+    #caseEditorContent > div:first-child {
+        grid-template-columns: 1fr !important;
+    }
 }
 
 .context-menu {
@@ -811,6 +830,10 @@ textarea.settings-input {
     gap: 4px;
     margin-bottom: 20px;
     border-bottom: 2px solid #404040;
+    position: sticky;
+    top: 0;
+    background: #ffffff;
+    z-index: 10;
 }
 
 .case-editor-tab {

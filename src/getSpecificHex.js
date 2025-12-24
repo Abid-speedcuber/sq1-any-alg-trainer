@@ -228,13 +228,14 @@ function parseTextInputToShape(topText, bottomText) {
             // Black corner placeholder - only 1,3,5,7
             shapeArray[i] = 1;
             
-            // Check if next position can be auto-paired
+            // Check if next position can be auto-paired (look ahead) or previous was unpaired
             if (i < 23 && (fullText[i + 1] === 'R' || fullText[i + 1] === 'X')) {
                 shapeArray[i + 1] = 1;
                 const pairLabel = positionLabel + String.fromCharCode(65 + i + 1);
                 constraints[pairLabel] = ['1', '3', '5', '7'];
                 i += 2;
             } else {
+                // Just mark this position, pairing will happen in cluster building
                 constraints[positionLabel] = ['1', '3', '5', '7'];
                 i++;
             }
@@ -247,13 +248,14 @@ function parseTextInputToShape(topText, bottomText) {
             // White corner placeholder - only 9,b,d,f
             shapeArray[i] = 1;
             
-            // Check if next position can be auto-paired
+            // Check if next position can be auto-paired (look ahead)
             if (i < 23 && (fullText[i + 1] === 'R' || fullText[i + 1] === 'Z')) {
                 shapeArray[i + 1] = 1;
                 const pairLabel = positionLabel + String.fromCharCode(65 + i + 1);
                 constraints[pairLabel] = ['9', 'b', 'd', 'f'];
                 i += 2;
             } else {
+                // Just mark this position, pairing will happen in cluster building
                 constraints[positionLabel] = ['9', 'b', 'd', 'f'];
                 i++;
             }
@@ -268,6 +270,7 @@ function parseTextInputToShape(topText, bottomText) {
                     constraints[pairLabel] = [char.toLowerCase()];
                     i += 2;
                 } else {
+                    // Just mark this position, pairing will happen in cluster building
                     constraints[positionLabel] = [char.toLowerCase()];
                     i++;
                 }
@@ -610,8 +613,13 @@ function solveWithBacktracking(clusteredSlots, constraints, parityModes, origina
         throw new Error('Invalid slot configuration');
     }
 
-    // If no parity modes specified, default to 'on' (overall no parity)
-    const modesArray = parityModes && parityModes.length > 0 ? parityModes : ['on'];
+    // Determine if we should skip parity checks
+    const skipParity = parityModes.length === 0 || 
+                      (parityModes.includes('op') && parityModes.includes('on')) ||
+                      (['tnbn', 'tpbn', 'tnbp', 'tpbp'].every(mode => parityModes.includes(mode)));
+    
+    // If no parity modes specified and not skipping, default to 'on' (overall no parity)
+    const modesArray = skipParity ? ['skip'] : (parityModes && parityModes.length > 0 ? parityModes : ['on']);
     
     // Shuffle parity modes for random selection
     const shuffledModes = [...modesArray];
@@ -674,6 +682,11 @@ function solveWithBacktracking(clusteredSlots, constraints, parityModes, origina
             const success = backtrack(0);
             
             if (success) {
+                // Skip parity check if specified
+                if (parityMode === 'skip') {
+                    return assignment;
+                }
+                
                 // Check parity
                 if (checkParity(assignment, clusteredSlots, parityMode)) {
                     return assignment;
@@ -701,7 +714,7 @@ function generateHexState(config) {
         AUF = ['U0'],
         ADF = ['D0'],
         constraints = {},
-        parity = ['on']  // Default to overall no parity
+        parity = []  // Default to skip parity check
     } = config;
 
     // Parse input

@@ -1,0 +1,28 @@
+<svg viewBox="-100 -100 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- geometry constants -->
+  <!-- radiusOuter = 60 -->
+  <!-- midRadius = 60 * 0.8 = 48 -->
+
+  <!-- OUTER (green) -->
+  <polygon
+    points="
+      -15.53,-57.96
+      15.53,-57.96
+      12.42,-46.39
+      -12.42,-46.39
+    "
+    fill="#00AA00"
+    stroke="#333"
+    stroke-width="2"/>
+
+  <!-- INNER (black) -->
+  <polygon
+    points="
+      0,0
+      -12.42,-46.39
+      12.42,-46.39
+    "
+    fill="#000000"
+    stroke="#333"
+    stroke-width="1.5"/>
+</svg>

@@ -733,16 +733,14 @@ function showPieceSelectionModal(state, position, layer, isCornerZone, x, y) {
         button.style.cssText = 'padding: 8px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px;';
         button.onmouseover = () => button.style.background = '#e0e0e0';
         button.onmouseout = () => button.style.background = '#f5f5f5';
-        button.onclick = () => {
+        button.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             state.updatePiece(position, layer, piece);
             closePieceModal();
-            
-            // Trigger re-render by notifying listeners
-            state.notifyListeners();
         };
 
-        const miniSvg = createMiniPieceSVG(piece, state.colorScheme);
-        button.innerHTML = `${miniSvg}<span style="font-family: monospace; font-size: 12px;">${piece}</span>`;
+        button.innerHTML = `<img src="viz/piece/piece_${piece}.svg" width="30" height="30"><span style="font-family: monospace; font-size: 12px;">${piece}</span>`;
         grid.appendChild(button);
     });
 
