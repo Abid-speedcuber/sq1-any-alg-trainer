@@ -630,9 +630,9 @@ class JSONCreator {
 
         parent[name] = {
             caseName: name,
-            inputTop: ['RRRRRRRRRRRR'],
-            inputBottom: ['RRRRRRRRRRRR'],
-            equator: { '/': 1, '|': 1 },
+            inputTop: 'RRRRRRRRRRRR',
+            inputBottom: 'RRRRRRRRRRRR',
+            equator: ['/', '|'],
             parity: ['on'],
             constraints: {},
             auf: ['U0'],
@@ -847,12 +847,14 @@ class JSONCreator {
                 // Update input values
                 const topInput = document.getElementById('topLayerInput');
                 const bottomInput = document.getElementById('bottomLayerInput');
-                if (topInput) topInput.value = item.inputTop[0] || 'RRRRRRRRRRRR';
-                if (bottomInput) bottomInput.value = item.inputBottom[0] || 'RRRRRRRRRRRR';
+                const topValue = (typeof item.inputTop === 'string' ? item.inputTop : item.inputTop[0]) || 'RRRRRRRRRRRR';
+                const bottomValue = (typeof item.inputBottom === 'string' ? item.inputBottom : item.inputBottom[0]) || 'RRRRRRRRRRRR';
+                if (topInput) topInput.value = topValue;
+                if (bottomInput) bottomInput.value = bottomValue;
                 
                 // Update visualizations
                 if (this.topState && window.InteractiveScrambleRenderer) {
-                    this.topState.topText = item.inputTop[0] || 'RRRRRRRRRRRR';
+                    this.topState.topText = topValue;
                     this.topState.bottomText = '';
                     this.topState.parse();
                     const topContainer = document.getElementById('topInteractive');
@@ -864,7 +866,7 @@ class JSONCreator {
                 
                 if (this.bottomState && window.InteractiveScrambleRenderer) {
                     this.bottomState.topText = '';
-                    this.bottomState.bottomText = item.inputBottom[0] || 'RRRRRRRRRRRR';
+                    this.bottomState.bottomText = bottomValue;
                     this.bottomState.parse();
                     const bottomContainer = document.getElementById('bottomInteractive');
                     if (bottomContainer) {
@@ -879,14 +881,13 @@ class JSONCreator {
             // Always recreate states to ensure they're fresh
             if (window.InteractiveScrambleRenderer) {
                 this.topState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
-                    item.inputTop[0] || 'RRRRRRRRRRRR',
+                    (typeof item.inputTop === 'string' ? item.inputTop : item.inputTop[0]) || 'RRRRRRRRRRRR',
                     '',
                     window.InteractiveScrambleRenderer.DEFAULT_COLOR_SCHEME
                 );
                 this.topState.onChange(() => {
-                    console.trace('Top state onChange call stack');
                     if (this.selectedItem) {
-                        this.selectedItem.inputTop = [this.topState.topText];
+                        this.selectedItem.inputTop = this.topState.topText;
                         const topInput = document.getElementById('topLayerInput');
                         if (topInput) {
                             topInput.value = this.topState.topText;
@@ -906,12 +907,12 @@ class JSONCreator {
             if (window.InteractiveScrambleRenderer) {
                 this.bottomState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
                     '',
-                    item.inputBottom[0] || 'RRRRRRRRRRRR',
+                    (typeof item.inputBottom === 'string' ? item.inputBottom : item.inputBottom[0]) || 'RRRRRRRRRRRR',
                     window.InteractiveScrambleRenderer.DEFAULT_COLOR_SCHEME
                 );
                 this.bottomState.onChange(() => {
                     if (this.selectedItem) {
-                        this.selectedItem.inputBottom = [this.bottomState.bottomText];
+                        this.selectedItem.inputBottom = this.bottomState.bottomText;
                         const bottomInput = document.getElementById('bottomLayerInput');
                         if (bottomInput) {
                             bottomInput.value = this.bottomState.bottomText;
@@ -927,7 +928,7 @@ class JSONCreator {
                     <div class="json-creator-section">
                         <h4>Top Layer</h4>
                         <div class="json-creator-form-group">
-                            <input type="text" maxlength="12" id="topLayerInput" value="${item.inputTop[0] || 'RRRRRRRRRRRR'}" 
+                            <input type="text" maxlength="12" id="topLayerInput" value="${item.inputTop || 'RRRRRRRRRRRR'}" 
                                    style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0;">
                         </div>
                         <div id="topInteractive" style="display: flex; justify-content: center; margin-top: 12px;"></div>
@@ -936,7 +937,7 @@ class JSONCreator {
                     <div class="json-creator-section">
                         <h4>Bottom Layer</h4>
                         <div class="json-creator-form-group">
-                            <input type="text" maxlength="12" id="bottomLayerInput" value="${item.inputBottom[0] || 'RRRRRRRRRRRR'}" 
+                            <input type="text" maxlength="12" id="bottomLayerInput" value="${item.inputBottom || 'RRRRRRRRRRRR'}" 
                                    style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0;">
                         </div>
                         <div id="bottomInteractive" style="display: flex; justify-content: center; margin-top: 12px;"></div>
@@ -1022,7 +1023,7 @@ class JSONCreator {
                             const topContainer = document.getElementById('topInteractive');
                             topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
                             window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
-                            this.selectedItem.inputTop = [value];
+                            this.selectedItem.inputTop = value;
                         } catch (error) {
                             console.error('Parse error:', error);
                             alert('Invalid input: ' + error.message);
@@ -1051,7 +1052,7 @@ class JSONCreator {
                             const bottomContainer = document.getElementById('bottomInteractive');
                             bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
                             window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
-                            this.selectedItem.inputBottom = [value];
+                            this.selectedItem.inputBottom = value;
                         } catch (error) {
                             console.error('Parse error:', error);
                             alert('Invalid input: ' + error.message);
@@ -1067,13 +1068,13 @@ class JSONCreator {
                     <h4>Equator</h4>
                     <div class="json-creator-grid">
                         <div class="json-creator-grid-item">
-                            <input type="checkbox" ${item.equator['/'] > 0 ? 'checked' : ''} 
-                                   onchange="jsonCreator.updateEquator('/', this.checked ? 1 : 0)">
+                            <input type="checkbox" ${Array.isArray(item.equator) && item.equator.includes('/') ? 'checked' : ''} 
+                                   onchange="jsonCreator.updateEquator('/', this.checked)">
                             <label>Slash (/)</label>
                         </div>
                         <div class="json-creator-grid-item">
-                            <input type="checkbox" ${item.equator['|'] > 0 ? 'checked' : ''} 
-                                   onchange="jsonCreator.updateEquator('|', this.checked ? 1 : 0)">
+                            <input type="checkbox" ${Array.isArray(item.equator) && item.equator.includes('|') ? 'checked' : ''} 
+                                   onchange="jsonCreator.updateEquator('|', this.checked)">
                             <label>Bar (|)</label>
                         </div>
                     </div>
@@ -1169,9 +1170,18 @@ class JSONCreator {
         }
     }
 
-    updateEquator(symbol, value) {
+    updateEquator(symbol, checked) {
         if (this.selectedItem) {
-            this.selectedItem.equator[symbol] = value;
+            if (!Array.isArray(this.selectedItem.equator)) {
+                this.selectedItem.equator = [];
+            }
+            if (checked) {
+                if (!this.selectedItem.equator.includes(symbol)) {
+                    this.selectedItem.equator.push(symbol);
+                }
+            } else {
+                this.selectedItem.equator = this.selectedItem.equator.filter(s => s !== symbol);
+            }
         }
     }
 
@@ -1490,26 +1500,22 @@ class JSONCreator {
     }
 
     extractJSON() {
-    console.log('[extractJSON] Starting extraction for:', AppState.activeDevelopingJSON);
     
     // Save current root before extracting
     AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
     saveDevelopingJSONs();
     
     const jsonString = JSON.stringify(this.treeData, null, 2);
-    console.log('[extractJSON] JSON string length:', jsonString.length);
-    
+
     // Remove any existing extract modal first
     const existingModal = document.querySelector('.extract-json-modal');
     if (existingModal) {
-        console.log('[extractJSON] Removing existing modal');
         existingModal.remove();
     }
         
         const modal = document.createElement('div');
         modal.className = 'modal active extract-json-modal';
         modal.style.zIndex = '20000'; // Higher than json-creator-fullscreen (10000)
-        console.log('[extractJSON] Created modal element with z-index 20000');
         modal.innerHTML = `
             <div class="modal-content" style="max-width: 800px;">
                 <div class="modal-header">
@@ -1526,43 +1532,16 @@ class JSONCreator {
             </div>
         `;
         document.body.appendChild(modal);
-        console.log('[extractJSON] Modal appended to body');
-        console.log('[extractJSON] Modal in DOM:', document.body.contains(modal));
-        console.log('[extractJSON] Modal classes:', modal.className);
-        console.log('[extractJSON] Modal display style:', window.getComputedStyle(modal).display);
-        console.log('[extractJSON] Modal visibility:', window.getComputedStyle(modal).visibility);
-        console.log('[extractJSON] Modal z-index:', window.getComputedStyle(modal).zIndex);
-        console.log('[extractJSON] Modal position:', window.getComputedStyle(modal).position);
-        console.log('[extractJSON] Modal dimensions:', {
-            width: window.getComputedStyle(modal).width,
-            height: window.getComputedStyle(modal).height,
-            top: window.getComputedStyle(modal).top,
-            left: window.getComputedStyle(modal).left
-        });
-        console.log('[extractJSON] Body children count:', document.body.children.length);
-        console.log('[extractJSON] Last body child:', document.body.lastElementChild);
         
         // Check for elements that might be covering the modal
         const allElements = Array.from(document.body.children);
-        console.log('[extractJSON] All body children:');
         allElements.forEach((el, idx) => {
             const styles = window.getComputedStyle(el);
-            console.log(`  [${idx}] ${el.tagName}.${el.className}:`, {
-                zIndex: styles.zIndex,
-                position: styles.position,
-                display: styles.display,
-                width: styles.width,
-                height: styles.height
-            });
         });
         
         // Check if json-creator-fullscreen exists
         const jsonCreatorFullscreen = document.getElementById('jsonCreatorFullscreen');
         if (jsonCreatorFullscreen) {
-            console.log('[extractJSON] JSON Creator fullscreen detected:', {
-                zIndex: window.getComputedStyle(jsonCreatorFullscreen).zIndex,
-                display: window.getComputedStyle(jsonCreatorFullscreen).display
-            });
         }
 
         // Add event listeners after modal is in DOM
@@ -1574,10 +1553,7 @@ class JSONCreator {
             return;
         }
         
-        console.log('[extractJSON] Attaching event listeners to buttons');
-        
         copyBtn.addEventListener('click', () => {
-            console.log('[extractJSON] Copy button clicked');
             const textarea = document.getElementById('extractedJSON');
             navigator.clipboard.writeText(textarea.value).then(() => {
                 alert('JSON copied to clipboard!');
@@ -1587,7 +1563,6 @@ class JSONCreator {
         });
 
         downloadBtn.addEventListener('click', () => {
-            console.log('[extractJSON] Download button clicked');
             const textarea = document.getElementById('extractedJSON');
             const blob = new Blob([textarea.value], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -1602,12 +1577,9 @@ class JSONCreator {
 
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
-                console.log('[extractJSON] Modal backdrop clicked, closing');
                 modal.remove();
             }
         });
-        
-        console.log('[extractJSON] Modal setup complete');
     }
 
     runJSON() {
@@ -1685,22 +1657,16 @@ async generateScrambles(jsonData, modal, isStopped) {
             const randomCase = cases[Math.floor(Math.random() * cases.length)];
             
             const config = {
-                topLayer: Array.isArray(randomCase.inputTop) ? randomCase.inputTop[0] : randomCase.inputTop,
-                bottomLayer: Array.isArray(randomCase.inputBottom) ? randomCase.inputBottom[0] : randomCase.inputBottom,
-                middleLayer: randomCase.equator ? (typeof randomCase.equator === 'object' ? Object.keys(randomCase.equator).filter(k => randomCase.equator[k] > 0) : randomCase.equator) : ['/'],
-                RUL: Array.isArray(randomCase.rul) ? randomCase.rul : [0],
-                RDL: Array.isArray(randomCase.rdl) ? randomCase.rdl : [0],
-                AUF: Array.isArray(randomCase.auf) ? randomCase.auf : ['U0'],
-                ADF: Array.isArray(randomCase.adf) ? randomCase.adf : ['D0'],
+                topLayer: randomCase.inputTop,
+                bottomLayer: randomCase.inputBottom,
+                middleLayer: randomCase.equator || ['/'],
+                RUL: randomCase.rul || [0],
+                RDL: randomCase.rdl || [0],
+                AUF: randomCase.auf || ['U0'],
+                ADF: randomCase.adf || ['D0'],
                 constraints: randomCase.constraints || {},
-                parity: Array.isArray(randomCase.parity) ? randomCase.parity : (typeof randomCase.parity === 'object' ? Object.keys(randomCase.parity).filter(k => randomCase.parity[k] > 0) : ['on'])
+                parity: randomCase.parity || ['on']
             };
-
-            if (config.RUL.length === 0) config.RUL = [0];
-            if (config.RDL.length === 0) config.RDL = [0];
-            if (config.AUF.length === 0) config.AUF = ['U0'];
-            if (config.ADF.length === 0) config.ADF = ['D0'];
-            if (config.middleLayer.length === 0) config.middleLayer = ['/'];
 
             const result = generateHexState(config);
             
