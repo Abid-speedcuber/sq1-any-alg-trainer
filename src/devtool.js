@@ -630,16 +630,16 @@ class JSONCreator {
 
         parent[name] = {
             caseName: name,
-            inputTop: 'RRRRRRRRRRRR',
-            inputBottom: 'RRRRRRRRRRRR',
-            equator: ['/', '|'],
-            parity: ['on'],
+            inputTop: "RRRRRRRRRRRR",
+            inputBottom: "RRRRRRRRRRRR",
+            equator: ["/", "|"],
+            parity: ["on"],
             constraints: {},
-            auf: ['U0'],
-            adf: ['D0'],
+            auf: ["U0"],
+            adf: ["D0"],
             rul: [0],
             rdl: [0],
-            alg: ''
+            alg: ""
         };
 
         // Auto-expand parent folder if not already expanded
@@ -847,8 +847,8 @@ class JSONCreator {
                 // Update input values
                 const topInput = document.getElementById('topLayerInput');
                 const bottomInput = document.getElementById('bottomLayerInput');
-                const topValue = (typeof item.inputTop === 'string' ? item.inputTop : item.inputTop[0]) || 'RRRRRRRRRRRR';
-                const bottomValue = (typeof item.inputBottom === 'string' ? item.inputBottom : item.inputBottom[0]) || 'RRRRRRRRRRRR';
+                const topValue = item.inputTop || 'RRRRRRRRRRRR';
+            const bottomValue = item.inputBottom || 'RRRRRRRRRRRR';
                 if (topInput) topInput.value = topValue;
                 if (bottomInput) bottomInput.value = bottomValue;
                 
@@ -881,7 +881,7 @@ class JSONCreator {
             // Always recreate states to ensure they're fresh
             if (window.InteractiveScrambleRenderer) {
                 this.topState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
-                    (typeof item.inputTop === 'string' ? item.inputTop : item.inputTop[0]) || 'RRRRRRRRRRRR',
+                    item.inputTop || 'RRRRRRRRRRRR',
                     '',
                     window.InteractiveScrambleRenderer.DEFAULT_COLOR_SCHEME
                 );
@@ -907,7 +907,7 @@ class JSONCreator {
             if (window.InteractiveScrambleRenderer) {
                 this.bottomState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
                     '',
-                    (typeof item.inputBottom === 'string' ? item.inputBottom : item.inputBottom[0]) || 'RRRRRRRRRRRR',
+                    item.inputBottom || 'RRRRRRRRRRRR',
                     window.InteractiveScrambleRenderer.DEFAULT_COLOR_SCHEME
                 );
                 this.bottomState.onChange(() => {
@@ -971,7 +971,7 @@ class JSONCreator {
             const bottomContainer = document.getElementById('bottomInteractive');
 
             if (topContainer && window.InteractiveScrambleRenderer) {
-                this.topState.topText = item.inputTop[0] || 'RRRRRRRRRRRR';
+                this.topState.topText = item.inputTop || 'RRRRRRRRRRRR';
                 this.topState.bottomText = '';
                 this.topState.parse();
                 topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
@@ -980,7 +980,7 @@ class JSONCreator {
 
             if (bottomContainer && window.InteractiveScrambleRenderer) {
                 this.bottomState.topText = '';
-                this.bottomState.bottomText = item.inputBottom[0] || 'RRRRRRRRRRRR';
+                this.bottomState.bottomText = item.inputBottom || 'RRRRRRRRRRRR';
                 this.bottomState.parse();
                 bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
                 window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
@@ -1726,11 +1726,28 @@ async generateScrambles(jsonData, modal, isStopped) {
             let scramble = '';
             try {
                 if (typeof window.Square1Solver !== 'undefined') {
+                    console.log('=== SOLVER ATTEMPT ===');
+                    console.log('Input Hex:', result.hexState);
+                    console.log('Hex Length:', result.hexState.length);
+                    console.log('Contains separator:', result.hexState.includes('/') || result.hexState.includes('|'));
+                    
                     scramble = window.Square1Solver.solve(result.hexState);
+                    
+                    console.log('Solver returned:', scramble);
+                    console.log('======================');
+                } else {
+                    console.error('Square1Solver not defined on window object');
+                    scramble = '⚠Solver not loaded';
                 }
             } catch (solverError) {
-                console.error('Solver error:', solverError);
-                scramble = 'Solver unavailable';
+                console.error('=== SOLVER ERROR ===');
+                console.error('Error message:', solverError.message);
+                console.error('Error stack:', solverError.stack);
+                console.error('Input Hex was:', result.hexState);
+                console.error('Case:', randomCase.caseName);
+                console.error('Config:', config);
+                console.error('====================');
+                scramble = `⚠Error: ${solverError.message}`;
             }
 
             const inputHex = config.topLayer + '|' + config.bottomLayer;

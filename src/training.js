@@ -18,26 +18,18 @@ const AppState = {
 // Default algset structure
 const DEFAULT_ALGSET = {
     "New Folder": {
-        "icon": "RRRRRRRRRRRRRRRRRRRRRRRR",
-        "New Folder": {
-            "icon": "RRRRRRRRRRRRRRRRRRRRRRRR",
-            "New Case": {
-                "icon": "RRRRRRRRRRRRRRRRRRRRRRRR",
-                "caseName": "New Case",
-                "inputTop": ["RRRRRRRRRRRR"],
-                "inputBottom": ["RRRRRRRRRRRR"],
-                "equator": { "/": 1, "|": 1 },
-                "parity": { "even": 1, "odd": 1 },
-                "constraints": {},
-                "abf": { "U0-D0": 1 },
-                "rul": {},
-                "rdl": {},
-                "rblSpecific": [],
-                "caseWeight": 1,
-                "hint": "",
-                "alg": "",
-                "comment": ""
-            }
+        "New Case": {
+            "caseName": "New Case",
+            "inputTop": "RRRRRRRRRRRR",
+            "inputBottom": "RRRRRRRRRRRR",
+            "equator": ["/", "|"],
+            "parity": ["on"],
+            "constraints": {},
+            "auf": ["U0"],
+            "adf": ["D0"],
+            "rul": [0],
+            "rdl": [0],
+            "alg": ""
         }
     }
 };
@@ -215,25 +207,19 @@ function generateNewScramble() {
     const randomCase = AppState.selectedCases[Math.floor(Math.random() * AppState.selectedCases.length)];
     
     try {
-        // Convert case format to config format
+        // Config is already in correct format from JSON creator
         const config = {
-            topLayer: Array.isArray(randomCase.inputTop) ? randomCase.inputTop[0] : randomCase.inputTop,
-            bottomLayer: Array.isArray(randomCase.inputBottom) ? randomCase.inputBottom[0] : randomCase.inputBottom,
-            middleLayer: randomCase.equator ? (typeof randomCase.equator === 'object' ? Object.keys(randomCase.equator).filter(k => randomCase.equator[k] > 0) : (Array.isArray(randomCase.equator) ? randomCase.equator : [randomCase.equator])) : ['/'],
-            RUL: Array.isArray(randomCase.rul) ? randomCase.rul : (typeof randomCase.rul === 'object' ? Object.keys(randomCase.rul).map(Number) : [0]),
-            RDL: Array.isArray(randomCase.rdl) ? randomCase.rdl : (typeof randomCase.rdl === 'object' ? Object.keys(randomCase.rdl).map(Number) : [0]),
-            AUF: Array.isArray(randomCase.auf) ? randomCase.auf : (typeof randomCase.auf === 'object' ? Object.keys(randomCase.auf) : ['U0']),
-            ADF: Array.isArray(randomCase.adf) ? randomCase.adf : (typeof randomCase.adf === 'object' ? Object.keys(randomCase.adf) : ['D0']),
+            topLayer: randomCase.inputTop,
+            bottomLayer: randomCase.inputBottom,
+            middleLayer: randomCase.equator || ['/'],
+            RUL: randomCase.rul || [0],
+            RDL: randomCase.rdl || [0],
+            AUF: randomCase.auf || ['U0'],
+            ADF: randomCase.adf || ['D0'],
             constraints: randomCase.constraints || {},
-            parity: Array.isArray(randomCase.parity) ? randomCase.parity : (typeof randomCase.parity === 'object' ? Object.keys(randomCase.parity).filter(k => randomCase.parity[k] > 0) : [randomCase.parity || 'on'])
+            parity: randomCase.parity || ['on']
         };
 
-        if (config.RUL.length === 0) config.RUL = [0];
-        if (config.RDL.length === 0) config.RDL = [0];
-        if (config.AUF.length === 0) config.AUF = ['U0'];
-        if (config.ADF.length === 0) config.ADF = ['D0'];
-        if (config.middleLayer.length === 0) config.middleLayer = ['/'];
-        
         const result = generateHexState(config);
         
         // Generate scramble using solver
