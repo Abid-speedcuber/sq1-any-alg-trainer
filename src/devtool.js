@@ -1063,72 +1063,112 @@ class JSONCreator {
             }
 
         } else if (this.currentCaseTab === 'additional') {
+            // Determine current parity mode
+            let parityMode = 'ignore';
+            if (Array.isArray(item.parity) && item.parity.length > 0) {
+                if (item.parity.includes('on') || item.parity.includes('op')) {
+                    parityMode = 'overall';
+                } else {
+                    parityMode = 'color-specific';
+                }
+            }
+
             content.innerHTML = `
-                <div class="json-creator-section">
-                    <h4>Equator</h4>
+                <div class="json-creator-section-compact">
+                    <h4>Middle Layer</h4>
                     <div class="json-creator-grid">
-                        <div class="json-creator-grid-item">
-                            <input type="checkbox" ${Array.isArray(item.equator) && item.equator.includes('/') ? 'checked' : ''} 
-                                   onchange="jsonCreator.updateEquator('/', this.checked)">
-                            <label>Slash (/)</label>
-                        </div>
                         <div class="json-creator-grid-item">
                             <input type="checkbox" ${Array.isArray(item.equator) && item.equator.includes('|') ? 'checked' : ''} 
                                    onchange="jsonCreator.updateEquator('|', this.checked)">
-                            <label>Bar (|)</label>
+                            <label>Solved</label>
+                        </div>
+                        <div class="json-creator-grid-item">
+                            <input type="checkbox" ${Array.isArray(item.equator) && item.equator.includes('/') ? 'checked' : ''} 
+                                   onchange="jsonCreator.updateEquator('/', this.checked)">
+                            <label>Flipped</label>
                         </div>
                     </div>
                 </div>
 
-                <div class="json-creator-section">
-                    <h4>Parity (6 modes)</h4>
-                    <div class="json-creator-grid">
-                        ${['tnbn', 'tpbn', 'tnbp', 'tpbp', 'on', 'op'].map(mode => {
-                const labels = {
-                    'tnbn': 'tnbn (Top Normal, Bottom Normal)',
-                    'tpbn': 'tpbn (Top Parity, Bottom Normal)',
-                    'tnbp': 'tnbp (Top Normal, Bottom Parity)',
-                    'tpbp': 'tpbp (Top Parity, Bottom Parity)',
-                    'on': 'on (Overall Normal)',
-                    'op': 'op (Overall Parity)'
-                };
-                return `
-                    <div class="json-creator-grid-item">
-                        <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes(mode) ? 'checked' : ''} 
-                               onchange="jsonCreator.updateMoveArray('parity', '${mode}', this.checked)">
-                        <label>${labels[mode]}</label>
+                <div class="json-creator-section-compact">
+                    <h4>
+                        Parity
+                        <button class="quick-info-btn" onclick="alert('Parity here doesn\\'t refer to conventional parity. Overall parity defines \\"a\\" state of the sq1, but probably not \\"the\\" state you are aiming for. So run the case to check if you really want this. Color specific: here you can explicitly decide the arrangement of each color pieces, again test each one to check for yourself what you really want.')">?</button>
+                    </h4>
+                    <div class="parity-radio-group">
+                        <div class="parity-radio-item">
+                            <input type="radio" name="parityMode" value="ignore" ${parityMode === 'ignore' ? 'checked' : ''} 
+                                   onchange="jsonCreator.updateParityMode('ignore')">
+                            <label>Ignore</label>
+                        </div>
+                        <div class="parity-radio-item">
+                            <input type="radio" name="parityMode" value="overall" ${parityMode === 'overall' ? 'checked' : ''} 
+                                   onchange="jsonCreator.updateParityMode('overall')">
+                            <label>Overall</label>
+                        </div>
+                        <div class="parity-radio-item">
+                            <input type="radio" name="parityMode" value="color-specific" ${parityMode === 'color-specific' ? 'checked' : ''} 
+                                   onchange="jsonCreator.updateParityMode('color-specific')">
+                            <label>Color Specific</label>
+                        </div>
                     </div>
-                `}).join('')}
-                    </div>
-                </div>
-
-                <div class="json-creator-section">
-                    <h4>AUF (Adjust U Face)</h4>
-                    <div class="json-creator-grid">
-                        ${['U0', 'U', 'U2', "U'"].map(move => `
+                    <div id="parityOptions" class="json-creator-grid">
+                        ${parityMode === 'overall' ? `
                             <div class="json-creator-grid-item">
-                                <input type="checkbox" ${item.auf.includes(move) ? 'checked' : ''} 
-                                       onchange="jsonCreator.updateMoveArray('auf', '${move}', this.checked)">
-                                <label>${move}</label>
+                                <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('on') ? 'checked' : ''} 
+                                       onchange="jsonCreator.updateMoveArray('parity', 'on', this.checked)">
+                                <label>Overall No Parity</label>
                             </div>
-                        `).join('')}
-                    </div>
-                </div>
-
-                <div class="json-creator-section">
-                    <h4>ADF (Adjust D Face)</h4>
-                    <div class="json-creator-grid">
-                        ${['D0', 'D', 'D2', "D'"].map(move => `
                             <div class="json-creator-grid-item">
-                                <input type="checkbox" ${item.adf.includes(move) ? 'checked' : ''} 
-                                       onchange="jsonCreator.updateMoveArray('adf', '${move}', this.checked)">
-                                <label>${move}</label>
+                                <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('op') ? 'checked' : ''} 
+                                       onchange="jsonCreator.updateMoveArray('parity', 'op', this.checked)">
+                                <label>Overall Parity</label>
                             </div>
-                        `).join('')}
+                        ` : parityMode === 'color-specific' ? `
+                            <div class="json-creator-grid-item">
+                                <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('tnbn') ? 'checked' : ''} 
+                                       onchange="jsonCreator.updateMoveArray('parity', 'tnbn', this.checked)">
+                                <label>Both Color No Parity</label>
+                            </div>
+                            <div class="json-creator-grid-item">
+                                <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('tpbn') ? 'checked' : ''} 
+                                       onchange="jsonCreator.updateMoveArray('parity', 'tpbn', this.checked)">
+                                <label>Black Parity, White No Parity</label>
+                            </div>
+                            <div class="json-creator-grid-item">
+                                <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('tnbp') ? 'checked' : ''} 
+                                       onchange="jsonCreator.updateMoveArray('parity', 'tnbp', this.checked)">
+                                <label>Black No Parity, White Parity</label>
+                            </div>
+                            <div class="json-creator-grid-item">
+                                <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('tpbp') ? 'checked' : ''} 
+                                       onchange="jsonCreator.updateMoveArray('parity', 'tpbp', this.checked)">
+                                <label>Both Color Parity</label>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
 
-                <div class="json-creator-section">
+                <div class="json-creator-section-compact">
+                    <h4>
+                        Post ABF
+                        <button class="quick-info-btn" onclick="alert('Post ABF is Adjustment of Both Face \\"After\\" the algorithm is done.')">?</button>
+                    </h4>
+                    <div class="abf-grid">
+                        ${['U0', 'U', 'U2', "U'", 'D0', 'D', 'D2', "D'"].map((move, idx) => {
+                            const field = idx < 4 ? 'auf' : 'adf';
+                            return `
+                                <div class="json-creator-grid-item">
+                                    <input type="checkbox" ${item[field].includes(move) ? 'checked' : ''} 
+                                           onchange="jsonCreator.updateMoveArray('${field}', '${move}', this.checked)">
+                                    <label>${move}</label>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+
+                <div class="json-creator-section-compact">
                     <h4>RUL (Rotate Upper Layer)</h4>
                     <div class="json-creator-grid">
                         ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
@@ -1141,7 +1181,7 @@ class JSONCreator {
                     </div>
                 </div>
 
-                <div class="json-creator-section">
+                <div class="json-creator-section-compact">
                     <h4>RDL (Rotate Down Layer)</h4>
                     <div class="json-creator-grid">
                         ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
@@ -1154,10 +1194,10 @@ class JSONCreator {
                     </div>
                 </div>
 
-                <div class="json-creator-section">
+                <div class="json-creator-section-compact">
                     <h4>Algorithm</h4>
                     <div class="json-creator-form-group">
-                        <textarea onchange="jsonCreator.updateField('alg', this.value)" style="min-height: 80px;">${item.alg || ''}</textarea>
+                        <input type="text" onchange="jsonCreator.updateField('alg', this.value)" value="${item.alg || ''}" style="width: 100%; padding: 6px 8px; background: #ffffff; border: 1px solid #c0c0c0; border-radius: 2px; color: #1a1a1a;">
                     </div>
                 </div>
             `;
@@ -1203,6 +1243,19 @@ class JSONCreator {
             } else {
                 this.selectedItem.parity = this.selectedItem.parity.filter(m => m !== mode);
             }
+        }
+    }
+
+    updateParityMode(mode) {
+        if (this.selectedItem) {
+            if (mode === 'ignore') {
+                this.selectedItem.parity = [];
+            } else if (mode === 'overall') {
+                this.selectedItem.parity = ['on'];
+            } else if (mode === 'color-specific') {
+                this.selectedItem.parity = ['tnbn'];
+            }
+            this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
         }
     }
 

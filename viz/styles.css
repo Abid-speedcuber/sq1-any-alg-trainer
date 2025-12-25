@@ -719,8 +719,8 @@ textarea.settings-input {
 }
 
 .run-modal-content {
-    background: #2d2d2d;
-    border: 1px solid #404040;
+    background: #ffffff;
+    border: 1px solid #d0d0d0;
     border-radius: 12px;
     width: 90%;
     max-width: 1200px;
@@ -731,15 +731,16 @@ textarea.settings-input {
 
 .run-modal-header {
     padding: 16px 20px;
-    border-bottom: 1px solid #404040;
+    border-bottom: 1px solid #d0d0d0;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    color: #1a1a1a;
 }
 
 .run-modal-progress {
     padding: 12px 20px;
-    border-bottom: 1px solid #404040;
+    border-bottom: 1px solid #d0d0d0;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -748,10 +749,11 @@ textarea.settings-input {
 .progress-bar-container {
     flex: 1;
     height: 24px;
-    background: #1a1a1a;
+    background: #e0e0e0;
     border-radius: 12px;
     overflow: hidden;
     position: relative;
+    border: 1px solid #d0d0d0;
 }
 
 .progress-bar-fill {
@@ -765,7 +767,7 @@ textarea.settings-input {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: #e0e0e0;
+    color: #1a1a1a;
     font-size: 12px;
     font-weight: 600;
 }
@@ -777,8 +779,8 @@ textarea.settings-input {
 }
 
 .scramble-result-item {
-    background: #252525;
-    border: 1px solid #404040;
+    background: #f9f9f9;
+    border: 1px solid #d0d0d0;
     border-radius: 8px;
     padding: 16px;
     margin-bottom: 16px;
@@ -789,7 +791,7 @@ textarea.settings-input {
 .scramble-result-info {
     flex: 1;
     font-size: 13px;
-    color: #b0b0b0;
+    color: #666666;
 }
 
 .scramble-result-info > div {
@@ -797,7 +799,7 @@ textarea.settings-input {
 }
 
 .scramble-result-info strong {
-    color: #e0e0e0;
+    color: #1a1a1a;
     display: inline-block;
     min-width: 120px;
 }
@@ -827,9 +829,9 @@ textarea.settings-input {
 
 .case-editor-tabs {
     display: flex;
-    gap: 4px;
-    margin-bottom: 20px;
-    border-bottom: 2px solid #404040;
+    gap: 2px;
+    margin-bottom: 12px;
+    border-bottom: 2px solid #d0d0d0;
     position: sticky;
     top: 0;
     background: #ffffff;
@@ -837,12 +839,12 @@ textarea.settings-input {
 }
 
 .case-editor-tab {
-    padding: 10px 20px;
+    padding: 6px 16px;
     background: transparent;
     border: none;
-    color: #b0b0b0;
+    color: #666666;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     border-bottom: 2px solid transparent;
     margin-bottom: -2px;
@@ -850,16 +852,75 @@ textarea.settings-input {
 }
 
 .case-editor-tab:hover {
-    color: #e0e0e0;
-    background: rgba(255, 255, 255, 0.05);
+    color: #1a1a1a;
+    background: rgba(0, 0, 0, 0.05);
 }
 
 .case-editor-tab.active {
-    color: #667eea;
-    border-bottom-color: #667eea;
+    color: #0078d4;
+    border-bottom-color: #0078d4;
 }
 
 #caseEditorContent {
     max-height: calc(100vh - 250px);
     overflow-y: auto;
+}
+
+.json-creator-section-compact {
+    background: #f9f9f9;
+    border: 1px solid #d0d0d0;
+    border-radius: 4px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.json-creator-section-compact h4 {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    color: #1a1a1a;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.quick-info-btn {
+    background: #0078d4;
+    border: none;
+    color: white;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.quick-info-btn:hover {
+    background: #1177bb;
+}
+
+.parity-radio-group {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #d0d0d0;
+}
+
+.parity-radio-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #1a1a1a;
+}
+
+.abf-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
 }
