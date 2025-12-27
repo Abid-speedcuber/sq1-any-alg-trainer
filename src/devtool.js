@@ -311,6 +311,9 @@ class JSONCreator {
     </button>
     <h2>JSON Creator</h2>
     <div style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
+            <button class="json-creator-icon-btn" onclick="jsonCreator.openDataManagement()" title="Data Management">
+            <img src="viz/data.svg" width="16" height="16">
+        </button>
             <div style="position: relative;">
                 <select id="rootSelector" style="background: #f5f5f5; border: 1px solid #d0d0d0; color: #1a1a1a; padding: 4px 8px; border-radius: 4px;">
                     ${Object.keys(AppState.developingJSONs).map(root => 
@@ -802,8 +805,8 @@ class JSONCreator {
         const subtitle = document.getElementById('jsonCreatorSubtitle');
         const body = document.getElementById('jsonCreatorBody');
 
-        title.textContent = `Case: ${name}`;
-        subtitle.textContent = '';
+        title.innerHTML = `Case: ${name}`;
+        subtitle.innerHTML = `<button class="json-creator-icon-btn" onclick="jsonCreator.runItem(jsonCreator.selectedItem, '${name}')" title="Run This Case" style="position: absolute; right: 20px; top: 12px;"><img src="viz/run.svg" width="14" height="14"></button>`;
 
         // Initialize arrays if they don't exist
         if (!item.auf) item.auf = ['U0'];
@@ -829,13 +832,20 @@ class JSONCreator {
         const tabs = document.querySelectorAll('.case-editor-tab');
         tabs.forEach(t => t.classList.remove('active'));
         event.target.classList.add('active');
-        this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
+        if (this.selectedItem) {
+            this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
+        }
     }
 
     renderCaseTab(item, name) {
         const content = document.getElementById('caseEditorContent');
         if (!content) {
             console.error('caseEditorContent not found!');
+            return;
+        }
+        
+        if (!item) {
+            console.error('No item provided to renderCaseTab');
             return;
         }
 
@@ -1093,7 +1103,7 @@ class JSONCreator {
                 <div class="json-creator-section-compact">
                     <h4>
                         Parity
-                        <button class="quick-info-btn" onclick="alert('Parity here doesn\\'t refer to conventional parity. Overall parity defines \\"a\\" state of the sq1, but probably not \\"the\\" state you are aiming for. So run the case to check if you really want this. Color specific: here you can explicitly decide the arrangement of each color pieces, again test each one to check for yourself what you really want.')">?</button>
+                        <button class="quick-info-btn" onclick="(function(e){ e.stopPropagation(); alert('Parity here doesn\\'t refer to conventional parity. Overall parity defines a state of the sq1, but probably not the state you are aiming for. So run the case to check if you really want this. Color specific: here you can explicitly decide the arrangement of each color pieces, again test each one to check for yourself what you really want.'); })(event)">?</button>
                     </h4>
                     <div class="parity-radio-group">
                         <div class="parity-radio-item">
@@ -1152,7 +1162,7 @@ class JSONCreator {
                 <div class="json-creator-section-compact">
                     <h4>
                         Post ABF
-                        <button class="quick-info-btn" onclick="alert('Post ABF is Adjustment of Both Face \\"After\\" the algorithm is done.')">?</button>
+                        <button class="quick-info-btn" onclick="(function(e){ e.stopPropagation(); alert('Post ABF is Adjustment of Both Face After the algorithm is done.'); })(event)">?</button>
                     </h4>
                     <div class="abf-grid">
                         ${['U0', 'U', 'U2', "U'", 'D0', 'D', 'D2', "D'"].map((move, idx) => {
@@ -1847,6 +1857,171 @@ close() {
     setupEventListeners();
     if (AppState.selectedCases.length > 0) {
         generateNewScramble();
+    }
+}
+
+openDataManagement() {
+    const modal = document.createElement('div');
+    modal.className = 'modal active extract-json-modal';
+    modal.style.zIndex = '20000';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Data Management</h2>
+                <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <button class="json-creator-btn" onclick="jsonCreator.exportAllData()">Export All Data</button>
+                    <button class="json-creator-btn" onclick="jsonCreator.importData()">Import Data</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+exportAllData() {
+    // Save current root first
+    AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
+    saveDevelopingJSONs();
+    
+    const allData = JSON.stringify(AppState.developingJSONs, null, 2);
+    const blob = new Blob([allData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sq1-all-data.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+importData() {
+    document.querySelector('.modal').remove();
+    
+    const importModal = document.createElement('div');
+    importModal.className = 'modal active extract-json-modal';
+    importModal.style.zIndex = '20000';
+    importModal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Import Data</h2>
+                <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 16px;">
+                    <input type="file" id="importDataFile" accept=".json" style="display: none;" onchange="jsonCreator.handleImportFileSelect(event)">
+                    <div id="importDropZone" 
+                         onclick="document.getElementById('importDataFile').click()"
+                         ondragover="event.preventDefault(); this.style.background='#e0e0e0';"
+                         ondragleave="this.style.background='#f9f9f9';"
+                         ondrop="jsonCreator.handleImportFileDrop(event)"
+                         style="width: 100%; min-height: 200px; background: #f9f9f9; border: 2px dashed #d0d0d0; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #666; text-align: center; padding: 20px;">
+                        <div style="font-size: 48px; margin-bottom: 12px;">📁</div>
+                        <div style="font-size: 14px; font-weight: 500; margin-bottom: 4px;">Drop file here or click to choose</div>
+                        <div style="font-size: 12px; color: #999;">Supports .json files</div>
+                        <div id="importFileName" style="margin-top: 12px; font-size: 13px; color: #0078d4; font-weight: 500;"></div>
+                    </div>
+                </div>
+                <div id="importActions" style="display: none; flex-direction: column; gap: 8px;">
+                    <button class="json-creator-btn" onclick="jsonCreator.processImport('add')">Add to Existing</button>
+                    <button class="json-creator-btn" onclick="jsonCreator.processImport('override')">Override (Delete Previous)</button>
+                </div>
+                <button class="json-creator-btn json-creator-btn-secondary" onclick="this.closest('.modal').remove()" style="margin-top: 12px; width: 100%;">Cancel</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(importModal);
+    
+    importModal.addEventListener('click', (e) => {
+        if (e.target === importModal) {
+            importModal.remove();
+        }
+    });
+}
+
+handleImportFileDrop(event) {
+    event.preventDefault();
+    const dropZone = document.getElementById('importDropZone');
+    dropZone.style.background = '#f9f9f9';
+    
+    const file = event.dataTransfer.files[0];
+    if (file && file.type === 'application/json') {
+        this.loadImportFile(file);
+    } else {
+        alert('Please drop a valid JSON file');
+    }
+}
+
+handleImportFileSelect(event) {
+    const file = event.target.files[0];
+    if (file && file.type === 'application/json') {
+        this.loadImportFile(file);
+    } else {
+        alert('Please select a valid JSON file');
+    }
+}
+
+loadImportFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        window.importedJSONData = e.target.result;
+        document.getElementById('importFileName').textContent = `Selected: ${file.name}`;
+        document.getElementById('importActions').style.display = 'flex';
+    };
+    reader.readAsText(file);
+}
+
+processImport(mode) {
+    const jsonText = window.importedJSONData;
+    
+    if (!jsonText) {
+        alert('Please select a file to import');
+        return;
+    }
+    
+    try {
+        const importedData = JSON.parse(jsonText);
+        
+        if (mode === 'override') {
+            AppState.developingJSONs = importedData;
+            AppState.activeDevelopingJSON = Object.keys(importedData)[0] || 'default';
+        } else if (mode === 'add') {
+            // Add to existing, auto-rename conflicts
+            Object.keys(importedData).forEach(rootName => {
+                let finalName = rootName;
+                let counter = 1;
+                while (AppState.developingJSONs[finalName]) {
+                    finalName = `${rootName}_${counter}`;
+                    counter++;
+                }
+                AppState.developingJSONs[finalName] = importedData[rootName];
+            });
+        }
+        
+        saveDevelopingJSONs();
+        
+        // Update selector
+        const selector = document.getElementById('rootSelector');
+        selector.innerHTML = Object.keys(AppState.developingJSONs).map(root => 
+            `<option value="${root}" ${root === AppState.activeDevelopingJSON ? 'selected' : ''}>${root}</option>`
+        ).join('');
+        
+        // Reload current root
+        this.switchRoot(AppState.activeDevelopingJSON);
+        
+        document.querySelector('.modal').remove();
+        alert('Data imported successfully!');
+    } catch (error) {
+        alert('Invalid JSON: ' + error.message);
     }
 }
 
