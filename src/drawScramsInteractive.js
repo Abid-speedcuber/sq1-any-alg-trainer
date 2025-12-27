@@ -674,7 +674,7 @@ function setupInteractiveEvents(state, containerId) {
             const layer = newSlot.dataset.layer;
             const isCornerZone = newSlot.classList.contains('corner-interaction-zone');
 
-            showPieceSelectionModal(state, position, layer, isCornerZone, e.clientX, e.clientY);
+            showPieceSelectionModal(state, position, layer, isCornerZone, e.clientX, e.clientY, containerId);
         });
 
         // Long press for touch devices
@@ -720,7 +720,7 @@ function cyclePiece(state, position, layer, isCornerZone, direction) {
     state.updatePiece(position, layer, newPiece);
 }
 
-function showPieceSelectionModal(state, position, layer, isCornerZone, x, y) {
+function showPieceSelectionModal(state, position, layer, isCornerZone, x, y, containerId) {
     const modal = document.getElementById('pieceSelectionModal');
     const grid = document.getElementById('pieceGrid');
 
@@ -738,6 +738,13 @@ function showPieceSelectionModal(state, position, layer, isCornerZone, x, y) {
             e.stopPropagation();
             state.updatePiece(position, layer, piece);
             closePieceModal();
+            
+            // Re-render the container
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.innerHTML = createInteractiveSVG(state, { size: 200 });
+                setupInteractiveEvents(state, containerId);
+            }
         };
 
         const svgName = piece === 'E' ? 'piece_E_placeholder' : piece === 'C' ? 'piece_C_placeholder' : `piece_${piece}`;

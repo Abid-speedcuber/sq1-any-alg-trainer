@@ -1324,6 +1324,12 @@ class JSONCreator {
     showContextMenu(e, path, item, key) {
         e.preventDefault();
         e.stopPropagation();
+        
+        // Switch focus first
+        this.selectedPath = path;
+        this.selectedItem = item;
+        this.renderTree();
+        
         this.hideContextMenu();
         
         this.setupContextMenuListener();
