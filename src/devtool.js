@@ -290,6 +290,7 @@ class JSONCreator {
         this.clipboardOperation = '';
         this.expandedFolders = new Set();
         this.contextMenu = null;
+        this.lastViewedCase = null; // Track last viewed case
     }
 
     show() {
@@ -299,6 +300,9 @@ class JSONCreator {
         
         // Expand all folders on initialization
         this.expandAllFolders(this.treeData, '');
+        
+        // Try to restore last viewed case
+        const shouldRestoreCase = this.lastViewedCase && this.lastViewedCase.path;
 
         const fullscreen = document.createElement('div');
         fullscreen.className = 'json-creator-fullscreen';
@@ -311,27 +315,13 @@ class JSONCreator {
     </button>
     <h2>JSON Creator</h2>
     <div style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
+        <button id="rootSelectorBtn" onclick="jsonCreator.openRootSelectorModal(event)" style="background: #f5f5f5; border: 1px solid #d0d0d0; color: #1a1a1a; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px;">
+            <span id="rootSelectorText">${AppState.activeDevelopingJSON}</span>
+            <img src="viz/dropdown.svg" width="10" height="10">
+        </button>
             <button class="json-creator-icon-btn" onclick="jsonCreator.openDataManagement()" title="Data Management">
             <img src="viz/data.svg" width="16" height="16">
         </button>
-            <div style="position: relative;">
-                <select id="rootSelector" style="background: #f5f5f5; border: 1px solid #d0d0d0; color: #1a1a1a; padding: 4px 8px; border-radius: 4px;">
-                    ${Object.keys(AppState.developingJSONs).map(root => 
-                        `<option value="${root}" ${root === AppState.activeDevelopingJSON ? 'selected' : ''}>${root}</option>`
-                    ).join('')}
-                </select>
-                <div style="position: absolute; top: 100%; left: 0; right: 0; background: #f5f5f5; border: 1px solid #d0d0d0; border-top: none; border-radius: 0 0 4px 4px; display: none; z-index: 1000; margin-top: -1px;" id="rootActions">
-                <button onclick="jsonCreator.addRoot()" style="width: 100%; padding: 6px 8px; background: transparent; border: none; display: flex; align-items: center; gap: 8px; cursor: pointer; color: #1a1a1a; font-size: 13px;" onmouseover="this.style.background='#e0e0e0'" onmouseout="this.style.background='transparent'">
-                    <img src="viz/add.svg" width="14" height="14"> Add Root
-                </button>
-                <button onclick="jsonCreator.renameRoot()" style="width: 100%; padding: 6px 8px; background: transparent; border: none; display: flex; align-items: center; gap: 8px; cursor: pointer; color: #1a1a1a; font-size: 13px; border-top: 1px solid #d0d0d0;" onmouseover="this.style.background='#e0e0e0'" onmouseout="this.style.background='transparent'">
-                    <img src="viz/rename.svg" width="14" height="14"> Rename Root
-                </button>
-                <button onclick="jsonCreator.deleteRoot()" style="width: 100%; padding: 6px 8px; background: transparent; border: none; display: flex; align-items: center; gap: 8px; cursor: pointer; color: #1a1a1a; font-size: 13px; border-top: 1px solid #d0d0d0;" onmouseover="this.style.background='#e0e0e0'" onmouseout="this.style.background='transparent'">
-                    <img src="viz/delete.svg" width="14" height="14"> Delete Root
-                </button>
-            </div>
-        </div>
         <button class="json-creator-icon-btn" onclick="jsonCreator.extractJSON()" title="Extract JSON">
             <img src="viz/extract.svg" width="16" height="16">
         </button>
@@ -383,6 +373,29 @@ class JSONCreator {
         document.body.appendChild(fullscreen);
         this.renderTree();
         this.setupEventListeners();
+        
+        // Restore last viewed case if exists
+        if (shouldRestoreCase) {
+            const pathParts = this.lastViewedCase.path.split('/');
+            let current = this.treeData;
+            let validPath = true;
+            
+            for (const part of pathParts) {
+                if (current[part]) {
+                    current = current[part];
+                } else {
+                    validPath = false;
+                    break;
+                }
+            }
+            
+            if (validPath && current.caseName) {
+                this.selectedPath = this.lastViewedCase.path;
+                this.selectedItem = current;
+                this.renderTree();
+                this.showCaseEditor(current, this.lastViewedCase.name);
+            }
+        }
     }
 
     expandAllFolders(node, path) {
@@ -425,58 +438,6 @@ class JSONCreator {
                 this.delete();
             }
         });
-
-        const rootSelector = document.getElementById('rootSelector');
-        if (rootSelector) {
-            rootSelector.addEventListener('change', (e) => {
-                this.switchRoot(e.target.value);
-                document.getElementById('rootActions').style.display = 'none';
-            });
-            
-            let isActionsHovered = false;
-            
-            rootSelector.addEventListener('mousedown', (e) => {
-                const rootActions = document.getElementById('rootActions');
-                if (rootActions.style.display === 'block') {
-                    rootActions.style.display = 'none';
-                } else {
-                    rootActions.style.display = 'block';
-                }
-            });
-            
-            const rootActions = document.getElementById('rootActions');
-            if (rootActions) {
-                rootActions.addEventListener('mouseenter', () => {
-                    isActionsHovered = true;
-                });
-                
-                rootActions.addEventListener('mouseleave', () => {
-                    isActionsHovered = false;
-                    setTimeout(() => {
-                        if (!isActionsHovered) {
-                            rootActions.style.display = 'none';
-                        }
-                    }, 100);
-                });
-                
-                // Close on button clicks
-                rootActions.querySelectorAll('button').forEach(btn => {
-                    const originalOnclick = btn.onclick;
-                    btn.onclick = function() {
-                        if (originalOnclick) originalOnclick.call(this);
-                        rootActions.style.display = 'none';
-                    };
-                });
-            }
-            
-            // Close when clicking outside
-            document.addEventListener('click', (e) => {
-                const rootActions = document.getElementById('rootActions');
-                if (rootActions && !rootSelector.contains(e.target) && !rootActions.contains(e.target)) {
-                    rootActions.style.display = 'none';
-                }
-            });
-        }
 
         // Click outside to deselect
         document.getElementById('jsonCreatorTree').addEventListener('click', (e) => {
@@ -549,7 +510,10 @@ class JSONCreator {
             input.value = key;
             itemDiv.appendChild(input);
 
-            itemDiv.onclick = (e) => this.handleItemClick(e, currentPath, item, key);
+            itemDiv.onclick = (e) => {
+                this.hideContextMenu();
+                this.handleItemClick(e, currentPath, item, key);
+            };
             itemDiv.ondblclick = (e) => this.startRename(itemDiv, input, key);
             itemDiv.oncontextmenu = (e) => this.showContextMenu(e, currentPath, item, key);
 
@@ -805,8 +769,15 @@ class JSONCreator {
         const subtitle = document.getElementById('jsonCreatorSubtitle');
         const body = document.getElementById('jsonCreatorBody');
 
-        title.innerHTML = `Case: ${name}`;
-        subtitle.innerHTML = `<button class="json-creator-icon-btn" onclick="jsonCreator.runItem(jsonCreator.selectedItem, '${name}')" title="Run This Case" style="position: absolute; right: 20px; top: 12px;"><img src="viz/run.svg" width="14" height="14"></button>`;
+        // Store last viewed case
+        this.lastViewedCase = {
+            path: this.selectedPath,
+            item: item,
+            name: name
+        };
+
+        title.textContent = `Case: ${name}`;
+        subtitle.innerHTML = `<button class="json-creator-icon-btn" onclick="jsonCreator.runItem(jsonCreator.selectedItem, '${name}')" title="Run This Case" style="float: right; margin-top: -28px;"><img src="viz/run.svg" width="14" height="14"></button>`;
 
         // Initialize arrays if they don't exist
         if (!item.auf) item.auf = ['U0'];
@@ -1122,7 +1093,7 @@ class JSONCreator {
                             <label>Color Specific</label>
                         </div>
                     </div>
-                    <div id="parityOptions" class="json-creator-grid">
+                    <div id="parityOptions" style="display: flex; flex-direction: column; gap: 6px;">
                         ${parityMode === 'overall' ? `
                             <div class="json-creator-grid-item">
                                 <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('on') ? 'checked' : ''} 
@@ -1398,8 +1369,7 @@ class JSONCreator {
 
         const menu = document.createElement('div');
         menu.className = 'context-menu';
-        menu.style.left = `${e.pageX}px`;
-        menu.style.top = `${e.pageY}px`;
+        menu.style.cssText = `left: ${e.pageX}px; top: ${e.pageY}px; background: #3c3c3c; border: 1px solid #d0d0d0;`;
 
         const items = [
             { text: 'New Case', action: () => { this.selectedPath = ''; this.selectedItem = null; this.newCase(); } },
@@ -1426,6 +1396,106 @@ class JSONCreator {
                 }
                 menu.appendChild(menuItem);
             }
+        });
+
+        document.body.appendChild(menu);
+        this.contextMenu = menu;
+    }
+
+    openRootSelectorModal(event) {
+    event.stopPropagation();
+    
+    const button = document.getElementById('rootSelectorBtn');
+    const rect = button.getBoundingClientRect();
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal active extract-json-modal';
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: transparent; z-index: 20000; display: flex;';
+    
+    const dropdown = document.createElement('div');
+    dropdown.style.cssText = `
+        position: fixed;
+        left: ${rect.left}px;
+        top: ${rect.bottom + 4}px;
+        background: #ffffff;
+        border: 1px solid #d0d0d0;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        min-width: ${rect.width}px;
+        max-width: 300px;
+        max-height: 400px;
+        overflow-y: auto;
+        z-index: 20001;
+    `;
+    
+    dropdown.innerHTML = `
+        ${Object.keys(AppState.developingJSONs).map(root => `
+            <div class="root-selector-item ${root === AppState.activeDevelopingJSON ? 'active' : ''}" 
+                 onclick="event.stopPropagation(); jsonCreator.selectRootFromModal('${root}')"
+                 oncontextmenu="event.stopPropagation(); jsonCreator.showRootItemContextMenu(event, '${root}')">
+                <span>${root}</span>
+                ${root === AppState.activeDevelopingJSON ? '<img src="viz/checkmark.svg" width="14" height="14" style="margin-left: auto;">' : ''}
+            </div>
+        `).join('')}
+        <div style="padding: 8px; border-top: 1px solid #e0e0e0;">
+            <button class="json-creator-btn" onclick="event.stopPropagation(); jsonCreator.addRootFromModal()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                <img src="viz/add.svg" width="14" height="14"> Add New Root
+            </button>
+        </div>
+    `;
+    
+    modal.appendChild(dropdown);
+    document.body.appendChild(modal);
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+    
+    dropdown.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+}
+
+    selectRootFromModal(rootName) {
+    const modal = document.querySelector('.extract-json-modal');
+    if (modal) modal.remove();
+    this.switchRoot(rootName);
+}
+
+    addRootFromModal() {
+    const modal = document.querySelector('.extract-json-modal');
+    if (modal) modal.remove();
+    this.addRoot();
+}
+
+    showRootItemContextMenu(e, rootName) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.hideContextMenu();
+        
+        this.setupContextMenuListener();
+
+        const menu = document.createElement('div');
+        menu.className = 'context-menu';
+        menu.style.cssText = `left: ${e.pageX}px; top: ${e.pageY}px; background: #ffffff; border: 1px solid #d0d0d0;`;
+
+        const items = [
+            { text: 'Rename', action: () => { this.currentRootForAction = rootName; this.renameRoot(); } },
+            { text: 'Delete', action: () => { this.currentRootForAction = rootName; this.deleteRoot(); } }
+        ];
+
+        items.forEach(item => {
+            const menuItem = document.createElement('div');
+            menuItem.className = 'context-menu-item';
+            menuItem.style.color = '#1a1a1a';
+            menuItem.textContent = item.text;
+            menuItem.onclick = () => {
+                this.hideContextMenu();
+                item.action();
+            };
+            menu.appendChild(menuItem);
         });
 
         document.body.appendChild(menu);
@@ -1482,6 +1552,13 @@ class JSONCreator {
         this.treeData = JSON.parse(JSON.stringify(AppState.developingJSONs[rootName]));
         this.selectedPath = '';
         this.selectedItem = null;
+        
+        // Update button text only
+        const rootTextSpan = document.getElementById('rootSelectorText');
+        if (rootTextSpan) {
+            rootTextSpan.textContent = AppState.activeDevelopingJSON;
+        }
+        
         this.renderTree();
         this.showWelcome();
     }
@@ -1510,7 +1587,7 @@ class JSONCreator {
     }
 
     renameRoot() {
-        const currentName = AppState.activeDevelopingJSON;
+        const currentName = this.currentRootForAction || AppState.activeDevelopingJSON;
         const newName = prompt(`Rename root "${currentName}" to:`, currentName);
 
         if (!newName || newName === currentName) return;
@@ -1537,7 +1614,7 @@ class JSONCreator {
     }
 
     deleteRoot() {
-        const currentName = AppState.activeDevelopingJSON;
+        const currentName = this.currentRootForAction || AppState.activeDevelopingJSON;
         
         if (Object.keys(AppState.developingJSONs).length === 1) {
             alert('Cannot delete the last root');
@@ -1842,7 +1919,7 @@ async generateScrambles(jsonData, modal, isStopped) {
 }
 
 close() {
-    // Save current root before closing
+    // Save current root before closing and keep lastViewedCase intact
     AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
     saveDevelopingJSONs();
     saveLastScreen('training');
@@ -1851,6 +1928,8 @@ close() {
     if (fullscreen) {
         fullscreen.remove();
     }
+    
+    // Don't reset lastViewedCase - it persists across close/reopen
     
     // Return to training screen
     renderApp();
@@ -1925,7 +2004,7 @@ importData() {
                          ondragleave="this.style.background='#f9f9f9';"
                          ondrop="jsonCreator.handleImportFileDrop(event)"
                          style="width: 100%; min-height: 200px; background: #f9f9f9; border: 2px dashed #d0d0d0; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #666; text-align: center; padding: 20px;">
-                        <div style="font-size: 48px; margin-bottom: 12px;">📁</div>
+                        <img src="viz/folder.svg" width="48" height="48" style="margin-bottom: 12px;">
                         <div style="font-size: 14px; font-weight: 500; margin-bottom: 4px;">Drop file here or click to choose</div>
                         <div style="font-size: 12px; color: #999;">Supports .json files</div>
                         <div id="importFileName" style="margin-top: 12px; font-size: 13px; color: #0078d4; font-weight: 500;"></div>

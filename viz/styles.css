@@ -536,6 +536,7 @@ textarea.settings-input {
     padding: 10px 20px;
     border-bottom: 1px solid #d0d0d0;
     color: #1a1a1a;
+    position: relative;
 }
 
 .json-creator-content-header h3 {
@@ -864,8 +865,7 @@ textarea.settings-input {
 }
 
 #caseEditorContent {
-    max-height: calc(100vh - 250px);
-    overflow-y: auto;
+    overflow-y: visible;
 }
 
 .json-creator-section-compact {
@@ -907,8 +907,7 @@ textarea.settings-input {
 
 .parity-radio-group {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
+    gap: 12px;
     margin-bottom: 10px;
     padding-bottom: 8px;
     border-bottom: 1px solid #d0d0d0;
@@ -926,4 +925,24 @@ textarea.settings-input {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 6px;
+}
+
+.root-selector-item {
+    padding: 12px 20px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #1a1a1a;
+    font-size: 14px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.root-selector-item:hover {
+    background: #f0f0f0;
+}
+
+.root-selector-item.active {
+    background: #e6f2ff;
+    font-weight: 500;
 }
