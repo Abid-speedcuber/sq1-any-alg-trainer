@@ -864,8 +864,7 @@ textarea.settings-input {
 }
 
 #caseEditorContent {
-    max-height: calc(100vh - 250px);
-    overflow-y: auto;
+    overflow-y: visible;
 }
 
 .json-creator-section-compact {
