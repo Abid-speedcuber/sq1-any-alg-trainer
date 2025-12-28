@@ -24,11 +24,13 @@ class JSONCreator {
 
         fullscreen.innerHTML = `
                     <div class="json-creator-topbar">
-    <button class="json-creator-icon-btn" onclick="jsonCreator.toggleSidebar()" title="Toggle Sidebar" style="margin-right: 8px;">
-        <img src="viz/hamburger-menu.svg" width="16" height="16">
-    </button>
-    <div style="position: relative; margin-right: 12px;">
-                <select id="rootSelector" style="background: #f5f5f5; border: 1px solid #d0d0d0; color: #1a1a1a; padding: 4px 8px; border-radius: 4px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <button class="json-creator-icon-btn" onclick="jsonCreator.toggleSidebar()" title="Toggle Sidebar">
+            <img src="viz/hamburger-menu.svg" width="16" height="16">
+        </button>
+        <h2 style="margin: 0;">JSON Creator</h2>
+        <div style="position: relative;">
+                    <select id="rootSelector" style="background: #f5f5f5; border: 1px solid #d0d0d0; color: #1a1a1a; padding: 4px 8px; border-radius: 4px;">
                     ${Object.keys(AppState.developingJSONs).map(root => 
                         `<option value="${root}" ${root === AppState.activeDevelopingJSON ? 'selected' : ''}>${root}</option>`
                     ).join('')}
@@ -45,8 +47,8 @@ class JSONCreator {
                 </button>
             </div>
         </div>
-    <h2 style="flex: 1;">JSON Creator</h2>
-    <div style="display: flex; align-items: center; gap: 8px;">
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
             <button class="json-creator-icon-btn" onclick="jsonCreator.openDataManagement()" title="Data Management">
             <img src="viz/data.svg" width="16" height="16">
         </button>
