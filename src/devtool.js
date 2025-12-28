@@ -27,12 +27,7 @@ class JSONCreator {
     <button class="json-creator-icon-btn" onclick="jsonCreator.toggleSidebar()" title="Toggle Sidebar" style="margin-right: 8px;">
         <img src="viz/hamburger-menu.svg" width="16" height="16">
     </button>
-    <h2>JSON Creator</h2>
-    <div style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
-            <button class="json-creator-icon-btn" onclick="jsonCreator.openDataManagement()" title="Data Management">
-            <img src="viz/data.svg" width="16" height="16">
-        </button>
-            <div style="position: relative;">
+    <div style="position: relative; margin-right: 12px;">
                 <select id="rootSelector" style="background: #f5f5f5; border: 1px solid #d0d0d0; color: #1a1a1a; padding: 4px 8px; border-radius: 4px;">
                     ${Object.keys(AppState.developingJSONs).map(root => 
                         `<option value="${root}" ${root === AppState.activeDevelopingJSON ? 'selected' : ''}>${root}</option>`
@@ -50,6 +45,11 @@ class JSONCreator {
                 </button>
             </div>
         </div>
+    <h2 style="flex: 1;">JSON Creator</h2>
+    <div style="display: flex; align-items: center; gap: 8px;">
+            <button class="json-creator-icon-btn" onclick="jsonCreator.openDataManagement()" title="Data Management">
+            <img src="viz/data.svg" width="16" height="16">
+        </button>
         <button class="json-creator-icon-btn" onclick="jsonCreator.extractJSON()" title="Extract JSON">
             <img src="viz/extract.svg" width="16" height="16">
         </button>
@@ -523,8 +523,8 @@ class JSONCreator {
         const subtitle = document.getElementById('jsonCreatorSubtitle');
         const body = document.getElementById('jsonCreatorBody');
 
-        title.innerHTML = `Case: ${name}`;
-        subtitle.innerHTML = `<button class="json-creator-icon-btn" onclick="jsonCreator.runItem(jsonCreator.selectedItem, '${name}')" title="Run This Case" style="position: absolute; right: 20px; top: 12px;"><img src="viz/run.svg" width="14" height="14"></button>`;
+        title.innerHTML = `Case: ${name} <button class="json-creator-icon-btn" onclick="jsonCreator.runItem(jsonCreator.selectedItem, '${name}')" title="Run This Case" style="margin-left: 8px; display: inline-flex; align-items: center; vertical-align: middle;"><img src="viz/run.svg" width="14" height="14"></button>`;
+        subtitle.innerHTML = ``;
 
         // Initialize arrays if they don't exist
         if (!item.auf) item.auf = ['U0'];
