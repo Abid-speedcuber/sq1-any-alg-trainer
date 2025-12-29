@@ -968,20 +968,18 @@ textarea.settings-input {
 }
 
 .info-box {
-    position: absolute;
-    bottom: 120%;
-    right: 0;
+    position: fixed;
     min-width: 250px;
     max-width: 300px;
-    background: rgba(0, 0, 0, 0.9);
+    background: rgba(0, 0, 0, 0.75);
     color: white;
     padding: 12px;
     border-radius: 6px;
     font-size: 0.85rem;
     display: none;
-    z-index: 1000;
+    z-index: 100000;
     line-height: 1.4;
-    margin-bottom: 5px;
+    pointer-events: none;
 }
 
 .info-box.show {

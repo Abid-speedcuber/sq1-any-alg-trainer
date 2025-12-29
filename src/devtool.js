@@ -259,7 +259,35 @@ class JSONCreator {
             if (e.target.classList.contains('info-btn')) {
                 e.preventDefault();
                 e.stopPropagation();
-                e.target.nextElementSibling.classList.add('show');
+                const infoBox = e.target.nextElementSibling;
+                infoBox.classList.add('show');
+                
+                // Position the info box dynamically
+                const btnRect = e.target.getBoundingClientRect();
+                const boxWidth = 300;
+                const boxHeight = infoBox.offsetHeight || 100;
+                
+                // Try to position above the button
+                let top = btnRect.top - boxHeight - 10;
+                let left = btnRect.right - boxWidth;
+                
+                // If it goes above viewport, position below
+                if (top < 10) {
+                    top = btnRect.bottom + 10;
+                }
+                
+                // If it goes off left edge, align to left of button
+                if (left < 10) {
+                    left = btnRect.left;
+                }
+                
+                // If it goes off right edge, align to right edge
+                if (left + boxWidth > window.innerWidth - 10) {
+                    left = window.innerWidth - boxWidth - 10;
+                }
+                
+                infoBox.style.top = top + 'px';
+                infoBox.style.left = left + 'px';
             }
         });
 
@@ -979,9 +1007,7 @@ class JSONCreator {
                         Pre ABF
                         <span class="info-wrapper">
                             <button class="info-btn" aria-label="More info">i</button>
-                            <span class="info-box">
-                                Pre ABF is the adjustment you do before doing an alg.
-                            </span>
+                            <span class="info-box">Pre ABF is the adjustment you do before doing an alg.</span>
                         </span>
                     </h4>
                     <div class="pre-abf-container">
@@ -1042,9 +1068,11 @@ class JSONCreator {
             } else {
                 this.selectedItem.equator = this.selectedItem.equator.filter(s => s !== symbol);
             }
+            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+            saveDevelopingJSONs();
         }
     }
-
+    
     updateParity(type, value) {
         if (this.selectedItem) {
             this.selectedItem.parity[type] = value;
@@ -1075,6 +1103,8 @@ class JSONCreator {
             } else if (mode === 'color-specific') {
                 this.selectedItem.parity = ['tnbn'];
             }
+            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+            saveDevelopingJSONs();
             this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
         }
     }
@@ -1091,6 +1121,8 @@ class JSONCreator {
             } else {
                 this.selectedItem[field] = this.selectedItem[field].filter(m => m !== move);
             }
+            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+            saveDevelopingJSONs();
         }
     }
 
@@ -1106,6 +1138,8 @@ class JSONCreator {
             } else {
                 this.selectedItem[field] = this.selectedItem[field].filter(n => n !== num);
             }
+            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+            saveDevelopingJSONs();
         }
     }
 
@@ -1129,6 +1163,9 @@ class JSONCreator {
         posInput.value = '';
         valsInput.value = '';
 
+        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+        saveDevelopingJSONs();
+
         // Refresh the case editor
         this.showCaseEditor(this.selectedItem, this.selectedPath.split('/').pop());
     }
@@ -1136,6 +1173,8 @@ class JSONCreator {
     removeConstraint(position) {
         if (this.selectedItem && this.selectedItem.constraints) {
             delete this.selectedItem.constraints[position];
+            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+            saveDevelopingJSONs();
             // Refresh the case editor
             this.showCaseEditor(this.selectedItem, this.selectedPath.split('/').pop());
         }
