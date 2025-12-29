@@ -567,7 +567,7 @@ function openSettingsModal() {
                             <button class="btn btn-primary" onclick="openImportJSONModal()">Import Training JSON</button>
                         </div>
                         <div class="button-group">
-                            <button class="btn btn-secondary" onclick="openJsonCreator()">JSON Creator</button>
+                            <button class="btn btn-secondary" onclick="showJsonCreatorFullscreen()">JSON Creator</button>
                             <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
                         </div>
                     </div>

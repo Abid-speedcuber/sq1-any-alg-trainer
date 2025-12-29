@@ -17,6 +17,50 @@ class JSONCreator {
         
         // Expand all folders on initialization
         this.expandAllFolders(this.treeData, '');
+        
+        // Load last selected case from localStorage
+        const lastSelectedPath = localStorage.getItem('jsonCreator_lastSelectedPath');
+        const lastSelectedRoot = localStorage.getItem('jsonCreator_lastSelectedRoot');
+        
+        if (lastSelectedRoot === AppState.activeDevelopingJSON && lastSelectedPath) {
+            this.selectedPath = lastSelectedPath;
+            const pathParts = lastSelectedPath.split('/');
+            let current = this.treeData;
+            for (const part of pathParts) {
+                if (current[part]) {
+                    current = current[part];
+                } else {
+                    this.selectedPath = '';
+                    break;
+                }
+            }
+            if (this.selectedPath) {
+                this.selectedItem = current;
+            }
+        }
+        
+        // If no valid selection, select first case found
+        if (!this.selectedPath || !this.selectedItem) {
+            const findFirstCase = (obj, path = []) => {
+                for (const [key, value] of Object.entries(obj)) {
+                    if (value && typeof value === 'object') {
+                        if (value.caseName) {
+                            return { path: [...path, key].join('/'), item: value };
+                        } else {
+                            const found = findFirstCase(value, [...path, key]);
+                            if (found) return found;
+                        }
+                    }
+                }
+                return null;
+            };
+            
+            const firstCase = findFirstCase(this.treeData);
+            if (firstCase) {
+                this.selectedPath = firstCase.path;
+                this.selectedItem = firstCase.item;
+            }
+        }
 
         const fullscreen = document.createElement('div');
         fullscreen.className = 'json-creator-fullscreen';
@@ -103,6 +147,12 @@ class JSONCreator {
         document.body.appendChild(fullscreen);
         this.renderTree();
         this.setupEventListeners();
+        
+        // Show case editor if a case is selected
+        if (this.selectedItem && this.selectedItem.caseName) {
+            const caseName = this.selectedPath.split('/').pop();
+            this.showCaseEditor(this.selectedItem, caseName);
+        }
     }
 
     expandAllFolders(node, path) {
@@ -217,6 +267,10 @@ class JSONCreator {
     }
 
     renderTree() {
+        // Auto-save whenever tree is rendered (indicates a change)
+        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+        saveDevelopingJSONs();
+        
         const container = document.getElementById('jsonCreatorTree');
         if (!container) return;
         container.innerHTML = '';
@@ -300,6 +354,8 @@ class JSONCreator {
         } else {
             this.selectedPath = path;
             this.selectedItem = item;
+            localStorage.setItem('jsonCreator_lastSelectedPath', path);
+            localStorage.setItem('jsonCreator_lastSelectedRoot', AppState.activeDevelopingJSON);
             this.renderTree();
             this.showCaseEditor(item, key);
         }
@@ -937,6 +993,8 @@ class JSONCreator {
     updateField(field, value) {
         if (this.selectedItem) {
             this.selectedItem[field] = value;
+            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+            saveDevelopingJSONs();
         }
     }
 
@@ -1194,7 +1252,7 @@ class JSONCreator {
 
     switchRoot(rootName) {
         // Save current root
-        AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
+        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
         saveDevelopingJSONs();
 
         // Switch to new root
@@ -1202,6 +1260,8 @@ class JSONCreator {
         this.treeData = JSON.parse(JSON.stringify(AppState.developingJSONs[rootName]));
         this.selectedPath = '';
         this.selectedItem = null;
+        this.expandedFolders.clear();
+        this.expandAllFolders(this.treeData, '');
         this.renderTree();
         this.showWelcome();
     }
