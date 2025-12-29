@@ -1,3 +1,5 @@
+//Every Update to the state should instantly render to ensure snappyness of the app.
+
 // JSON Creator Implementation
 class JSONCreator {
     constructor() {

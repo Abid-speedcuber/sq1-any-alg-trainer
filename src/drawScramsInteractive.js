@@ -471,7 +471,7 @@ function createInteractiveSVG(state, options = {}) {
         svgHTML += `<circle cx="${cx}" cy="${cy}" r="${dimensions.cornerRingR}" class="corner-ring" fill="none" stroke="rgba(255,0,0,0.1)" stroke-width="1" stroke-dasharray="2,2"/>`;
         const p1L = polarToCartesian(cx, cy, dimensions.ringR + 6, 75);
         const p2L = polarToCartesian(cx, cy, dimensions.ringR + 6, 255);
-        svgHTML += `<line x1="${p1L.x}" y1="${p1L.y}" x2="${p2L.x}" y2="${p2L.y}" class="cluster-red-line"/>`;
+        svgHTML += `<line x1="${p1L.x}" y1="${p1L.y}" x2="${p2L.x}" y2="${p2L.y}" stroke="#d32f2f" stroke-width="2" pointer-events="none"/>`;
         svgHTML += `<circle cx="${cx}" cy="${cy}" r="${Math.max(2, Math.round(unitSize * 0.05))}" fill="rgba(0,0,0,0.06)"/>`;
 
         const leftLetterCenter = Array.from({ length: 12 }, (_, j) => 90 + j * 30);
@@ -530,7 +530,7 @@ function createInteractiveSVG(state, options = {}) {
         svgHTML += `<circle cx="${cx}" cy="${cy}" r="${dimensions.cornerRingR}" class="corner-ring" fill="none" stroke="rgba(255,0,0,0.1)" stroke-width="1" stroke-dasharray="2,2"/>`;
         const p1R = polarToCartesian(cx, cy, dimensions.ringR + 6, 105);
         const p2R = polarToCartesian(cx, cy, dimensions.ringR + 6, 285);
-        svgHTML += `<line x1="${p1R.x}" y1="${p1R.y}" x2="${p2R.x}" y2="${p2R.y}" class="cluster-red-line"/>`;
+        svgHTML += `<line x1="${p1R.x}" y1="${p1R.y}" x2="${p2R.x}" y2="${p2R.y}" stroke="#d32f2f" stroke-width="2" pointer-events="none"/>`;
         svgHTML += `<circle cx="${cx}" cy="${cy}" r="${Math.max(2, Math.round(unitSize * 0.05))}" fill="rgba(0,0,0,0.06)"/>`;
 
         const rightLetterCenter = Array.from({ length: 12 }, (_, j) => 300 + j * 30);
