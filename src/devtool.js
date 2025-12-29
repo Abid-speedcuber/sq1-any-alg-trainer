@@ -720,15 +720,9 @@ class JSONCreator {
                         const topInput = document.getElementById('topLayerInput');
                         if (topInput) {
                             topInput.value = this.topState.topText;
-                            // Check again after a moment
-                            setTimeout(() => {
-                                const stillThere = document.getElementById('topLayerInput');
-                                if (stillThere) {
-                                }
-                            }, 100);
-                        } else {
-                            console.error('Top input element not found!');
                         }
+                        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+                        saveDevelopingJSONs();
                     }
                 });
             }
@@ -745,9 +739,9 @@ class JSONCreator {
                         const bottomInput = document.getElementById('bottomLayerInput');
                         if (bottomInput) {
                             bottomInput.value = this.bottomState.bottomText;
-                        } else {
-                            console.error('Bottom input element not found!');
                         }
+                        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+                        saveDevelopingJSONs();
                     }
                 });
             }
@@ -853,6 +847,8 @@ class JSONCreator {
                             topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
                             window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
                             this.selectedItem.inputTop = value;
+                            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+                            saveDevelopingJSONs();
                         } catch (error) {
                             console.error('Parse error:', error);
                             alert('Invalid input: ' + error.message);
@@ -882,6 +878,8 @@ class JSONCreator {
                             bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
                             window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
                             this.selectedItem.inputBottom = value;
+                            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+                            saveDevelopingJSONs();
                         } catch (error) {
                             console.error('Parse error:', error);
                             alert('Invalid input: ' + error.message);
