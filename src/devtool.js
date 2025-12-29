@@ -248,6 +248,21 @@ class JSONCreator {
             });
         }
 
+        // Info button handler
+        document.addEventListener('click', (e) => {
+            // Close all info boxes first
+            document.querySelectorAll('.info-box').forEach(box => 
+                box.classList.remove('show')
+            );
+            
+            // If an info button was clicked, open only that one
+            if (e.target.classList.contains('info-btn')) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.target.nextElementSibling.classList.add('show');
+            }
+        });
+
         // Click outside to deselect
         document.getElementById('jsonCreatorTree').addEventListener('click', (e) => {
             if (e.target.id === 'jsonCreatorTree') {
@@ -879,7 +894,12 @@ class JSONCreator {
                 <div class="json-creator-section-compact">
                     <h4>
                         Parity
-                        <button class="quick-info-btn" onclick="(function(e){ e.stopPropagation(); alert('Parity here doesn\\'t refer to conventional parity. Overall parity defines a state of the sq1, but probably not the state you are aiming for. So run the case to check if you really want this. Color specific: here you can explicitly decide the arrangement of each color pieces, again test each one to check for yourself what you really want.'); })(event)">?</button>
+                        <span class="info-wrapper">
+                            <button class="info-btn" aria-label="More info">i</button>
+                            <span class="info-box">
+                                Parity here doesn't refer to conventional parity. Overall parity defines a state of the sq1, but probably not the state you are aiming for. So run the case to check if you really want this. Color specific: here you can explicitly decide the arrangement of each color pieces, again test each one to check for yourself what you really want.
+                            </span>
+                        </span>
                     </h4>
                     <div class="parity-radio-group">
                         <div class="parity-radio-item">
@@ -898,7 +918,7 @@ class JSONCreator {
                             <label>Color Specific</label>
                         </div>
                     </div>
-                    <div id="parityOptions" class="json-creator-grid">
+                    <div id="parityOptions" class="parity-checkboxes-vertical">
                         ${parityMode === 'overall' ? `
                             <div class="json-creator-grid-item">
                                 <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('on') ? 'checked' : ''} 
@@ -955,28 +975,40 @@ class JSONCreator {
                 </div>
 
                 <div class="json-creator-section-compact">
-                    <h4>RUL (Rotate Upper Layer)</h4>
-                    <div class="json-creator-grid">
-                        ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
-                            <div class="json-creator-grid-item">
-                                <input type="checkbox" ${Array.isArray(item.rul) && item.rul.includes(val) ? 'checked' : ''} 
-                                       onchange="jsonCreator.updateNumberArray('rul', ${val}, this.checked)">
-                                <label>${val}</label>
+                    <h4>
+                        Pre ABF
+                        <span class="info-wrapper">
+                            <button class="info-btn" aria-label="More info">i</button>
+                            <span class="info-box">
+                                Pre ABF is the adjustment you do before doing an alg.
+                            </span>
+                        </span>
+                    </h4>
+                    <div class="pre-abf-container">
+                        <div class="pre-abf-section">
+                            <h5>Pre AUF</h5>
+                            <div class="pre-abf-grid">
+                                ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
+                                    <div class="json-creator-grid-item">
+                                        <input type="checkbox" ${Array.isArray(item.rul) && item.rul.includes(val) ? 'checked' : ''} 
+                                               onchange="jsonCreator.updateNumberArray('rul', ${val}, this.checked)">
+                                        <label>${val}</label>
+                                    </div>
+                                `).join('')}
                             </div>
-                        `).join('')}
-                    </div>
-                </div>
-
-                <div class="json-creator-section-compact">
-                    <h4>RDL (Rotate Down Layer)</h4>
-                    <div class="json-creator-grid">
-                        ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
-                            <div class="json-creator-grid-item">
-                                <input type="checkbox" ${Array.isArray(item.rdl) && item.rdl.includes(val) ? 'checked' : ''} 
-                                       onchange="jsonCreator.updateNumberArray('rdl', ${val}, this.checked)">
-                                <label>${val}</label>
+                        </div>
+                        <div class="pre-abf-section">
+                            <h5>Pre ADF</h5>
+                            <div class="pre-abf-grid">
+                                ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
+                                    <div class="json-creator-grid-item">
+                                        <input type="checkbox" ${Array.isArray(item.rdl) && item.rdl.includes(val) ? 'checked' : ''} 
+                                               onchange="jsonCreator.updateNumberArray('rdl', ${val}, this.checked)">
+                                        <label>${val}</label>
+                                    </div>
+                                `).join('')}
                             </div>
-                        `).join('')}
+                        </div>
                     </div>
                 </div>
 
@@ -1351,7 +1383,7 @@ class JSONCreator {
     extractJSON() {
     
     // Save current root before extracting
-    AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
+    AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
     saveDevelopingJSONs();
     
     const jsonString = JSON.stringify(this.treeData, null, 2);
@@ -1365,17 +1397,18 @@ class JSONCreator {
         const modal = document.createElement('div');
         modal.className = 'modal active extract-json-modal';
         modal.style.zIndex = '20000'; // Higher than json-creator-fullscreen (10000)
+        modal.style.background = 'rgba(0, 0, 0, 0.5)';
         modal.innerHTML = `
-            <div class="modal-content" style="max-width: 800px;">
-                <div class="modal-header">
-                    <h2>Extract JSON: ${AppState.activeDevelopingJSON}</h2>
-                    <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+            <div class="modal-content" style="max-width: 800px; background: #ffffff; border: 1px solid #d0d0d0;">
+                <div class="modal-header" style="border-bottom: 1px solid #d0d0d0;">
+                    <h2 style="color: #1a1a1a;">Extract JSON: ${AppState.activeDevelopingJSON}</h2>
+                    <button class="close-btn" onclick="this.closest('.modal').remove()" style="color: #666666;">×</button>
                 </div>
                 <div class="modal-body">
-                    <textarea readonly id="extractedJSON" style="width: 100%; min-height: 400px; font-family: 'Courier New', monospace; background: #1a1a1a; color: #e0e0e0; border: 1px solid #404040; border-radius: 6px; padding: 12px;">${jsonString}</textarea>
+                    <textarea readonly id="extractedJSON" style="width: 100%; min-height: 400px; font-family: 'Courier New', monospace; background: #f9f9f9; color: #1a1a1a; border: 1px solid #d0d0d0; border-radius: 6px; padding: 12px;">${jsonString}</textarea>
                     <div class="button-group" style="margin-top: 12px;">
-                        <button class="btn btn-primary" id="copyJSONBtn">Copy JSON</button>
-                        <button class="btn btn-primary" id="downloadJSONBtn">Download JSON</button>
+                        <button class="json-creator-btn" id="copyJSONBtn">Copy JSON</button>
+                        <button class="json-creator-btn" id="downloadJSONBtn">Download JSON</button>
                     </div>
                 </div>
             </div>
