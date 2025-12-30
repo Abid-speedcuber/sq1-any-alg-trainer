@@ -1,284 +1,117 @@
-// JSON Creator Modal
-window.openJsonCreator = function () {
-    document.querySelector('.modal').remove();
+//Every Update to the state should instantly render to ensure snappyness of the app.
+
+// Utility Functions
+function showFloatingMessage(message, type = 'info', duration = 3000) {
+    const existing = document.querySelector('.floating-message');
+    if (existing) existing.remove();
+
+    // Detect if we're in JSON Creator context
+    const isDevTool = document.getElementById('jsonCreatorFullscreen') !== null;
+    const themeClass = isDevTool ? 'devtool-theme' : '';
+
+    const msg = document.createElement('div');
+    msg.className = `floating-message ${type} ${themeClass}`;
+    msg.textContent = message;
+    document.body.appendChild(msg);
+
+    setTimeout(() => {
+        msg.style.animation = 'slideDown 0.3s ease-out reverse';
+        setTimeout(() => msg.remove(), 300);
+    }, duration);
+}
+
+function showConfirmationModal(title, message, onConfirm, onCancel = null) {
     const modal = document.createElement('div');
-    modal.className = 'modal active extract-json-modal';
-    modal.style.zIndex = '20000'; // Higher than json-creator-fullscreen (10000)
+    modal.className = 'modal active confirmation-modal';
+    modal.style.zIndex = '100001';
+
+    // Detect if we're in JSON Creator context
+    const isDevTool = document.getElementById('jsonCreatorFullscreen') !== null;
+    const modalClass = isDevTool ? 'modal-content devtool-modal' : 'modal-content';
+
     modal.innerHTML = `
-                <div class="modal-content" style="max-width: 1000px;">
-                    <div class="modal-header">
-                        <h2>JSON Creator</h2>
-                        <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
-                    </div>
-                    <div class="modal-body" style="display: flex; gap: 20px;">
-                        <div style="flex: 1; display: flex; flex-direction: column;">
-                            <h3 style="margin-bottom: 10px;">Tree Structure</h3>
-                            <div id="jsonCreatorTree" style="flex: 1; overflow-y: auto; background: #1a1a1a; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
-                                <div class="tree-item" data-path="">Root</div>
-                            </div>
-                            <div style="display: flex; gap: 10px;">
-                                <button class="btn btn-secondary" onclick="addFolderToTree()">Add Folder</button>
-                                <button class="btn btn-secondary" onclick="addCaseToTree()">Add Case</button>
-                                <button class="btn btn-secondary" onclick="deleteSelectedNode()">Delete Selected</button>
-                            </div>
-                        </div>
-                        <div style="flex: 1; display: flex; flex-direction: column;">
-                            <h3 style="margin-bottom: 10px;">Edit Selected Item</h3>
-                            <div id="jsonCreatorEditor" style="flex: 1; overflow-y: auto; background: #1a1a1a; padding: 15px; border-radius: 8px;">
-                                <p style="color: #888;">Select an item from the tree to edit</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div style="padding: 20px; border-top: 1px solid #404040; display: flex; gap: 10px; justify-content: flex-end;">
-                        <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
-                        <button class="btn btn-primary" onclick="exportJsonFromCreator()">Export to Settings</button>
-                    </div>
+        <div class="${modalClass}">
+            <div class="modal-header">
+                <h2>${title}</h2>
+            </div>
+            <div class="modal-body">
+                <p>${message}</p>
+                <div class="button-group">
+                    <button class="btn btn-secondary" id="confirmCancelBtn">Cancel</button>
+                    <button class="btn btn-primary" id="confirmOkBtn">OK</button>
                 </div>
-            `;
+            </div>
+        </div>
+    `;
     document.body.appendChild(modal);
 
-    // Initialize creator state
-    window.jsonCreatorState = {
-        tree: {},
-        selectedPath: null
+    document.getElementById('confirmOkBtn').onclick = () => {
+        modal.remove();
+        if (onConfirm) onConfirm();
     };
 
-    // Try to load from existing algset
-    if (AppState.algsetData && Object.keys(AppState.algsetData).length > 0) {
-        window.jsonCreatorState.tree = JSON.parse(JSON.stringify(AppState.algsetData));
-        renderJsonCreatorTree();
-    }
+    document.getElementById('confirmCancelBtn').onclick = () => {
+        modal.remove();
+        if (onCancel) onCancel();
+    };
 
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             modal.remove();
+            if (onCancel) onCancel();
         }
     });
-};
+}
 
-window.addFolderToTree = function () {
-    const name = prompt('Enter folder name:');
-    if (!name) return;
+function showRenameModal(title, currentValue, onConfirm) {
+    const modal = document.createElement('div');
+    modal.className = 'modal active confirmation-modal';
+    modal.style.zIndex = '100001';
 
-    const path = window.jsonCreatorState.selectedPath || '';
-    const pathArray = path ? path.split('.') : [];
+    // Detect if we're in JSON Creator context
+    const isDevTool = document.getElementById('jsonCreatorFullscreen') !== null;
+    const modalClass = isDevTool ? 'modal-content devtool-modal' : 'modal-content';
 
-    let current = window.jsonCreatorState.tree;
-    for (const p of pathArray) {
-        if (!current[p]) current[p] = {};
-        current = current[p];
-    }
+    modal.innerHTML = `
+        <div class="${modalClass}">
+            <div class="modal-header">
+                <h2>${title}</h2>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="rename-modal-input" id="renameInput" value="${currentValue}">
+                <div class="button-group">
+                    <button class="btn btn-secondary" id="renameCancelBtn">Cancel</button>
+                    <button class="btn btn-primary" id="renameOkBtn">OK</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
 
-    if (current[name]) {
-        alert('Item with this name already exists!');
-        return;
-    }
+    const input = document.getElementById('renameInput');
+    input.focus();
+    input.select();
 
-    current[name] = {};
-    renderJsonCreatorTree();
-};
-
-window.addCaseToTree = function () {
-    const name = prompt('Enter case name:');
-    if (!name) return;
-
-    const path = window.jsonCreatorState.selectedPath || '';
-    const pathArray = path ? path.split('.') : [];
-
-    let current = window.jsonCreatorState.tree;
-    for (const p of pathArray) {
-        if (!current[p]) current[p] = {};
-        current = current[p];
-    }
-
-    if (current[name]) {
-        alert('Item with this name already exists!');
-        return;
-    }
-
-    current[name] = {
-        caseName: name,
-        inputTop: "RRRRRRRRRRRR",
-        inputBottom: "RRRRRRRRRRRR",
-        equator: ["/", "|"],
-        parity: ["tpbp"],
-        constraints: {},
-        auf: ["U0"],
-        adf: ["D0"],
-        rul: [0],
-        rdl: [0],
-        alg: ""
+    const handleConfirm = () => {
+        const value = input.value.trim();
+        if (value) {
+            modal.remove();
+            onConfirm(value);
+        }
     };
 
-    renderJsonCreatorTree();
-};
+    document.getElementById('renameOkBtn').onclick = handleConfirm;
+    document.getElementById('renameCancelBtn').onclick = () => modal.remove();
 
-window.deleteSelectedNode = function () {
-    if (!window.jsonCreatorState.selectedPath) {
-        alert('Please select an item to delete');
-        return;
-    }
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleConfirm();
+        if (e.key === 'Escape') modal.remove();
+    });
 
-    if (!confirm('Are you sure you want to delete this item?')) return;
-
-    const pathArray = window.jsonCreatorState.selectedPath.split('.');
-    const itemName = pathArray.pop();
-
-    let current = window.jsonCreatorState.tree;
-    for (const p of pathArray) {
-        current = current[p];
-    }
-
-    delete current[itemName];
-    window.jsonCreatorState.selectedPath = null;
-    renderJsonCreatorTree();
-    document.getElementById('jsonCreatorEditor').innerHTML = '<p style="color: #888;">Select an item from the tree to edit</p>';
-};
-
-function renderJsonCreatorTree() {
-    const treeDiv = document.getElementById('jsonCreatorTree');
-    treeDiv.innerHTML = renderJsonTreeNode(window.jsonCreatorState.tree, [], 0);
-
-    // Add click handlers
-    treeDiv.querySelectorAll('.tree-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-            e.stopPropagation();
-            treeDiv.querySelectorAll('.tree-item').forEach(i => i.classList.remove('selected'));
-            item.classList.add('selected');
-            window.jsonCreatorState.selectedPath = item.getAttribute('data-path');
-            renderJsonCreatorEditor();
-        });
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
     });
 }
-
-function renderJsonTreeNode(node, path, level) {
-    let html = '';
-
-    for (const [key, value] of Object.entries(node)) {
-        const currentPath = [...path, key].join('.');
-        const isCase = value.caseName !== undefined;
-        const indent = level * 20;
-
-        if (isCase) {
-            html += `<div class="tree-item" data-path="${currentPath}" style="margin-left: ${indent}px; padding: 6px 8px; cursor: pointer; border-radius: 4px; margin-bottom: 4px;">📄 ${key}</div>`;
-        } else {
-            html += `<div class="tree-item" data-path="${currentPath}" style="margin-left: ${indent}px; padding: 6px 8px; cursor: pointer; border-radius: 4px; margin-bottom: 4px; font-weight: bold;">📁 ${key}</div>`;
-            html += renderJsonTreeNode(value, [...path, key], level + 1);
-        }
-    }
-
-    return html;
-}
-
-function renderJsonCreatorEditor() {
-    const path = window.jsonCreatorState.selectedPath;
-    if (!path) return;
-
-    const pathArray = path.split('.');
-    let current = window.jsonCreatorState.tree;
-
-    for (const p of pathArray) {
-        current = current[p];
-    }
-
-    const isCase = current.caseName !== undefined;
-    const editorDiv = document.getElementById('jsonCreatorEditor');
-
-    if (isCase) {
-        editorDiv.innerHTML = `
-                    <div style="display: flex; flex-direction: column; gap: 12px;">
-                        <div>
-                            <label style="display: block; margin-bottom: 4px; color: #888;">Case Name:</label>
-                            <input type="text" id="edit_caseName" value="${current.caseName}" style="width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 4px; color: #888;">Top Layer (12 chars):</label>
-                            <input type="text" id="edit_inputTop" value="${current.inputTop}" style="width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; font-family: monospace;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 4px; color: #888;">Bottom Layer (12 chars):</label>
-                            <input type="text" id="edit_inputBottom" value="${current.inputBottom}" style="width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; font-family: monospace;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 4px; color: #888;">Equator (comma separated: /, |):</label>
-                            <input type="text" id="edit_equator" value="${current.equator.join(',')}" style="width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 4px; color: #888;">Parity (comma separated: tpbp, tpbn, op, on):</label>
-                            <input type="text" id="edit_parity" value="${current.parity.join(',')}" style="width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 4px; color: #888;">AUF (comma separated: U0, U, U2, U'):</label>
-                            <input type="text" id="edit_auf" value="${current.auf.join(',')}" style="width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 4px; color: #888;">ADF (comma separated: D0, D, D2, D'):</label>
-                            <input type="text" id="edit_adf" value="${current.adf.join(',')}" style="width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 4px; color: #888;">RUL (comma separated numbers: 0, 3, -3, 6):</label>
-                            <input type="text" id="edit_rul" value="${current.rul.join(',')}" style="width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 4px; color: #888;">RDL (comma separated numbers: 0, 3, -3, 6):</label>
-                            <input type="text" id="edit_rdl" value="${current.rdl.join(',')}" style="width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 4px; color: #888;">Constraints (JSON object):</label>
-                            <textarea id="edit_constraints" style="width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; font-family: monospace; min-height: 80px;">${JSON.stringify(current.constraints, null, 2)}</textarea>
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 4px; color: #888;">Algorithm:</label>
-                            <input type="text" id="edit_alg" value="${current.alg}" style="width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0;">
-                        </div>
-                        <button class="btn btn-primary" onclick="saveCaseEdits()" style="margin-top: 8px;">Save Changes</button>
-                    </div>
-                `;
-    } else {
-        editorDiv.innerHTML = `
-                    <div>
-                        <p style="color: #888; margin-bottom: 12px;">This is a folder. You can add cases or subfolders to it.</p>
-                        <p style="color: #888;">Folder path: ${path}</p>
-                    </div>
-                `;
-    }
-}
-
-window.saveCaseEdits = function () {
-    const path = window.jsonCreatorState.selectedPath;
-    if (!path) return;
-
-    const pathArray = path.split('.');
-    let current = window.jsonCreatorState.tree;
-
-    for (const p of pathArray) {
-        current = current[p];
-    }
-
-    try {
-        current.caseName = document.getElementById('edit_caseName').value;
-        current.inputTop = document.getElementById('edit_inputTop').value;
-        current.inputBottom = document.getElementById('edit_inputBottom').value;
-        current.equator = document.getElementById('edit_equator').value.split(',').map(s => s.trim());
-        current.parity = document.getElementById('edit_parity').value.split(',').map(s => s.trim());
-        current.auf = document.getElementById('edit_auf').value.split(',').map(s => s.trim());
-        current.adf = document.getElementById('edit_adf').value.split(',').map(s => s.trim());
-        current.rul = document.getElementById('edit_rul').value.split(',').map(s => s.trim()).map(Number);
-        current.rdl = document.getElementById('edit_rdl').value.split(',').map(s => s.trim()).map(Number);
-        current.constraints = JSON.parse(document.getElementById('edit_constraints').value);
-        current.alg = document.getElementById('edit_alg').value;
-
-        alert('Changes saved!');
-        renderJsonCreatorTree();
-    } catch (error) {
-        alert('Error saving: ' + error.message);
-    }
-};
-
-window.openJsonCreator = function () {
-    document.querySelector('.modal').remove();
-    showJsonCreatorFullscreen();
-};
 
 // JSON Creator Implementation
 class JSONCreator {
@@ -290,19 +123,156 @@ class JSONCreator {
         this.clipboardOperation = '';
         this.expandedFolders = new Set();
         this.contextMenu = null;
-        this.lastViewedCase = null; // Track last viewed case
+        this.caseTemplate = null;
+        this.itemOrder = {}; // Track insertion order for all paths
+        this.rootOrder = []; // Track order of roots
+    }
+
+    getOrderedKeys(node, path) {
+        const keys = Object.keys(node);
+        const orderKey = path || '__root__';
+        
+        if (!this.itemOrder[orderKey]) {
+            // Initialize order for this path
+            this.itemOrder[orderKey] = keys;
+            this.saveItemOrder();
+        } else {
+            // Ensure all current keys are in the order array
+            const existingOrder = this.itemOrder[orderKey];
+            const newKeys = keys.filter(k => !existingOrder.includes(k));
+            if (newKeys.length > 0) {
+                this.itemOrder[orderKey] = [...existingOrder, ...newKeys];
+                this.saveItemOrder();
+            }
+            // Filter out any keys that no longer exist
+            this.itemOrder[orderKey] = this.itemOrder[orderKey].filter(k => keys.includes(k));
+        }
+        
+        return this.itemOrder[orderKey];
+    }
+
+    saveItemOrder() {
+        localStorage.setItem(`itemOrder_${AppState.activeDevelopingJSON}`, JSON.stringify(this.itemOrder));
+    }
+
+    saveRootOrder() {
+        localStorage.setItem('rootOrder', JSON.stringify(this.rootOrder));
+    }
+
+    moveItemUp(path) {
+        const pathParts = path.split('/');
+        const itemName = pathParts.pop();
+        const parentPath = pathParts.join('/') || '__root__';
+        
+        const order = this.itemOrder[parentPath];
+        if (!order) return;
+        
+        const index = order.indexOf(itemName);
+        if (index > 0) {
+            [order[index], order[index - 1]] = [order[index - 1], order[index]];
+            this.saveItemOrder();
+            this.renderTree();
+        }
+    }
+
+    moveItemDown(path) {
+        const pathParts = path.split('/');
+        const itemName = pathParts.pop();
+        const parentPath = pathParts.join('/') || '__root__';
+        
+        const order = this.itemOrder[parentPath];
+        if (!order) return;
+        
+        const index = order.indexOf(itemName);
+        if (index < order.length - 1 && index !== -1) {
+            [order[index], order[index + 1]] = [order[index + 1], order[index]];
+            this.saveItemOrder();
+            this.renderTree();
+        }
+    }
+
+    moveRootUp(rootName) {
+        const index = this.rootOrder.indexOf(rootName);
+        if (index > 0) {
+            [this.rootOrder[index], this.rootOrder[index - 1]] = [this.rootOrder[index - 1], this.rootOrder[index]];
+            this.saveRootOrder();
+        }
+    }
+
+    moveRootDown(rootName) {
+        const index = this.rootOrder.indexOf(rootName);
+        if (index < this.rootOrder.length - 1 && index !== -1) {
+            [this.rootOrder[index], this.rootOrder[index + 1]] = [this.rootOrder[index + 1], this.rootOrder[index]];
+            this.saveRootOrder();
+        }
     }
 
     show() {
         saveLastScreen('jsonCreator');
         // Load current developing JSON
         this.treeData = JSON.parse(JSON.stringify(AppState.developingJSONs[AppState.activeDevelopingJSON] || DEFAULT_ALGSET));
+
+        // Load item order
+        this.itemOrder = JSON.parse(localStorage.getItem(`itemOrder_${AppState.activeDevelopingJSON}`) || '{}');
         
+        // Load root order
+        this.rootOrder = JSON.parse(localStorage.getItem('rootOrder') || '[]');
+        // Initialize root order if empty
+        if (this.rootOrder.length === 0) {
+            this.rootOrder = Object.keys(AppState.developingJSONs);
+            this.saveRootOrder();
+        }
+
+        // Load case template
+        const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
+        this.caseTemplate = localStorage.getItem(templateKey) ? JSON.parse(localStorage.getItem(templateKey)) : null;
+
         // Expand all folders on initialization
         this.expandAllFolders(this.treeData, '');
-        
-        // Try to restore last viewed case
-        const shouldRestoreCase = this.lastViewedCase && this.lastViewedCase.path;
+
+        // Load last selected case from localStorage
+        const lastSelectedPath = localStorage.getItem('jsonCreator_lastSelectedPath');
+        const lastSelectedRoot = localStorage.getItem('jsonCreator_lastSelectedRoot');
+
+        if (lastSelectedRoot === AppState.activeDevelopingJSON && lastSelectedPath) {
+            this.selectedPath = lastSelectedPath;
+            const pathParts = lastSelectedPath.split('/');
+            let current = this.treeData;
+            for (const part of pathParts) {
+                if (current[part]) {
+                    current = current[part];
+                } else {
+                    this.selectedPath = '';
+                    break;
+                }
+            }
+            if (this.selectedPath) {
+                this.selectedItem = current;
+            }
+        }
+
+        // If no valid selection, select first case found
+        if (!this.selectedPath || !this.selectedItem) {
+            const findFirstCase = (obj, path = []) => {
+                for (const [key, value] of Object.entries(obj)) {
+                    if (value && typeof value === 'object') {
+                        if (value.caseName) {
+                            return { path: [...path, key].join('/'), item: value };
+                        } else {
+                            const found = findFirstCase(value, [...path, key]);
+                            if (found) return found;
+                        }
+                    }
+                }
+                return null;
+            };
+
+            const firstCase = findFirstCase(this.treeData);
+            if (firstCase) {
+                this.selectedPath = firstCase.path;
+                this.selectedItem = firstCase.item;
+            }
+        }
 
         const fullscreen = document.createElement('div');
         fullscreen.className = 'json-creator-fullscreen';
@@ -310,15 +280,19 @@ class JSONCreator {
 
         fullscreen.innerHTML = `
                     <div class="json-creator-topbar">
-    <button class="json-creator-icon-btn" onclick="jsonCreator.toggleSidebar()" title="Toggle Sidebar" style="margin-right: 8px;">
-        <img src="viz/hamburger-menu.svg" width="16" height="16">
-    </button>
-    <h2>JSON Creator</h2>
-    <div style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
-        <button id="rootSelectorBtn" onclick="jsonCreator.openRootSelectorModal(event)" style="background: #f5f5f5; border: 1px solid #d0d0d0; color: #1a1a1a; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px;">
-            <span id="rootSelectorText">${AppState.activeDevelopingJSON}</span>
-            <img src="viz/dropdown.svg" width="10" height="10">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <button class="json-creator-icon-btn" onclick="jsonCreator.toggleSidebar()" title="Toggle Sidebar">
+            <img src="viz/hamburger-menu.svg" width="16" height="16">
         </button>
+        <div style="margin: 0; display: flex; flex-direction: column; line-height: 1.2;">
+            <span style="font-size: 18px; font-weight: 700;">SquanGo</span>
+            <span style="font-size: 11px; font-weight: 400; color: #666666;">Algset Devtool</span>
+        </div>
+        <button id="rootSelectorBtn" onclick="jsonCreator.openRootSelectorModal()" style="background: #f5f5f5; border: 1px solid #d0d0d0; color: #1a1a1a; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+            ${AppState.activeDevelopingJSON}
+        </button>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
             <button class="json-creator-icon-btn" onclick="jsonCreator.openDataManagement()" title="Data Management">
             <img src="viz/data.svg" width="16" height="16">
         </button>
@@ -351,19 +325,21 @@ class JSONCreator {
                                 <button class="json-creator-toolbar-btn" onclick="jsonCreator.delete()" title="Delete">
                                     <img src="viz/delete.svg" width="18" height="18">
                                 </button>
+                                <button class="json-creator-toolbar-btn" onclick="jsonCreator.showExtraTools(event)" title="Extra Tools">
+                                    <img src="viz/extra-tools.svg" width="18" height="18">
+                                </button>
                             </div>
                             <div class="json-creator-tree" id="jsonCreatorTree"></div>
                         </div>
                         <div class="json-creator-content">
                             <div class="json-creator-content-header">
-                                <h3 id="jsonCreatorTitle">JSON Creator</h3>
-                                <p id="jsonCreatorSubtitle">Select or create an item to begin</p>
+                                <div style="display: flex; flex-direction: column; line-height: 1.3;"><span style="font-size: 18px; font-weight: 700;">SquanGo</span><span style="font-size: 12px; font-weight: 400; color: #666666;">Case Editor</span></div>
                             </div>
                             <div class="json-creator-content-body" id="jsonCreatorBody">
                                 <div class="json-creator-welcome">
-                                    <h3>Welcome to JSON Creator</h3>
-                                    <p>Create and organize your Square-1 algset cases.</p>
-                                    <p>Use the toolbar to add folders and cases.</p>
+                                    <h3>Welcome to Algset Devtool</h3>
+                                    <p>Create your own Square-1 algset trainer.</p>
+                                    <p>Use the toolbar or right click context menu to add folders and cases.</p>
                                 </div>
                             </div>
                         </div>
@@ -373,33 +349,17 @@ class JSONCreator {
         document.body.appendChild(fullscreen);
         this.renderTree();
         this.setupEventListeners();
-        
-        // Restore last viewed case if exists
-        if (shouldRestoreCase) {
-            const pathParts = this.lastViewedCase.path.split('/');
-            let current = this.treeData;
-            let validPath = true;
-            
-            for (const part of pathParts) {
-                if (current[part]) {
-                    current = current[part];
-                } else {
-                    validPath = false;
-                    break;
-                }
-            }
-            
-            if (validPath && current.caseName) {
-                this.selectedPath = this.lastViewedCase.path;
-                this.selectedItem = current;
-                this.renderTree();
-                this.showCaseEditor(current, this.lastViewedCase.name);
-            }
+
+        // Show case editor if a case is selected
+        if (this.selectedItem && this.selectedItem.caseName) {
+            const caseName = this.selectedPath.split('/').pop();
+            this.showCaseEditor(this.selectedItem, caseName);
         }
     }
 
     expandAllFolders(node, path) {
-        Object.keys(node).forEach(key => {
+        const keys = this.getOrderedKeys(node, path);
+        keys.forEach(key => {
             const item = node[key];
             if (typeof item === 'object' && item !== null && !item.caseName) {
                 const currentPath = path ? `${path}/${key}` : key;
@@ -410,6 +370,51 @@ class JSONCreator {
     }
 
     setupEventListeners() {
+        // Setup long press for context menu on mobile
+        let longPressTimer = null;
+        let longPressTarget = null;
+        
+        document.addEventListener('touchstart', (e) => {
+            const treeItem = e.target.closest('.json-creator-tree-item');
+            if (treeItem) {
+                longPressTarget = treeItem;
+                longPressTimer = setTimeout(() => {
+                    const path = treeItem.dataset.path;
+                    const pathParts = path.split('/');
+                    let current = this.treeData;
+                    for (const part of pathParts) {
+                        current = current[part];
+                    }
+                    const key = pathParts[pathParts.length - 1];
+                    
+                    // Create a synthetic event for context menu
+                    const syntheticEvent = {
+                        preventDefault: () => {},
+                        stopPropagation: () => {},
+                        pageX: e.touches[0].pageX,
+                        pageY: e.touches[0].pageY
+                    };
+                    this.showContextMenu(syntheticEvent, path, current, key);
+                }, 500); // 500ms long press
+            }
+        }, { passive: true });
+        
+        document.addEventListener('touchend', () => {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+                longPressTarget = null;
+            }
+        }, { passive: true });
+        
+        document.addEventListener('touchmove', () => {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+                longPressTarget = null;
+            }
+        }, { passive: true });
+
         document.addEventListener('keydown', (e) => {
             const fullscreen = document.getElementById('jsonCreatorFullscreen');
             if (!fullscreen) return;
@@ -439,6 +444,49 @@ class JSONCreator {
             }
         });
 
+        // Info button handler
+        document.addEventListener('click', (e) => {
+            // Close all info boxes first
+            document.querySelectorAll('.info-box').forEach(box =>
+                box.classList.remove('show')
+            );
+
+            // If an info button was clicked, open only that one
+            if (e.target.classList.contains('info-btn')) {
+                e.preventDefault();
+                e.stopPropagation();
+                const infoBox = e.target.nextElementSibling;
+                infoBox.classList.add('show');
+
+                // Position the info box dynamically
+                const btnRect = e.target.getBoundingClientRect();
+                const boxWidth = 300;
+                const boxHeight = infoBox.offsetHeight || 100;
+
+                // Try to position above the button
+                let top = btnRect.top - boxHeight - 10;
+                let left = btnRect.right - boxWidth;
+
+                // If it goes above viewport, position below
+                if (top < 10) {
+                    top = btnRect.bottom + 10;
+                }
+
+                // If it goes off left edge, align to left of button
+                if (left < 10) {
+                    left = btnRect.left;
+                }
+
+                // If it goes off right edge, align to right edge
+                if (left + boxWidth > window.innerWidth - 10) {
+                    left = window.innerWidth - boxWidth - 10;
+                }
+
+                infoBox.style.top = top + 'px';
+                infoBox.style.left = left + 'px';
+            }
+        });
+
         // Click outside to deselect
         document.getElementById('jsonCreatorTree').addEventListener('click', (e) => {
             if (e.target.id === 'jsonCreatorTree') {
@@ -452,12 +500,16 @@ class JSONCreator {
         document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) => {
             if (e.target.id === 'jsonCreatorTree') {
                 e.preventDefault();
-                this.showRootContextMenu(e);
+                this.showTreeRootContextMenu(e);
             }
         });
     }
 
     renderTree() {
+        // Auto-save whenever tree is rendered (indicates a change)
+        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+        saveDevelopingJSONs();
+
         const container = document.getElementById('jsonCreatorTree');
         if (!container) return;
         container.innerHTML = '';
@@ -465,7 +517,8 @@ class JSONCreator {
     }
 
     renderTreeNode(node, container, path, level) {
-        Object.keys(node).forEach(key => {
+        const keys = this.getOrderedKeys(node, path);
+        keys.forEach(key => {
             const item = node[key];
             if (typeof item !== 'object' || item === null) return;
 
@@ -510,10 +563,7 @@ class JSONCreator {
             input.value = key;
             itemDiv.appendChild(input);
 
-            itemDiv.onclick = (e) => {
-                this.hideContextMenu();
-                this.handleItemClick(e, currentPath, item, key);
-            };
+            itemDiv.onclick = (e) => this.handleItemClick(e, currentPath, item, key);
             itemDiv.ondblclick = (e) => this.startRename(itemDiv, input, key);
             itemDiv.oncontextmenu = (e) => this.showContextMenu(e, currentPath, item, key);
 
@@ -544,6 +594,8 @@ class JSONCreator {
         } else {
             this.selectedPath = path;
             this.selectedItem = item;
+            localStorage.setItem('jsonCreator_lastSelectedPath', path);
+            localStorage.setItem('jsonCreator_lastSelectedRoot', AppState.activeDevelopingJSON);
             this.renderTree();
             this.showCaseEditor(item, key);
         }
@@ -576,7 +628,7 @@ class JSONCreator {
         pathParts.forEach(part => parent = parent[part]);
 
         if (parent[newName]) {
-            alert('An item with this name already exists');
+            showFloatingMessage('An item with this name already exists', 'error');
             return;
         }
 
@@ -595,19 +647,25 @@ class JSONCreator {
         const parent = this.getTargetFolder();
         const name = this.getUniqueName(parent, 'New Case');
 
-        parent[name] = {
-            caseName: name,
-            inputTop: "RRRRRRRRRRRR",
-            inputBottom: "RRRRRRRRRRRR",
-            equator: ["/", "|"],
-            parity: ["on"],
-            constraints: {},
-            auf: ["U0"],
-            adf: ["D0"],
-            rul: [0],
-            rdl: [0],
-            alg: ""
-        };
+        // Use template if available
+        if (this.caseTemplate) {
+            parent[name] = JSON.parse(JSON.stringify(this.caseTemplate));
+            parent[name].caseName = name;
+        } else {
+            parent[name] = {
+                caseName: name,
+                inputTop: "RRRRRRRRRRRR",
+                inputBottom: "RRRRRRRRRRRR",
+                equator: ["/", "|"],
+                parity: ["on"],
+                constraints: {},
+                auf: ["U0"],
+                adf: ["D0"],
+                rul: [0],
+                rdl: [0],
+                alg: ""
+            };
+        }
 
         // Auto-expand parent folder if not already expanded
         if (this.selectedPath && !this.expandedFolders.has(this.selectedPath)) {
@@ -631,12 +689,12 @@ class JSONCreator {
         const parent = this.getTargetFolder();
         const name = this.getUniqueName(parent, 'New Folder');
         parent[name] = {};
-        
+
         // Auto-expand parent folder if not already expanded
         if (this.selectedPath && !this.expandedFolders.has(this.selectedPath)) {
             this.expandedFolders.add(this.selectedPath);
         }
-        
+
         this.renderTree();
 
         // Auto-start rename
@@ -723,19 +781,23 @@ class JSONCreator {
     delete() {
         if (!this.selectedPath) return;
 
-        const confirm = window.confirm(`Delete "${this.selectedPath.split('/').pop()}"?`);
-        if (!confirm) return;
+        showConfirmationModal(
+            'Delete Item',
+            `Delete "${this.selectedPath.split('/').pop()}"?`,
+            () => {
 
-        const pathParts = this.selectedPath.split('/');
-        const itemName = pathParts.pop();
-        let parent = this.treeData;
-        pathParts.forEach(part => parent = parent[part]);
+                const pathParts = this.selectedPath.split('/');
+                const itemName = pathParts.pop();
+                let parent = this.treeData;
+                pathParts.forEach(part => parent = parent[part]);
 
-        delete parent[itemName];
-        this.selectedPath = '';
-        this.selectedItem = null;
-        this.renderTree();
-        this.showWelcome();
+                delete parent[itemName];
+                this.selectedPath = '';
+                this.selectedItem = null;
+                this.renderTree();
+                this.showWelcome();
+            }
+        );
     }
 
     showWelcome() {
@@ -743,13 +805,12 @@ class JSONCreator {
         const title = document.getElementById('jsonCreatorTitle');
         const subtitle = document.getElementById('jsonCreatorSubtitle');
 
-        title.textContent = 'JSON Creator';
-        subtitle.textContent = 'Select or create an item to begin';
+        title.innerHTML = '<div style="display: flex; flex-direction: column; line-height: 1.3;"><span style="font-size: 18px; font-weight: 600;">SquanGo</span><span style="font-size: 12px; font-weight: 400; color: #666666;">Case Editor</span></div>';
         body.innerHTML = `
                     <div class="json-creator-welcome">
                         <h3>Welcome to JSON Creator</h3>
-                        <p>Create and organize your Square-1 algset cases.</p>
-                        <p>Use the toolbar to add folders and cases.</p>
+                        <p>Create your Square-1 algset trainer.</p>
+                        <p>Use the toolbar or right click context menu to add folders and cases.</p>
                     </div>
                 `;
     }
@@ -759,7 +820,7 @@ class JSONCreator {
         // Just update the title to show folder is selected
         const title = document.getElementById('jsonCreatorTitle');
         const subtitle = document.getElementById('jsonCreatorSubtitle');
-        
+
         title.textContent = `Folder: ${name}`;
         subtitle.textContent = 'Folder selected - use toolbar to add cases or subfolders';
     }
@@ -769,15 +830,8 @@ class JSONCreator {
         const subtitle = document.getElementById('jsonCreatorSubtitle');
         const body = document.getElementById('jsonCreatorBody');
 
-        // Store last viewed case
-        this.lastViewedCase = {
-            path: this.selectedPath,
-            item: item,
-            name: name
-        };
-
-        title.textContent = `Case: ${name}`;
-        subtitle.innerHTML = `<button class="json-creator-icon-btn" onclick="jsonCreator.runItem(jsonCreator.selectedItem, '${name}')" title="Run This Case" style="float: right; margin-top: -28px;"><img src="viz/run.svg" width="14" height="14"></button>`;
+        title.innerHTML = `Case: ${name} <button class="json-creator-icon-btn" onclick="jsonCreator.runItem(jsonCreator.selectedItem, '${name}')" title="Run This Case" style="margin-left: 8px; display: inline-flex; align-items: center; vertical-align: middle;"><img src="viz/run.svg" width="14" height="14"></button>`;
+        subtitle.innerHTML = ``;
 
         // Initialize arrays if they don't exist
         if (!item.auf) item.auf = ['U0'];
@@ -803,9 +857,27 @@ class JSONCreator {
         const tabs = document.querySelectorAll('.case-editor-tab');
         tabs.forEach(t => t.classList.remove('active'));
         event.target.classList.add('active');
-        if (this.selectedItem) {
-            this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
-        }
+
+        // Force re-render with a small delay to ensure DOM is ready
+        setTimeout(() => {
+            if (this.selectedItem) {
+                const content = document.getElementById('caseEditorContent');
+                if (!content) {
+                    console.error('caseEditorContent not found after tab switch!');
+                    return;
+                }
+                this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
+
+                // Verify the tab content actually rendered
+                setTimeout(() => {
+                    const verifyContent = document.getElementById('caseEditorContent');
+                    if (!verifyContent || verifyContent.children.length === 0) {
+                        console.error('Tab content failed to render, forcing re-render');
+                        this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
+                    }
+                }, 50);
+            }
+        }, 10);
     }
 
     renderCaseTab(item, name) {
@@ -814,7 +886,7 @@ class JSONCreator {
             console.error('caseEditorContent not found!');
             return;
         }
-        
+
         if (!item) {
             console.error('No item provided to renderCaseTab');
             return;
@@ -823,16 +895,16 @@ class JSONCreator {
         if (this.currentCaseTab === 'shape') {
             // Check if we already rendered this tab - if so, just update the states
             const alreadyRendered = content.querySelector('#topLayerInput');
-            
-            if (alreadyRendered) {                
+
+            if (alreadyRendered) {
                 // Update input values
                 const topInput = document.getElementById('topLayerInput');
                 const bottomInput = document.getElementById('bottomLayerInput');
                 const topValue = item.inputTop || 'RRRRRRRRRRRR';
-            const bottomValue = item.inputBottom || 'RRRRRRRRRRRR';
+                const bottomValue = item.inputBottom || 'RRRRRRRRRRRR';
                 if (topInput) topInput.value = topValue;
                 if (bottomInput) bottomInput.value = bottomValue;
-                
+
                 // Update visualizations
                 if (this.topState && window.InteractiveScrambleRenderer) {
                     this.topState.topText = topValue;
@@ -844,7 +916,7 @@ class JSONCreator {
                         window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
                     }
                 }
-                
+
                 if (this.bottomState && window.InteractiveScrambleRenderer) {
                     this.bottomState.topText = '';
                     this.bottomState.bottomText = bottomValue;
@@ -855,10 +927,10 @@ class JSONCreator {
                         window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
                     }
                 }
-                
+
                 return;
             }
-            
+
             // Always recreate states to ensure they're fresh
             if (window.InteractiveScrambleRenderer) {
                 this.topState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
@@ -872,15 +944,9 @@ class JSONCreator {
                         const topInput = document.getElementById('topLayerInput');
                         if (topInput) {
                             topInput.value = this.topState.topText;
-                            // Check again after a moment
-                            setTimeout(() => {
-                                const stillThere = document.getElementById('topLayerInput');
-                                if (stillThere) {
-                                }
-                            }, 100);
-                        } else {
-                            console.error('Top input element not found!');
                         }
+                        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+                        saveDevelopingJSONs();
                     }
                 });
             }
@@ -897,9 +963,9 @@ class JSONCreator {
                         const bottomInput = document.getElementById('bottomLayerInput');
                         if (bottomInput) {
                             bottomInput.value = this.bottomState.bottomText;
-                        } else {
-                            console.error('Bottom input element not found!');
                         }
+                        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+                        saveDevelopingJSONs();
                     }
                 });
             }
@@ -910,7 +976,7 @@ class JSONCreator {
                         <h4>Top Layer</h4>
                         <div class="json-creator-form-group">
                             <input type="text" maxlength="12" id="topLayerInput" value="${item.inputTop || 'RRRRRRRRRRRR'}" 
-                                   style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0;">
+                                   style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; display: none;">
                         </div>
                         <div id="topInteractive" style="display: flex; justify-content: center; margin-top: 12px;"></div>
                     </div>
@@ -919,7 +985,7 @@ class JSONCreator {
                         <h4>Bottom Layer</h4>
                         <div class="json-creator-form-group">
                             <input type="text" maxlength="12" id="bottomLayerInput" value="${item.inputBottom || 'RRRRRRRRRRRR'}" 
-                                   style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0;">
+                                   style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; display: none;">
                         </div>
                         <div id="bottomInteractive" style="display: flex; justify-content: center; margin-top: 12px;"></div>
                     </div>
@@ -927,6 +993,7 @@ class JSONCreator {
 
                 <div class="json-creator-section">
                     <h4>Constraints</h4>
+                    <p style="font-size: 12px; color: #666; margin: 0 0 12px 0; font-style: italic;">Don't touch this unless you know what you are doing</p>
                     <div class="json-creator-form-group">
                         <label>Position (e.g., A, BC, D)</label>
                         <input type="text" id="constraintPosition" placeholder="Enter position...">
@@ -989,14 +1056,14 @@ class JSONCreator {
                 topInput.addEventListener('input', (e) => {
                     const value = e.target.value.toUpperCase().substring(0, 12);
                     e.target.value = value;
-                    
+
                     if (value.length < 12) {
                         e.target.style.borderColor = '#ef4444';
                         return;
                     }
-                    
+
                     e.target.style.borderColor = '#404040';
-                    
+
                     if (value.length === 12) {
                         try {
                             this.topState.topText = value;
@@ -1005,6 +1072,8 @@ class JSONCreator {
                             topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
                             window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
                             this.selectedItem.inputTop = value;
+                            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+                            saveDevelopingJSONs();
                         } catch (error) {
                             console.error('Parse error:', error);
                             alert('Invalid input: ' + error.message);
@@ -1018,14 +1087,14 @@ class JSONCreator {
                 bottomInput.addEventListener('input', (e) => {
                     const value = e.target.value.toUpperCase().substring(0, 12);
                     e.target.value = value;
-                    
+
                     if (value.length < 12) {
                         e.target.style.borderColor = '#ef4444';
                         return;
                     }
-                    
+
                     e.target.style.borderColor = '#404040';
-                    
+
                     if (value.length === 12) {
                         try {
                             this.bottomState.bottomText = value;
@@ -1034,6 +1103,8 @@ class JSONCreator {
                             bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
                             window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
                             this.selectedItem.inputBottom = value;
+                            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+                            saveDevelopingJSONs();
                         } catch (error) {
                             console.error('Parse error:', error);
                             alert('Invalid input: ' + error.message);
@@ -1074,7 +1145,12 @@ class JSONCreator {
                 <div class="json-creator-section-compact">
                     <h4>
                         Parity
-                        <button class="quick-info-btn" onclick="(function(e){ e.stopPropagation(); alert('Parity here doesn\\'t refer to conventional parity. Overall parity defines a state of the sq1, but probably not the state you are aiming for. So run the case to check if you really want this. Color specific: here you can explicitly decide the arrangement of each color pieces, again test each one to check for yourself what you really want.'); })(event)">?</button>
+                        <span class="info-wrapper">
+                            <button class="info-btn" aria-label="More info">i</button>
+                            <span class="info-box">
+                                Parity here doesn't refer to conventional parity. Overall parity defines a state of the sq1, but probably not the state you are aiming for. So run the case to check if you really want this. Color specific: here you can explicitly decide the arrangement of each color pieces, again test each one to check for yourself what you really want.
+                            </span>
+                        </span>
                     </h4>
                     <div class="parity-radio-group">
                         <div class="parity-radio-item">
@@ -1093,7 +1169,7 @@ class JSONCreator {
                             <label>Color Specific</label>
                         </div>
                     </div>
-                    <div id="parityOptions" style="display: flex; flex-direction: column; gap: 6px;">
+                    <div id="parityOptions" class="parity-checkboxes-vertical">
                         ${parityMode === 'overall' ? `
                             <div class="json-creator-grid-item">
                                 <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('on') ? 'checked' : ''} 
@@ -1133,45 +1209,58 @@ class JSONCreator {
                 <div class="json-creator-section-compact">
                     <h4>
                         Post ABF
-                        <button class="quick-info-btn" onclick="(function(e){ e.stopPropagation(); alert('Post ABF is Adjustment of Both Face After the algorithm is done.'); })(event)">?</button>
+                        <span class="info-wrapper">
+                            <button class="info-btn" aria-label="More info">i</button>
+                            <span class="info-box">Post ABF is Adjustment of Both Face After the algorithm is done.</span>
+                        </span>
                     </h4>
                     <div class="abf-grid">
                         ${['U0', 'U', 'U2', "U'", 'D0', 'D', 'D2', "D'"].map((move, idx) => {
-                            const field = idx < 4 ? 'auf' : 'adf';
-                            return `
+                const field = idx < 4 ? 'auf' : 'adf';
+                return `
                                 <div class="json-creator-grid-item">
                                     <input type="checkbox" ${item[field].includes(move) ? 'checked' : ''} 
                                            onchange="jsonCreator.updateMoveArray('${field}', '${move}', this.checked)">
                                     <label>${move}</label>
                                 </div>
                             `;
-                        }).join('')}
+            }).join('')}
                     </div>
                 </div>
 
                 <div class="json-creator-section-compact">
-                    <h4>RUL (Rotate Upper Layer)</h4>
-                    <div class="json-creator-grid">
-                        ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
-                            <div class="json-creator-grid-item">
-                                <input type="checkbox" ${Array.isArray(item.rul) && item.rul.includes(val) ? 'checked' : ''} 
-                                       onchange="jsonCreator.updateNumberArray('rul', ${val}, this.checked)">
-                                <label>${val}</label>
+                    <h4>
+                        Pre ABF
+                        <span class="info-wrapper">
+                            <button class="info-btn" aria-label="More info">i</button>
+                            <span class="info-box">Pre ABF is the adjustment you do before doing an alg.</span>
+                        </span>
+                    </h4>
+                    <div class="pre-abf-container">
+                        <div class="pre-abf-section">
+                            <h5>Pre AUF</h5>
+                            <div class="pre-abf-grid">
+                                ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
+                                    <div class="json-creator-grid-item">
+                                        <input type="checkbox" ${Array.isArray(item.rul) && item.rul.includes(val) ? 'checked' : ''} 
+                                               onchange="jsonCreator.updateNumberArray('rul', ${val}, this.checked)">
+                                        <label>${val}</label>
+                                    </div>
+                                `).join('')}
                             </div>
-                        `).join('')}
-                    </div>
-                </div>
-
-                <div class="json-creator-section-compact">
-                    <h4>RDL (Rotate Down Layer)</h4>
-                    <div class="json-creator-grid">
-                        ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
-                            <div class="json-creator-grid-item">
-                                <input type="checkbox" ${Array.isArray(item.rdl) && item.rdl.includes(val) ? 'checked' : ''} 
-                                       onchange="jsonCreator.updateNumberArray('rdl', ${val}, this.checked)">
-                                <label>${val}</label>
+                        </div>
+                        <div class="pre-abf-section">
+                            <h5>Pre ADF</h5>
+                            <div class="pre-abf-grid">
+                                ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
+                                    <div class="json-creator-grid-item">
+                                        <input type="checkbox" ${Array.isArray(item.rdl) && item.rdl.includes(val) ? 'checked' : ''} 
+                                               onchange="jsonCreator.updateNumberArray('rdl', ${val}, this.checked)">
+                                        <label>${val}</label>
+                                    </div>
+                                `).join('')}
                             </div>
-                        `).join('')}
+                        </div>
                     </div>
                 </div>
 
@@ -1188,6 +1277,8 @@ class JSONCreator {
     updateField(field, value) {
         if (this.selectedItem) {
             this.selectedItem[field] = value;
+            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+            saveDevelopingJSONs();
         }
     }
 
@@ -1203,6 +1294,8 @@ class JSONCreator {
             } else {
                 this.selectedItem.equator = this.selectedItem.equator.filter(s => s !== symbol);
             }
+            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+            saveDevelopingJSONs();
         }
     }
 
@@ -1236,6 +1329,8 @@ class JSONCreator {
             } else if (mode === 'color-specific') {
                 this.selectedItem.parity = ['tnbn'];
             }
+            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+            saveDevelopingJSONs();
             this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
         }
     }
@@ -1252,6 +1347,8 @@ class JSONCreator {
             } else {
                 this.selectedItem[field] = this.selectedItem[field].filter(m => m !== move);
             }
+            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+            saveDevelopingJSONs();
         }
     }
 
@@ -1267,6 +1364,8 @@ class JSONCreator {
             } else {
                 this.selectedItem[field] = this.selectedItem[field].filter(n => n !== num);
             }
+            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+            saveDevelopingJSONs();
         }
     }
 
@@ -1280,7 +1379,7 @@ class JSONCreator {
         const values = valsInput.value.trim().split(',').map(v => v.trim().toLowerCase());
 
         if (!position || !values.length || !values[0]) {
-            alert('Please enter both position and values');
+            showFloatingMessage('Please enter both position and values', 'error');
             return;
         }
 
@@ -1290,6 +1389,9 @@ class JSONCreator {
         posInput.value = '';
         valsInput.value = '';
 
+        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+        saveDevelopingJSONs();
+
         // Refresh the case editor
         this.showCaseEditor(this.selectedItem, this.selectedPath.split('/').pop());
     }
@@ -1297,6 +1399,8 @@ class JSONCreator {
     removeConstraint(position) {
         if (this.selectedItem && this.selectedItem.constraints) {
             delete this.selectedItem.constraints[position];
+            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+            saveDevelopingJSONs();
             // Refresh the case editor
             this.showCaseEditor(this.selectedItem, this.selectedPath.split('/').pop());
         }
@@ -1305,14 +1409,14 @@ class JSONCreator {
     showContextMenu(e, path, item, key) {
         e.preventDefault();
         e.stopPropagation();
-        
+
         // Switch focus first
         this.selectedPath = path;
         this.selectedItem = item;
         this.renderTree();
-        
+
         this.hideContextMenu();
-        
+
         this.setupContextMenuListener();
 
         const menu = document.createElement('div');
@@ -1331,6 +1435,12 @@ class JSONCreator {
 
         items.push({ text: 'Rename', action: () => this.renameItem(path) });
         items.push({ text: 'Run', action: () => this.runItem(item, key) });
+        if (!isFolder) {
+            items.push({ text: 'Set as Template', action: () => this.setAsTemplate(item) });
+        }
+        items.push({ separator: true });
+        items.push({ text: 'Move Up', action: () => this.moveItemUp(path) });
+        items.push({ text: 'Move Down', action: () => this.moveItemDown(path) });
         items.push({ separator: true });
         items.push({ text: 'Copy', action: () => this.copy() });
         items.push({ text: 'Paste', action: () => this.paste(), disabled: !this.clipboard });
@@ -1360,16 +1470,18 @@ class JSONCreator {
         this.contextMenu = menu;
     }
 
-    showRootContextMenu(e) {
+    showTreeRootContextMenu(e) {
         e.preventDefault();
         e.stopPropagation();
         this.hideContextMenu();
-        
+
         this.setupContextMenuListener();
 
         const menu = document.createElement('div');
-        menu.className = 'context-menu';
-        menu.style.cssText = `left: ${e.pageX}px; top: ${e.pageY}px; background: #3c3c3c; border: 1px solid #d0d0d0;`;
+        menu.className = 'context-menu tree-root-context-menu';
+        menu.style.left = `${e.pageX}px`;
+        menu.style.top = `${e.pageY}px`;
+        menu.style.zIndex = '10001';
 
         const items = [
             { text: 'New Case', action: () => { this.selectedPath = ''; this.selectedItem = null; this.newCase(); } },
@@ -1402,106 +1514,6 @@ class JSONCreator {
         this.contextMenu = menu;
     }
 
-    openRootSelectorModal(event) {
-    event.stopPropagation();
-    
-    const button = document.getElementById('rootSelectorBtn');
-    const rect = button.getBoundingClientRect();
-    
-    const modal = document.createElement('div');
-    modal.className = 'modal active extract-json-modal';
-    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: transparent; z-index: 20000; display: flex;';
-    
-    const dropdown = document.createElement('div');
-    dropdown.style.cssText = `
-        position: fixed;
-        left: ${rect.left}px;
-        top: ${rect.bottom + 4}px;
-        background: #ffffff;
-        border: 1px solid #d0d0d0;
-        border-radius: 4px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        min-width: ${rect.width}px;
-        max-width: 300px;
-        max-height: 400px;
-        overflow-y: auto;
-        z-index: 20001;
-    `;
-    
-    dropdown.innerHTML = `
-        ${Object.keys(AppState.developingJSONs).map(root => `
-            <div class="root-selector-item ${root === AppState.activeDevelopingJSON ? 'active' : ''}" 
-                 onclick="event.stopPropagation(); jsonCreator.selectRootFromModal('${root}')"
-                 oncontextmenu="event.stopPropagation(); jsonCreator.showRootItemContextMenu(event, '${root}')">
-                <span>${root}</span>
-                ${root === AppState.activeDevelopingJSON ? '<img src="viz/checkmark.svg" width="14" height="14" style="margin-left: auto;">' : ''}
-            </div>
-        `).join('')}
-        <div style="padding: 8px; border-top: 1px solid #e0e0e0;">
-            <button class="json-creator-btn" onclick="event.stopPropagation(); jsonCreator.addRootFromModal()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                <img src="viz/add.svg" width="14" height="14"> Add New Root
-            </button>
-        </div>
-    `;
-    
-    modal.appendChild(dropdown);
-    document.body.appendChild(modal);
-    
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
-    
-    dropdown.addEventListener('click', (e) => {
-        e.stopPropagation();
-    });
-}
-
-    selectRootFromModal(rootName) {
-    const modal = document.querySelector('.extract-json-modal');
-    if (modal) modal.remove();
-    this.switchRoot(rootName);
-}
-
-    addRootFromModal() {
-    const modal = document.querySelector('.extract-json-modal');
-    if (modal) modal.remove();
-    this.addRoot();
-}
-
-    showRootItemContextMenu(e, rootName) {
-        e.preventDefault();
-        e.stopPropagation();
-        this.hideContextMenu();
-        
-        this.setupContextMenuListener();
-
-        const menu = document.createElement('div');
-        menu.className = 'context-menu';
-        menu.style.cssText = `left: ${e.pageX}px; top: ${e.pageY}px; background: #ffffff; border: 1px solid #d0d0d0;`;
-
-        const items = [
-            { text: 'Rename', action: () => { this.currentRootForAction = rootName; this.renameRoot(); } },
-            { text: 'Delete', action: () => { this.currentRootForAction = rootName; this.deleteRoot(); } }
-        ];
-
-        items.forEach(item => {
-            const menuItem = document.createElement('div');
-            menuItem.className = 'context-menu-item';
-            menuItem.style.color = '#1a1a1a';
-            menuItem.textContent = item.text;
-            menuItem.onclick = () => {
-                this.hideContextMenu();
-                item.action();
-            };
-            menu.appendChild(menuItem);
-        });
-
-        document.body.appendChild(menu);
-        this.contextMenu = menu;
-    }
-
     hideContextMenu() {
         if (this.contextMenu) {
             document.body.removeChild(this.contextMenu);
@@ -1515,12 +1527,12 @@ class JSONCreator {
                 this.hideContextMenu();
             }
         };
-        
+
         // Remove old listener if exists
         if (this.outsideClickHandler) {
             document.removeEventListener('click', this.outsideClickHandler);
         }
-        
+
         this.outsideClickHandler = handleOutsideClick;
         setTimeout(() => {
             document.addEventListener('click', handleOutsideClick);
@@ -1539,104 +1551,232 @@ class JSONCreator {
     }
 
     runItem(item, key) {
-    this.openRunModal(item, key);
-}
+        this.openRunModal(item, key);
+    }
 
     switchRoot(rootName) {
-        // Save current root
-        AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
+        // Save current root and its item order
+        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+        this.saveItemOrder();
         saveDevelopingJSONs();
 
         // Switch to new root
         AppState.activeDevelopingJSON = rootName;
         this.treeData = JSON.parse(JSON.stringify(AppState.developingJSONs[rootName]));
+        
+        // Load item order for new root
+        this.itemOrder = JSON.parse(localStorage.getItem(`itemOrder_${AppState.activeDevelopingJSON}`) || '{}');
+        
         this.selectedPath = '';
         this.selectedItem = null;
-        
-        // Update button text only
-        const rootTextSpan = document.getElementById('rootSelectorText');
-        if (rootTextSpan) {
-            rootTextSpan.textContent = AppState.activeDevelopingJSON;
-        }
-        
+        this.expandedFolders.clear();
+        this.expandAllFolders(this.treeData, '');
         this.renderTree();
         this.showWelcome();
+
+        // Update button text
+        const rootBtn = document.getElementById('rootSelectorBtn');
+        if (rootBtn) {
+            rootBtn.textContent = rootName;
+        }
     }
 
-    addRoot() {
-        const name = prompt('Enter name for new root:');
-        if (!name) return;
-
-        if (AppState.developingJSONs[name]) {
-            alert('A root with this name already exists');
+    openRootSelectorModal() {
+        // Close existing modal if open
+        const existingModal = document.querySelector('.root-selector-modal');
+        if (existingModal) {
+            existingModal.remove();
             return;
         }
 
-        AppState.developingJSONs[name] = {};
-        saveDevelopingJSONs();
+        const button = document.getElementById('rootSelectorBtn');
+        const buttonRect = button.getBoundingClientRect();
 
-        // Update selector
-        const selector = document.getElementById('rootSelector');
-        const option = document.createElement('option');
-        option.value = name;
-        option.textContent = name;
-        selector.appendChild(option);
-        selector.value = name;
+        const modal = document.createElement('div');
+        modal.className = 'root-selector-modal';
+        modal.style.cssText = `
+            position: fixed;
+            left: ${buttonRect.left}px;
+            top: ${buttonRect.bottom + 2}px;
+            min-width: ${buttonRect.width}px;
+            background: #ffffff;
+            border: 1px solid #d0d0d0;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 20000;
+        `;
 
-        this.switchRoot(name);
-    }
-
-    renameRoot() {
-        const currentName = this.currentRootForAction || AppState.activeDevelopingJSON;
-        const newName = prompt(`Rename root "${currentName}" to:`, currentName);
-
-        if (!newName || newName === currentName) return;
-
-        if (AppState.developingJSONs[newName]) {
-            alert('A root with this name already exists');
-            return;
-        }
-
-        AppState.developingJSONs[newName] = AppState.developingJSONs[currentName];
-        delete AppState.developingJSONs[currentName];
-        AppState.activeDevelopingJSON = newName;
-        saveDevelopingJSONs();
-
-        // Update selector
-        const selector = document.getElementById('rootSelector');
-        const options = Array.from(selector.options);
-        const currentOption = options.find(opt => opt.value === currentName);
-        if (currentOption) {
-            currentOption.value = newName;
-            currentOption.textContent = newName;
-            selector.value = newName;
-        }
-    }
-
-    deleteRoot() {
-        const currentName = this.currentRootForAction || AppState.activeDevelopingJSON;
+        // Get ordered roots
+        const orderedRoots = this.rootOrder.filter(r => AppState.developingJSONs[r]);
         
+        modal.innerHTML = `
+            <div id="rootList" style="max-height: 400px; overflow-y: auto;">
+                ${orderedRoots.map(root => `
+                    <div class="root-list-item ${root === AppState.activeDevelopingJSON ? 'active' : ''}" 
+                         data-root="${root}"
+                         onclick="jsonCreator.selectRootFromModal('${root}')"
+                         oncontextmenu="jsonCreator.showModalRootContextMenu(event, '${root}')"
+                         style="padding: 10px 16px; cursor: pointer; font-size: 13px; color: #1a1a1a; border-bottom: 1px solid #e0e0e0;">
+                        ${root}
+                    </div>
+                `).join('')}
+            </div>
+            <button onclick="jsonCreator.addRootFromModal()" style="width: 100%; padding: 10px 16px; background: #f5f5f5; border: none; border-top: 2px solid #d0d0d0; cursor: pointer; font-size: 13px; color: #0078d4; text-align: left;">
+                + Add Root
+            </button>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Close on outside click
+        setTimeout(() => {
+            const closeOnOutsideClick = (e) => {
+                if (!modal.contains(e.target) && !button.contains(e.target)) {
+                    modal.remove();
+                    document.removeEventListener('click', closeOnOutsideClick);
+                }
+            };
+            document.addEventListener('click', closeOnOutsideClick);
+        }, 10);
+    }
+
+    selectRootFromModal(rootName) {
+        this.switchRoot(rootName);
+        const modal = document.querySelector('.root-selector-modal');
+        if (modal) modal.remove();
+    }
+
+    showModalRootContextMenu(e, rootName) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        this.hideContextMenu();
+        this.setupContextMenuListener();
+
+        const menu = document.createElement('div');
+        menu.className = 'context-menu root-context-menu';
+        menu.style.left = `${e.pageX}px`;
+        menu.style.top = `${e.pageY}px`;
+        menu.style.zIndex = '20001';
+
+        const items = [
+            { text: 'Rename', action: () => this.renameRootFromModal(rootName) },
+            { text: 'Move Up', action: () => { this.moveRootUp(rootName); this.openRootSelectorModal(); } },
+            { text: 'Move Down', action: () => { this.moveRootDown(rootName); this.openRootSelectorModal(); } },
+            { separator: true },
+            { text: 'Delete', action: () => this.deleteRootFromModal(rootName), disabled: Object.keys(AppState.developingJSONs).length === 1 }
+        ];
+
+        items.forEach(item => {
+            if (item.separator) {
+                const sep = document.createElement('div');
+                sep.className = 'context-menu-separator';
+                menu.appendChild(sep);
+            } else {
+                const menuItem = document.createElement('div');
+                menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
+                menuItem.textContent = item.text;
+                if (!item.disabled) {
+                    menuItem.onclick = () => {
+                        this.hideContextMenu();
+                        item.action();
+                    };
+                }
+                menu.appendChild(menuItem);
+            }
+        });
+
+        document.body.appendChild(menu);
+        this.contextMenu = menu;
+    }
+
+    addRootFromModal() {
+        const modal = document.querySelector('.root-selector-modal');
+        if (modal) modal.remove();
+
+        showRenameModal('New Root', '', (name) => {
+            if (AppState.developingJSONs[name]) {
+                showFloatingMessage('A root with this name already exists', 'error');
+                return;
+            }
+
+            AppState.developingJSONs[name] = {};
+            this.rootOrder.push(name);
+            this.saveRootOrder();
+            saveDevelopingJSONs();
+
+            this.switchRoot(name);
+        });
+    }
+
+    renameRootFromModal(currentName) {
+        const modal = document.querySelector('.root-selector-modal');
+        if (modal) modal.remove();
+
+        showRenameModal(`Rename Root: ${currentName}`, currentName, (newName) => {
+            if (newName === currentName) return;
+
+            if (AppState.developingJSONs[newName]) {
+                showFloatingMessage('A root with this name already exists', 'error');
+                return;
+            }
+
+            AppState.developingJSONs[newName] = AppState.developingJSONs[currentName];
+            delete AppState.developingJSONs[currentName];
+
+            // Update root order
+            const index = this.rootOrder.indexOf(currentName);
+            if (index !== -1) {
+                this.rootOrder[index] = newName;
+                this.saveRootOrder();
+            }
+
+            if (AppState.activeDevelopingJSON === currentName) {
+                AppState.activeDevelopingJSON = newName;
+                this.treeData = AppState.developingJSONs[newName];
+            }
+
+            saveDevelopingJSONs();
+
+            // Update button text if this was the active root
+            const rootBtn = document.getElementById('rootSelectorBtn');
+            if (rootBtn && AppState.activeDevelopingJSON === newName) {
+                rootBtn.textContent = newName;
+            }
+        });
+    }
+
+    deleteRootFromModal(currentName) {
         if (Object.keys(AppState.developingJSONs).length === 1) {
-            alert('Cannot delete the last root');
+            showFloatingMessage('Cannot delete the last root', 'error');
             return;
         }
-        
-        if (!confirm(`Delete root "${currentName}"?`)) return;
 
-        delete AppState.developingJSONs[currentName];
-        AppState.activeDevelopingJSON = Object.keys(AppState.developingJSONs)[0];
-        saveDevelopingJSONs();
+        const modal = document.querySelector('.root-selector-modal');
+        if (modal) modal.remove();
 
-        // Update selector
-        const selector = document.getElementById('rootSelector');
-        const options = Array.from(selector.options);
-        const currentOption = options.find(opt => opt.value === currentName);
-        if (currentOption) {
-            selector.removeChild(currentOption);
-            selector.value = AppState.activeDevelopingJSON;
-        }
+        showConfirmationModal(
+            'Delete Root',
+            `Delete root "${currentName}"? This cannot be undone.`,
+            () => {
 
-        this.switchRoot(AppState.activeDevelopingJSON);
+                delete AppState.developingJSONs[currentName];
+
+                // Remove from root order
+                const index = this.rootOrder.indexOf(currentName);
+                if (index !== -1) {
+                    this.rootOrder.splice(index, 1);
+                    this.saveRootOrder();
+                }
+
+                if (AppState.activeDevelopingJSON === currentName) {
+                    AppState.activeDevelopingJSON = this.rootOrder[0] || Object.keys(AppState.developingJSONs)[0];
+                    this.switchRoot(AppState.activeDevelopingJSON);
+                }
+
+                saveDevelopingJSONs();
+            }
+        );
     }
 
     copyJSON() {
@@ -1646,45 +1786,46 @@ class JSONCreator {
     }
 
     extractJSON() {
-    
-    // Save current root before extracting
-    AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
-    saveDevelopingJSONs();
-    
-    const jsonString = JSON.stringify(this.treeData, null, 2);
 
-    // Remove any existing extract modal first
-    const existingModal = document.querySelector('.extract-json-modal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-        
+        // Save current root before extracting
+        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+        saveDevelopingJSONs();
+
+        const jsonString = JSON.stringify(this.treeData, null, 2);
+
+        // Remove any existing extract modal first
+        const existingModal = document.querySelector('.extract-json-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
         const modal = document.createElement('div');
         modal.className = 'modal active extract-json-modal';
         modal.style.zIndex = '20000'; // Higher than json-creator-fullscreen (10000)
+        modal.style.background = 'rgba(0, 0, 0, 0.5)';
         modal.innerHTML = `
-            <div class="modal-content" style="max-width: 800px;">
-                <div class="modal-header">
-                    <h2>Extract JSON: ${AppState.activeDevelopingJSON}</h2>
-                    <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
-                </div>
-                <div class="modal-body">
-                    <textarea readonly id="extractedJSON" style="width: 100%; min-height: 400px; font-family: 'Courier New', monospace; background: #1a1a1a; color: #e0e0e0; border: 1px solid #404040; border-radius: 6px; padding: 12px;">${jsonString}</textarea>
-                    <div class="button-group" style="margin-top: 12px;">
-                        <button class="btn btn-primary" id="copyJSONBtn">Copy JSON</button>
-                        <button class="btn btn-primary" id="downloadJSONBtn">Download JSON</button>
-                    </div>
-                </div>
+        <div class="modal-content extract-json-content" style="max-width: 800px; background: #ffffff; border: 1px solid #d0d0d0;">
+            <div class="modal-header" style="border-bottom: 1px solid #d0d0d0;">
+                <h2 style="color: #1a1a1a;">Extract JSON: ${AppState.activeDevelopingJSON}</h2>
+                <button class="close-btn" onclick="this.closest('.modal').remove()" style="color: #666666;">×</button>
             </div>
-        `;
+            <div class="modal-body extract-json-body">
+                <textarea readonly id="extractedJSON" style="width: 100%; min-height: 400px; font-family: 'Courier New', monospace; background: #f9f9f9; color: #1a1a1a; border: 1px solid #d0d0d0; border-radius: 6px; padding: 12px; margin-bottom: 60px;">${jsonString}</textarea>
+            </div>
+            <div class="extract-json-footer">
+                <button class="json-creator-btn" id="copyJSONBtn">Copy JSON</button>
+                <button class="json-creator-btn" id="downloadJSONBtn">Download JSON</button>
+            </div>
+        </div>
+    `;
         document.body.appendChild(modal);
-        
+
         // Check for elements that might be covering the modal
         const allElements = Array.from(document.body.children);
         allElements.forEach((el, idx) => {
             const styles = window.getComputedStyle(el);
         });
-        
+
         // Check if json-creator-fullscreen exists
         const jsonCreatorFullscreen = document.getElementById('jsonCreatorFullscreen');
         if (jsonCreatorFullscreen) {
@@ -1693,18 +1834,18 @@ class JSONCreator {
         // Add event listeners after modal is in DOM
         const copyBtn = document.getElementById('copyJSONBtn');
         const downloadBtn = document.getElementById('downloadJSONBtn');
-        
+
         if (!copyBtn || !downloadBtn) {
             console.error('[extractJSON] Buttons not found!', { copyBtn, downloadBtn });
             return;
         }
-        
+
         copyBtn.addEventListener('click', () => {
             const textarea = document.getElementById('extractedJSON');
             navigator.clipboard.writeText(textarea.value).then(() => {
-                alert('JSON copied to clipboard!');
+                showFloatingMessage('JSON copied to clipboard!', 'success');
             }).catch(err => {
-                alert('Failed to copy: ' + err);
+                showFloatingMessage('Failed to copy: ' + err, 'error');
             });
         });
 
@@ -1729,13 +1870,13 @@ class JSONCreator {
     }
 
     runJSON() {
-    this.openRunModal(this.treeData, AppState.activeDevelopingJSON);
-}
+        this.openRunModal(this.treeData, AppState.activeDevelopingJSON);
+    }
 
     openRunModal(jsonData, name) {
-    const modal = document.createElement('div');
-    modal.className = 'run-modal';
-    modal.innerHTML = `
+        const modal = document.createElement('div');
+        modal.className = 'run-modal';
+        modal.innerHTML = `
         <div class="run-modal-content">
             <div class="run-modal-header">
                 <h2>Running: ${name}</h2>
@@ -1751,122 +1892,120 @@ class JSONCreator {
             <div class="run-modal-body" id="runResultsContainer"></div>
         </div>
     `;
-    document.body.appendChild(modal);
+        document.body.appendChild(modal);
 
-    let stopped = false;
-    const stopButton = document.getElementById('stopRunButton');
-    stopButton.onclick = () => {
-        stopped = true;
-        stopButton.disabled = true;
-        stopButton.textContent = 'Stopped';
-    };
+        let stopped = false;
+        const stopButton = document.getElementById('stopRunButton');
+        stopButton.onclick = () => {
+            stopped = true;
+            stopButton.disabled = true;
+            stopButton.textContent = 'Stopped';
+        };
 
-    // Wrap single case in an object structure if needed
-    const dataToRun = jsonData.caseName ? { [name]: jsonData } : jsonData;
-    this.generateScrambles(dataToRun, modal, () => stopped);
-}
-
-async generateScrambles(jsonData, modal, isStopped) {
-    const resultsContainer = document.getElementById('runResultsContainer');
-    const progressBar = document.getElementById('runProgressBar');
-    const progressText = document.getElementById('runProgressText');
-    
-    // Collect all cases
-    const cases = [];
-    const collectCases = (obj, path = []) => {
-        for (const [key, value] of Object.entries(obj)) {
-            if (value && typeof value === 'object') {
-                if (value.caseName) {
-                    cases.push({ ...value, path: [...path, key].join(' > ') });
-                } else {
-                    collectCases(value, [...path, key]);
-                }
-            }
-        }
-    };
-    collectCases(jsonData);
-
-    if (cases.length === 0) {
-        resultsContainer.innerHTML = '<div style="color: #888; text-align: center; padding: 40px;">No cases found in this JSON</div>';
-        return;
+        // Wrap single case in an object structure if needed
+        const dataToRun = jsonData.caseName ? { [name]: jsonData } : jsonData;
+        this.generateScrambles(dataToRun, modal, () => stopped);
     }
 
-    const totalScrambles = 100;
-    let generated = 0;
+    async generateScrambles(jsonData, modal, isStopped) {
+        const resultsContainer = document.getElementById('runResultsContainer');
+        const progressBar = document.getElementById('runProgressBar');
+        const progressText = document.getElementById('runProgressText');
 
-    const generateOne = async () => {
-        if (isStopped() || generated >= totalScrambles) {
+        // Collect all cases
+        const cases = [];
+        const collectCases = (obj, path = []) => {
+            for (const [key, value] of Object.entries(obj)) {
+                if (value && typeof value === 'object') {
+                    if (value.caseName) {
+                        cases.push({ ...value, path: [...path, key].join(' > ') });
+                    } else {
+                        collectCases(value, [...path, key]);
+                    }
+                }
+            }
+        };
+        collectCases(jsonData);
+
+        if (cases.length === 0) {
+            resultsContainer.innerHTML = '<div style="color: #888; text-align: center; padding: 40px;">No cases found in this JSON</div>';
             return;
         }
 
-        try {
-            const randomCase = cases[Math.floor(Math.random() * cases.length)];
-            
-            const config = {
-                topLayer: randomCase.inputTop,
-                bottomLayer: randomCase.inputBottom,
-                middleLayer: randomCase.equator || ['/'],
-                RUL: randomCase.rul || [0],
-                RDL: randomCase.rdl || [0],
-                AUF: randomCase.auf || ['U0'],
-                ADF: randomCase.adf || ['D0'],
-                constraints: randomCase.constraints || {},
-                parity: randomCase.parity || ['on']
-            };
+        const totalScrambles = 100;
+        let generated = 0;
 
-            const result = generateHexState(config);
-            
-            let scramble = '';
-            try {
-                if (typeof window.Square1Solver !== 'undefined') {
-                    console.log('=== SOLVER ATTEMPT ===');
-                    console.log('Input Hex:', result.hexState);
-                    console.log('Hex Length:', result.hexState.length);
-                    console.log('Contains separator:', result.hexState.includes('/') || result.hexState.includes('|'));
-                    
-                    scramble = window.Square1Solver.solve(result.hexState);
-                    
-                    console.log('Solver returned:', scramble);
-                    console.log('======================');
-                } else {
-                    console.error('Square1Solver not defined on window object');
-                    scramble = '⚠Solver not loaded';
-                }
-            } catch (solverError) {
-                console.error('=== SOLVER ERROR ===');
-                console.error('Error message:', solverError.message);
-                console.error('Error stack:', solverError.stack);
-                console.error('Input Hex was:', result.hexState);
-                console.error('Case:', randomCase.caseName);
-                console.error('Config:', config);
-                console.error('====================');
-                scramble = `⚠Error: ${solverError.message}`;
+        const generateOne = async () => {
+            if (isStopped() || generated >= totalScrambles) {
+                return;
             }
 
-            const inputHex = config.topLayer + '|' + config.bottomLayer;
-            
-            // Extract ABF and RBL details
-            const [auf, adf] = result.abf.split('-');
-            const rblMatch = result.rbl.match(/RUL:(-?\d+), RDL:(-?\d+)/);
-            const rul = rblMatch ? rblMatch[1] : '0';
-            const rdl = rblMatch ? rblMatch[2] : '0';
+            try {
+                const randomCase = cases[Math.floor(Math.random() * cases.length)];
 
-            const resultDiv = document.createElement('div');
-            resultDiv.className = 'scramble-result-item';
-            resultDiv.innerHTML = `
+                const config = {
+                    topLayer: randomCase.inputTop,
+                    bottomLayer: randomCase.inputBottom,
+                    middleLayer: randomCase.equator || ['/'],
+                    RUL: randomCase.rul || [0],
+                    RDL: randomCase.rdl || [0],
+                    AUF: randomCase.auf || ['U0'],
+                    ADF: randomCase.adf || ['D0'],
+                    constraints: randomCase.constraints || {},
+                    parity: randomCase.parity || ['on']
+                };
+
+                const result = generateHexState(config);
+
+                let scramble = '';
+                let solverAttempts = 0;
+                const maxSolverAttempts = 10;
+                let solverSuccess = false;
+
+                while (!solverSuccess && solverAttempts < maxSolverAttempts) {
+                    solverAttempts++;
+                    try {
+                        if (typeof window.Square1Solver !== 'undefined') {
+                            scramble = window.Square1Solver.solve(result.hexState);
+                            solverSuccess = true;
+                        } else {
+                            scramble = '⚠ Solver not loaded';
+                            solverSuccess = true;
+                        }
+                    } catch (solverError) {
+                        const isShiftError = solverError.message && solverError.message.includes("Cannot read properties of undefined (reading 'shift')");
+
+                        if (isShiftError && solverAttempts < maxSolverAttempts) {
+                            await new Promise(resolve => setTimeout(resolve, 10));
+                            continue;
+                        }
+
+                        scramble = `⚠ Error: ${solverError.message}`;
+                        solverSuccess = true;
+                    }
+                }
+
+                const inputHex = config.topLayer + '|' + config.bottomLayer;
+
+                // Extract ABF and RBL details
+                const [auf, adf] = result.abf.split('-');
+                const rblMatch = result.rbl.match(/RUL:(-?\d+), RDL:(-?\d+)/);
+                const rul = rblMatch ? rblMatch[1] : '0';
+                const rdl = rblMatch ? rblMatch[2] : '0';
+
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'scramble-result-item';
+                resultDiv.innerHTML = `
                 <div class="scramble-result-info">
                     <div><strong>Case Name:</strong> ${randomCase.caseName}</div>
                     <div><strong>Case Path:</strong> ${randomCase.path}</div>
-                    <div><strong>Input Hex:</strong> <span style="font-family: monospace;">${inputHex}</span></div>
-                    <div><strong>Final Hex:</strong> <span style="font-family: monospace;">${result.hexState}</span></div>
                     <div><strong>Scramble:</strong> <span style="font-family: monospace;">${scramble}</span></div>
-                    <div><strong>Shape Index:</strong> ${result.shapeIndex}</div>
-                    <div><strong>AUF:</strong> ${auf} | <strong>ADF:</strong> ${adf}</div>
-                    <div><strong>RUL:</strong> ${rul} | <strong>RDL:</strong> ${rdl}</div>
+                    <div><strong>AUF:</strong> ${auf} , <strong>ADF:</strong> ${adf}</div>
+                    <div><strong>RUL:</strong> ${rul} , <strong>RDL:</strong> ${rdl}</div>
                     <div><strong>Equator:</strong> ${result.equator}</div>
                 </div>
                 <div class="scramble-result-viz">
-                    ${typeof window.Square1VisualizerLibraryWithSillyNames !== 'undefined' 
+                    ${typeof window.Square1VisualizerLibraryWithSillyNames !== 'undefined'
                         ? window.Square1VisualizerLibraryWithSillyNames.visualizeFromHexCodePlease(
                             result.hexState,
                             150,
@@ -1886,65 +2025,807 @@ async generateScrambles(jsonData, modal, isStopped) {
                     }
                 </div>
             `;
-            
-            resultsContainer.appendChild(resultDiv);
-            generated++;
 
-            const progress = (generated / totalScrambles) * 100;
-            progressBar.style.width = `${progress}%`;
-            progressText.textContent = `${generated} / ${totalScrambles}`;
+                resultsContainer.appendChild(resultDiv);
+                generated++;
 
-            // Debounce: wait 50ms before next generation
-            await new Promise(resolve => setTimeout(resolve, 50));
-            
-            // Continue generating
-            generateOne();
-            
-        } catch (error) {
-            console.error('Error generating scramble:', error);
-            const errorDiv = document.createElement('div');
-            errorDiv.style.cssText = 'color: #ef4444; padding: 12px; background: #3a1a1a; border-radius: 6px; margin-bottom: 12px;';
-            errorDiv.textContent = `Error: ${error.message}`;
-            resultsContainer.appendChild(errorDiv);
-            
-            // Continue despite error
-            generated++;
-            await new Promise(resolve => setTimeout(resolve, 50));
-            generateOne();
+                const progress = (generated / totalScrambles) * 100;
+                progressBar.style.width = `${progress}%`;
+                progressText.textContent = `${generated} / ${totalScrambles}`;
+
+                // Debounce: wait 50ms before next generation
+                await new Promise(resolve => setTimeout(resolve, 50));
+
+                // Continue generating
+                generateOne();
+
+            } catch (error) {
+                console.error('Error generating scramble:', error);
+                const errorDiv = document.createElement('div');
+                errorDiv.style.cssText = 'color: #ef4444; padding: 12px; background: #3a1a1a; border-radius: 6px; margin-bottom: 12px;';
+                errorDiv.textContent = `Error: ${error.message}`;
+                resultsContainer.appendChild(errorDiv);
+
+                // Continue despite error
+                generated++;
+                await new Promise(resolve => setTimeout(resolve, 50));
+                generateOne();
+            }
+        };
+
+        // Start generation
+        generateOne();
+    }
+
+    showExtraTools(event) {
+        event.stopPropagation();
+        this.hideContextMenu();
+        this.setupContextMenuListener();
+
+        const button = event.currentTarget;
+        const buttonRect = button.getBoundingClientRect();
+
+        const menu = document.createElement('div');
+        menu.className = 'context-menu';
+        menu.style.left = `${buttonRect.left}px`;
+        menu.style.top = `${buttonRect.bottom + 2}px`;
+
+        const items = [
+            { text: 'Case Template', action: () => this.openCaseTemplate() },
+            { text: 'Import Data to Root', action: () => this.importDataToRoot() },
+            { text: 'Reset Root', action: () => this.resetRoot() }
+        ];
+
+        items.forEach(item => {
+            const menuItem = document.createElement('div');
+            menuItem.className = 'context-menu-item';
+            menuItem.textContent = item.text;
+            menuItem.onclick = () => {
+                this.hideContextMenu();
+                item.action();
+            };
+            menu.appendChild(menuItem);
+        });
+
+        document.body.appendChild(menu);
+        this.contextMenu = menu;
+    }
+
+    openCaseTemplate() {
+        // Store the last selected case path so we can return to it
+        this.lastCaseBeforeTemplate = {
+            path: this.selectedPath,
+            item: this.selectedItem
+        };
+
+        const title = document.getElementById('jsonCreatorTitle');
+        const subtitle = document.getElementById('jsonCreatorSubtitle');
+        const body = document.getElementById('jsonCreatorBody');
+
+        title.innerHTML = `Case Template <button class="json-creator-icon-btn" onclick="jsonCreator.saveCaseTemplate()" title="Save Template" style="margin-left: 8px; display: inline-flex; align-items: center; vertical-align: middle;"><img src="viz/save.svg" width="14" height="14" onerror="this.outerHTML='Save'"></button> <button class="json-creator-icon-btn" onclick="jsonCreator.clearCaseTemplate()" title="Clear Template" style="margin-left: 4px; display: inline-flex; align-items: center; vertical-align: middle;"><img src="viz/reset.svg" width="14" height="14" onerror="this.outerHTML='Reset'"></button>`;
+        subtitle.innerHTML = `Any new case from now on will be pre-configured according to this case template.`;
+
+        // Use existing template or create default
+        const template = this.caseTemplate || {
+            inputTop: "RRRRRRRRRRRR",
+            inputBottom: "RRRRRRRRRRRR",
+            equator: ["/", "|"],
+            parity: ["on"],
+            constraints: {},
+            auf: ["U0"],
+            adf: ["D0"],
+            rul: [0],
+            rdl: [0]
+        };
+
+        // Store the template temporarily for editing
+        this.editingTemplate = JSON.parse(JSON.stringify(template));
+
+        body.innerHTML = `
+        <div class="case-editor-tabs">
+            <button class="case-editor-tab active" onclick="jsonCreator.switchTemplateTab('shape')">Shape Input</button>
+            <button class="case-editor-tab" onclick="jsonCreator.switchTemplateTab('additional')">Additional Information</button>
+        </div>
+        <div id="templateEditorContent"></div>
+    `;
+
+        this.currentTemplateTab = 'shape';
+        this.renderTemplateTab();
+    }
+
+    switchTemplateTab(tab) {
+        this.currentTemplateTab = tab;
+        const tabs = document.querySelectorAll('.case-editor-tab');
+        tabs.forEach(t => t.classList.remove('active'));
+        event.target.classList.add('active');
+
+        // Force re-render with a small delay to ensure DOM is ready
+        setTimeout(() => {
+            const content = document.getElementById('templateEditorContent');
+            if (!content) {
+                console.error('templateEditorContent not found after tab switch!');
+                return;
+            }
+            this.renderTemplateTab();
+
+            // Verify the tab content actually rendered
+            setTimeout(() => {
+                const verifyContent = document.getElementById('templateEditorContent');
+                if (!verifyContent || verifyContent.children.length === 0) {
+                    console.error('Template tab content failed to render, forcing re-render');
+                    this.renderTemplateTab();
+                }
+            }, 50);
+        }, 10);
+    }
+
+    renderTemplateTab() {
+        const content = document.getElementById('templateEditorContent');
+        if (!content || !this.editingTemplate) return;
+
+        if (this.currentTemplateTab === 'shape') {
+            const alreadyRendered = content.querySelector('#topLayerInput');
+
+            if (alreadyRendered) {
+                const topInput = document.getElementById('topLayerInput');
+                const bottomInput = document.getElementById('bottomLayerInput');
+                const topValue = this.editingTemplate.inputTop || 'RRRRRRRRRRRR';
+                const bottomValue = this.editingTemplate.inputBottom || 'RRRRRRRRRRRR';
+                if (topInput) topInput.value = topValue;
+                if (bottomInput) bottomInput.value = bottomValue;
+
+                if (this.topState && window.InteractiveScrambleRenderer) {
+                    this.topState.topText = topValue;
+                    this.topState.bottomText = '';
+                    this.topState.parse();
+                    const topContainer = document.getElementById('topInteractive');
+                    if (topContainer) {
+                        topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
+                        window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
+                    }
+                }
+
+                if (this.bottomState && window.InteractiveScrambleRenderer) {
+                    this.bottomState.topText = '';
+                    this.bottomState.bottomText = bottomValue;
+                    this.bottomState.parse();
+                    const bottomContainer = document.getElementById('bottomInteractive');
+                    if (bottomContainer) {
+                        bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
+                        window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
+                    }
+                }
+
+                return;
+            }
+
+            if (window.InteractiveScrambleRenderer) {
+                this.topState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
+                    this.editingTemplate.inputTop || 'RRRRRRRRRRRR',
+                    '',
+                    window.InteractiveScrambleRenderer.DEFAULT_COLOR_SCHEME
+                );
+                this.topState.onChange(() => {
+                    this.editingTemplate.inputTop = this.topState.topText;
+                    const topInput = document.getElementById('topLayerInput');
+                    if (topInput) {
+                        topInput.value = this.topState.topText;
+                    }
+                });
+            }
+
+            if (window.InteractiveScrambleRenderer) {
+                this.bottomState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
+                    '',
+                    this.editingTemplate.inputBottom || 'RRRRRRRRRRRR',
+                    window.InteractiveScrambleRenderer.DEFAULT_COLOR_SCHEME
+                );
+                this.bottomState.onChange(() => {
+                    this.editingTemplate.inputBottom = this.bottomState.bottomText;
+                    const bottomInput = document.getElementById('bottomLayerInput');
+                    if (bottomInput) {
+                        bottomInput.value = this.bottomState.bottomText;
+                    }
+                });
+            }
+
+            content.innerHTML = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <div class="json-creator-section">
+                    <h4>Top Layer</h4>
+                    <div class="json-creator-form-group">
+                        <input type="text" maxlength="12" id="topLayerInput" value="${this.editingTemplate.inputTop || 'RRRRRRRRRRRR'}" 
+                               style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; display: none;">
+                    </div>
+                    <div id="topInteractive" style="display: flex; justify-content: center; margin-top: 12px;"></div>
+                </div>
+
+                <div class="json-creator-section">
+                    <h4>Bottom Layer</h4>
+                    <div class="json-creator-form-group">
+                        <input type="text" maxlength="12" id="bottomLayerInput" value="${this.editingTemplate.inputBottom || 'RRRRRRRRRRRR'}" 
+                               style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; display: none;">
+                    </div>
+                    <div id="bottomInteractive" style="display: flex; justify-content: center; margin-top: 12px;"></div>
+                </div>
+            </div>
+
+            <div class="json-creator-section">
+                <h4>Constraints</h4>
+                <p style="font-size: 12px; color: #666; margin: 0 0 12px 0; font-style: italic;">Don't touch this unless you know what you are doing</p>
+                <div class="json-creator-form-group">
+                    <label>Position (e.g., A, BC, D)</label>
+                    <input type="text" id="constraintPosition" placeholder="Enter position...">
+                </div>
+                <div class="json-creator-form-group">
+                    <label>Allowed Pieces (comma-separated)</label>
+                    <input type="text" id="constraintValues" placeholder="e.g., 1,3,5,7">
+                </div>
+                <button class="json-creator-btn" onclick="jsonCreator.addTemplateConstraint()">Add Constraint</button>
+                <div id="constraintsList" style="margin-top: 10px;">
+                    ${Object.entries(this.editingTemplate.constraints || {}).map(([pos, vals]) => `
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 4px; background: #3c3c3c; border-radius: 2px;">
+                            <span style="color: #cccccc; font-size: 12px;">${pos}: ${vals.join(', ')}</span>
+                            <button onclick="jsonCreator.removeTemplateConstraint('${pos}')" style="background: #d32f2f; border: none; color: white; padding: 2px 8px; border-radius: 2px; cursor: pointer; font-size: 11px;">Remove</button>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+
+            const topContainer = document.getElementById('topInteractive');
+            const bottomContainer = document.getElementById('bottomInteractive');
+
+            if (topContainer && window.InteractiveScrambleRenderer) {
+                this.topState.topText = this.editingTemplate.inputTop || 'RRRRRRRRRRRR';
+                this.topState.bottomText = '';
+                this.topState.parse();
+                topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
+                window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
+            }
+
+            if (bottomContainer && window.InteractiveScrambleRenderer) {
+                this.bottomState.topText = '';
+                this.bottomState.bottomText = this.editingTemplate.inputBottom || 'RRRRRRRRRRRR';
+                this.bottomState.parse();
+                bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
+                window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
+            }
+
+            const topInput = document.getElementById('topLayerInput');
+            const bottomInput = document.getElementById('bottomLayerInput');
+
+            if (topInput) {
+                topInput.addEventListener('input', (e) => {
+                    const value = e.target.value.toUpperCase().substring(0, 12);
+                    e.target.value = value;
+
+                    if (value.length < 12) {
+                        e.target.style.borderColor = '#ef4444';
+                        return;
+                    }
+
+                    e.target.style.borderColor = '#404040';
+
+                    if (value.length === 12) {
+                        try {
+                            this.topState.topText = value;
+                            this.topState.parse();
+                            const topContainer = document.getElementById('topInteractive');
+                            topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
+                            window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
+                            this.editingTemplate.inputTop = value;
+                        } catch (error) {
+                            console.error('Parse error:', error);
+                            alert('Invalid input: ' + error.message);
+                            e.target.style.borderColor = '#ef4444';
+                        }
+                    }
+                });
+            }
+
+            if (bottomInput) {
+                bottomInput.addEventListener('input', (e) => {
+                    const value = e.target.value.toUpperCase().substring(0, 12);
+                    e.target.value = value;
+
+                    if (value.length < 12) {
+                        e.target.style.borderColor = '#ef4444';
+                        return;
+                    }
+
+                    e.target.style.borderColor = '#404040';
+
+                    if (value.length === 12) {
+                        try {
+                            this.bottomState.bottomText = value;
+                            this.bottomState.parse();
+                            const bottomContainer = document.getElementById('bottomInteractive');
+                            bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
+                            window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
+                            this.editingTemplate.inputBottom = value;
+                        } catch (error) {
+                            console.error('Parse error:', error);
+                            alert('Invalid input: ' + error.message);
+                            e.target.style.borderColor = '#ef4444';
+                        }
+                    }
+                });
+            }
+
+        } else if (this.currentTemplateTab === 'additional') {
+            let parityMode = 'ignore';
+            if (Array.isArray(this.editingTemplate.parity) && this.editingTemplate.parity.length > 0) {
+                if (this.editingTemplate.parity.includes('on') || this.editingTemplate.parity.includes('op')) {
+                    parityMode = 'overall';
+                } else {
+                    parityMode = 'color-specific';
+                }
+            }
+
+            content.innerHTML = `
+            <div class="json-creator-section-compact">
+                <h4>Middle Layer</h4>
+                <div class="json-creator-grid">
+                    <div class="json-creator-grid-item">
+                        <input type="checkbox" ${Array.isArray(this.editingTemplate.equator) && this.editingTemplate.equator.includes('|') ? 'checked' : ''} 
+                               onchange="jsonCreator.updateTemplateEquator('|', this.checked)">
+                        <label>Solved</label>
+                    </div>
+                    <div class="json-creator-grid-item">
+                        <input type="checkbox" ${Array.isArray(this.editingTemplate.equator) && this.editingTemplate.equator.includes('/') ? 'checked' : ''} 
+                               onchange="jsonCreator.updateTemplateEquator('/', this.checked)">
+                        <label>Flipped</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="json-creator-section-compact">
+                <h4>
+                    Parity
+                    <span class="info-wrapper">
+                        <button class="info-btn" aria-label="More info">i</button>
+                        <span class="info-box">
+                            Parity here doesn't refer to conventional parity. Overall parity defines a state of the sq1, but probably not the state you are aiming for. So run the case to check if you really want this. Color specific: here you can explicitly decide the arrangement of each color pieces, again test each one to check for yourself what you really want.
+                        </span>
+                    </span>
+                </h4>
+                <div class="parity-radio-group">
+                    <div class="parity-radio-item">
+                        <input type="radio" name="parityMode" value="ignore" ${parityMode === 'ignore' ? 'checked' : ''} 
+                               onchange="jsonCreator.updateTemplateParityMode('ignore')">
+                        <label>Ignore</label>
+                    </div>
+                    <div class="parity-radio-item">
+                        <input type="radio" name="parityMode" value="overall" ${parityMode === 'overall' ? 'checked' : ''} 
+                               onchange="jsonCreator.updateTemplateParityMode('overall')">
+                        <label>Overall</label>
+                    </div>
+                    <div class="parity-radio-item">
+                        <input type="radio" name="parityMode" value="color-specific" ${parityMode === 'color-specific' ? 'checked' : ''} 
+                               onchange="jsonCreator.updateTemplateParityMode('color-specific')">
+                        <label>Color Specific</label>
+                    </div>
+                </div>
+                <div id="parityOptions" class="parity-checkboxes-vertical">
+                    ${parityMode === 'overall' ? `
+                        <div class="json-creator-grid-item">
+                            <input type="checkbox" ${Array.isArray(this.editingTemplate.parity) && this.editingTemplate.parity.includes('on') ? 'checked' : ''} 
+                                   onchange="jsonCreator.updateTemplateMoveArray('parity', 'on', this.checked)">
+                            <label>Overall No Parity</label>
+                        </div>
+                        <div class="json-creator-grid-item">
+                            <input type="checkbox" ${Array.isArray(this.editingTemplate.parity) && this.editingTemplate.parity.includes('op') ? 'checked' : ''} 
+                                   onchange="jsonCreator.updateTemplateMoveArray('parity', 'op', this.checked)">
+                            <label>Overall Parity</label>
+                        </div>
+                    ` : parityMode === 'color-specific' ? `
+                        <div class="json-creator-grid-item">
+                            <input type="checkbox" ${Array.isArray(this.editingTemplate.parity) && this.editingTemplate.parity.includes('tnbn') ? 'checked' : ''} 
+                                   onchange="jsonCreator.updateTemplateMoveArray('parity', 'tnbn', this.checked)">
+                            <label>Both Color No Parity</label>
+                        </div>
+                        <div class="json-creator-grid-item">
+                            <input type="checkbox" ${Array.isArray(this.editingTemplate.parity) && this.editingTemplate.parity.includes('tpbn') ? 'checked' : ''} 
+                                   onchange="jsonCreator.updateTemplateMoveArray('parity', 'tpbn', this.checked)">
+                            <label>Black Parity, White No Parity</label>
+                        </div>
+                        <div class="json-creator-grid-item">
+                            <input type="checkbox" ${Array.isArray(this.editingTemplate.parity) && this.editingTemplate.parity.includes('tnbp') ? 'checked' : ''} 
+                                   onchange="jsonCreator.updateTemplateMoveArray('parity', 'tnbp', this.checked)">
+                            <label>Black No Parity, White Parity</label>
+                        </div>
+                        <div class="json-creator-grid-item">
+                            <input type="checkbox" ${Array.isArray(this.editingTemplate.parity) && this.editingTemplate.parity.includes('tpbp') ? 'checked' : ''} 
+                                   onchange="jsonCreator.updateTemplateMoveArray('parity', 'tpbp', this.checked)">
+                            <label>Both Color Parity</label>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+
+            <div class="json-creator-section-compact">
+                <h4>
+                    Post ABF
+                    <button class="quick-info-btn" onclick="(function(e){ e.stopPropagation(); alert('Post ABF is Adjustment of Both Face After the algorithm is done.'); })(event)">?</button>
+                </h4>
+                <div class="abf-grid">
+                    ${['U0', 'U', 'U2', "U'", 'D0', 'D', 'D2', "D'"].map((move, idx) => {
+                const field = idx < 4 ? 'auf' : 'adf';
+                return `
+                            <div class="json-creator-grid-item">
+                                <input type="checkbox" ${this.editingTemplate[field].includes(move) ? 'checked' : ''} 
+                                       onchange="jsonCreator.updateTemplateMoveArray('${field}', '${move}', this.checked)">
+                                <label>${move}</label>
+                            </div>
+                        `;
+            }).join('')}
+                </div>
+            </div>
+
+            <div class="json-creator-section-compact">
+                <h4>
+                    Pre ABF
+                    <span class="info-wrapper">
+                        <button class="info-btn" aria-label="More info">i</button>
+                        <span class="info-box">Pre ABF is the adjustment you do before doing an alg.</span>
+                    </span>
+                </h4>
+                <div class="pre-abf-container">
+                    <div class="pre-abf-section">
+                        <h5>Pre AUF</h5>
+                        <div class="pre-abf-grid">
+                            ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
+                                <div class="json-creator-grid-item">
+                                    <input type="checkbox" ${Array.isArray(this.editingTemplate.rul) && this.editingTemplate.rul.includes(val) ? 'checked' : ''} 
+                                           onchange="jsonCreator.updateTemplateNumberArray('rul', ${val}, this.checked)">
+                                    <label>${val}</label>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="pre-abf-section">
+                        <h5>Pre ADF</h5>
+                        <div class="pre-abf-grid">
+                            ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
+                                <div class="json-creator-grid-item">
+                                    <input type="checkbox" ${Array.isArray(this.editingTemplate.rdl) && this.editingTemplate.rdl.includes(val) ? 'checked' : ''} 
+                                           onchange="jsonCreator.updateTemplateNumberArray('rdl', ${val}, this.checked)">
+                                    <label>${val}</label>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
         }
-    };
-
-    // Start generation
-    generateOne();
-}
-
-close() {
-    // Save current root before closing and keep lastViewedCase intact
-    AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
-    saveDevelopingJSONs();
-    saveLastScreen('training');
-    
-    const fullscreen = document.getElementById('jsonCreatorFullscreen');
-    if (fullscreen) {
-        fullscreen.remove();
     }
-    
-    // Don't reset lastViewedCase - it persists across close/reopen
-    
-    // Return to training screen
-    renderApp();
-    setupEventListeners();
-    if (AppState.selectedCases.length > 0) {
-        generateNewScramble();
-    }
-}
 
-openDataManagement() {
-    const modal = document.createElement('div');
-    modal.className = 'modal active extract-json-modal';
-    modal.style.zIndex = '20000';
-    modal.innerHTML = `
-        <div class="modal-content" style="max-width: 500px;">
+    updateTemplateEquator(symbol, checked) {
+        if (!Array.isArray(this.editingTemplate.equator)) {
+            this.editingTemplate.equator = [];
+        }
+        if (checked) {
+            if (!this.editingTemplate.equator.includes(symbol)) {
+                this.editingTemplate.equator.push(symbol);
+            }
+        } else {
+            this.editingTemplate.equator = this.editingTemplate.equator.filter(s => s !== symbol);
+        }
+    }
+
+    updateTemplateParityMode(mode) {
+        if (mode === 'ignore') {
+            this.editingTemplate.parity = [];
+        } else if (mode === 'overall') {
+            this.editingTemplate.parity = ['on'];
+        } else if (mode === 'color-specific') {
+            this.editingTemplate.parity = ['tnbn'];
+        }
+        this.renderTemplateTab();
+    }
+
+    updateTemplateMoveArray(field, move, checked) {
+        if (!Array.isArray(this.editingTemplate[field])) {
+            this.editingTemplate[field] = [];
+        }
+        if (checked) {
+            if (!this.editingTemplate[field].includes(move)) {
+                this.editingTemplate[field].push(move);
+            }
+        } else {
+            this.editingTemplate[field] = this.editingTemplate[field].filter(m => m !== move);
+        }
+    }
+
+    updateTemplateNumberArray(field, num, checked) {
+        if (!Array.isArray(this.editingTemplate[field])) {
+            this.editingTemplate[field] = [];
+        }
+        if (checked) {
+            if (!this.editingTemplate[field].includes(num)) {
+                this.editingTemplate[field].push(num);
+            }
+        } else {
+            this.editingTemplate[field] = this.editingTemplate[field].filter(n => n !== num);
+        }
+    }
+
+    addTemplateConstraint() {
+        const posInput = document.getElementById('constraintPosition');
+        const valsInput = document.getElementById('constraintValues');
+
+        const position = posInput.value.trim().toUpperCase();
+        const values = valsInput.value.trim().split(',').map(v => v.trim().toLowerCase());
+
+        if (!position || !values.length || !values[0]) {
+            alert('Please enter both position and values');
+            return;
+        }
+
+        if (!this.editingTemplate.constraints) this.editingTemplate.constraints = {};
+        this.editingTemplate.constraints[position] = values;
+
+        posInput.value = '';
+        valsInput.value = '';
+
+        this.renderTemplateTab();
+    }
+
+    removeTemplateConstraint(position) {
+        if (this.editingTemplate && this.editingTemplate.constraints) {
+            delete this.editingTemplate.constraints[position];
+            this.renderTemplateTab();
+        }
+    }
+
+    saveCaseTemplate() {
+        this.caseTemplate = JSON.parse(JSON.stringify(this.editingTemplate));
+        const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
+        localStorage.setItem(templateKey, JSON.stringify(this.caseTemplate));
+        showFloatingMessage('Case template saved successfully!', 'success');
+
+        // Restore the last selected case
+        if (this.lastCaseBeforeTemplate && this.lastCaseBeforeTemplate.item && this.lastCaseBeforeTemplate.item.caseName) {
+            this.selectedPath = this.lastCaseBeforeTemplate.path;
+            this.selectedItem = this.lastCaseBeforeTemplate.item;
+            this.renderTree();
+            const caseName = this.selectedPath.split('/').pop();
+            this.showCaseEditor(this.selectedItem, caseName);
+        } else {
+            this.showWelcome();
+        }
+    }
+
+    clearCaseTemplate() {
+        showConfirmationModal(
+            'Clear Template',
+            'Are you sure you want to clear the case template?',
+            () => {
+                this.caseTemplate = null;
+                this.editingTemplate = null;
+                const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
+                localStorage.removeItem(templateKey);
+                showFloatingMessage('Case template cleared!', 'success');
+
+                // Restore the last selected case
+                if (this.lastCaseBeforeTemplate && this.lastCaseBeforeTemplate.item && this.lastCaseBeforeTemplate.item.caseName) {
+                    this.selectedPath = this.lastCaseBeforeTemplate.path;
+                    this.selectedItem = this.lastCaseBeforeTemplate.item;
+                    this.renderTree();
+                    const caseName = this.selectedPath.split('/').pop();
+                    this.showCaseEditor(this.selectedItem, caseName);
+                } else {
+                    this.showWelcome();
+                }
+            }
+        );
+    }
+
+    setAsTemplate(item) {
+        showConfirmationModal(
+            'Override Template',
+            'Do you want to override your current template? This cannot be undone.',
+            () => {
+                const template = JSON.parse(JSON.stringify(item));
+                delete template.alg;
+                delete template.caseName;
+
+                this.caseTemplate = template;
+                const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
+                localStorage.setItem(templateKey, JSON.stringify(this.caseTemplate));
+                showFloatingMessage('Case set as template successfully!', 'success');
+            }
+        );
+    }
+
+    importDataToRoot() {
+        const modal = document.createElement('div');
+        modal.className = 'modal active extract-json-modal';
+        modal.style.zIndex = '20000';
+        modal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Import Data to Root: ${AppState.activeDevelopingJSON}</h2>
+                <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 16px;">
+                    <input type="file" id="importRootDataFile" accept=".json" style="display: none;" onchange="jsonCreator.handleImportRootFileSelect(event)">
+                    <div id="importRootDropZone" 
+                         onclick="document.getElementById('importRootDataFile').click()"
+                         ondragover="event.preventDefault(); this.style.background='#e0e0e0';"
+                         ondragleave="this.style.background='#f9f9f9';"
+                         ondrop="jsonCreator.handleImportRootFileDrop(event)"
+                         style="width: 100%; min-height: 200px; background: #f9f9f9; border: 2px dashed #d0d0d0; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #666; text-align: center; padding: 20px;">
+                        <div style="font-size: 48px; margin-bottom: 12px;">📁</div>
+                        <div style="font-size: 14px; font-weight: 500; margin-bottom: 4px;">Drop file here or click to choose</div>
+                        <div style="font-size: 12px; color: #999;">Supports .json files</div>
+                        <div id="importRootFileName" style="margin-top: 12px; font-size: 13px; color: #0078d4; font-weight: 500;"></div>
+                    </div>
+                </div>
+                <div id="importRootActions" style="display: none; flex-direction: column; gap: 8px;">
+                    <button class="json-creator-btn" onclick="jsonCreator.processImportToRoot('add')">Add to Existing</button>
+                    <button class="json-creator-btn" onclick="jsonCreator.processImportToRoot('override')">Override (Delete Previous)</button>
+                </div>
+                <button class="json-creator-btn json-creator-btn-secondary" onclick="this.closest('.modal').remove()" style="margin-top: 12px; width: 100%;">Cancel</button>
+            </div>
+        </div>
+    `;
+        document.body.appendChild(modal);
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+
+    handleImportRootFileDrop(event) {
+        event.preventDefault();
+        const dropZone = document.getElementById('importRootDropZone');
+        dropZone.style.background = '#f9f9f9';
+
+        const file = event.dataTransfer.files[0];
+        if (file && file.type === 'application/json') {
+            this.loadImportRootFile(file);
+        } else {
+            showFloatingMessage('Please drop a valid JSON file', 'error');
+        }
+    }
+
+    handleImportRootFileSelect(event) {
+        const file = event.target.files[0];
+        if (file && file.type === 'application/json') {
+            this.loadImportRootFile(file);
+        } else {
+            showFloatingMessage('Please select a valid JSON file', 'error');
+        }
+    }
+
+    loadImportRootFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            window.importedRootJSONData = e.target.result;
+            document.getElementById('importRootFileName').textContent = `Selected: ${file.name}`;
+            document.getElementById('importRootActions').style.display = 'flex';
+        };
+        reader.readAsText(file);
+    }
+
+    processImportToRoot(mode) {
+        const jsonText = window.importedRootJSONData;
+
+        if (!jsonText) {
+            showFloatingMessage('Please select a file to import', 'error');
+            return;
+        }
+
+        try {
+            const importedData = JSON.parse(jsonText);
+
+            if (mode === 'override') {
+                // Replace current root entirely
+                this.treeData = importedData;
+                AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(importedData));
+            } else if (mode === 'add') {
+                // Merge with existing root, auto-rename conflicts
+                const mergeObjects = (target, source, path = []) => {
+                    Object.keys(source).forEach(key => {
+                        const sourcePath = [...path, key];
+
+                        if (source[key] && typeof source[key] === 'object' && !source[key].caseName) {
+                            // It's a folder
+                            if (!target[key]) {
+                                target[key] = {};
+                            }
+                            mergeObjects(target[key], source[key], sourcePath);
+                        } else {
+                            // It's a case or primitive value
+                            let finalKey = key;
+                            let counter = 1;
+                            while (target[finalKey]) {
+                                finalKey = `${key}_${counter}`;
+                                counter++;
+                            }
+                            target[finalKey] = JSON.parse(JSON.stringify(source[key]));
+                            if (target[finalKey].caseName) {
+                                target[finalKey].caseName = finalKey;
+                            }
+                        }
+                    });
+                };
+
+                mergeObjects(this.treeData, importedData);
+                AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+            }
+
+            saveDevelopingJSONs();
+
+            // Reload current root
+            this.expandedFolders.clear();
+            this.expandAllFolders(this.treeData, '');
+            this.renderTree();
+
+            document.querySelector('.modal').remove();
+            showFloatingMessage('Data imported to root successfully!', 'success');
+        } catch (error) {
+            showFloatingMessage('Invalid JSON: ' + error.message, 'error');
+        }
+    }
+
+    resetRoot() {
+        showConfirmationModal(
+            'Reset Root',
+            `Are you sure you want to reset the root "${AppState.activeDevelopingJSON}"? This will delete all cases and folders. This cannot be undone.`,
+            () => {
+                this.treeData = {};
+                AppState.developingJSONs[AppState.activeDevelopingJSON] = {};
+                saveDevelopingJSONs();
+
+                this.selectedPath = '';
+                this.selectedItem = null;
+                this.expandedFolders.clear();
+                this.renderTree();
+                this.showWelcome();
+
+                showFloatingMessage('Root reset successfully!', 'success');
+            }
+        );
+    }
+
+    close() {
+        showConfirmationModal(
+            'Close JSON Creator',
+            'Close JSON Creator? All changes are auto-saved.',
+            () => {
+                // Save current root before closing
+                AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
+                saveDevelopingJSONs();
+                saveLastScreen('training');
+
+                const fullscreen = document.getElementById('jsonCreatorFullscreen');
+                if (fullscreen) {
+                    fullscreen.remove();
+                }
+
+                // Return to training screen
+                renderApp();
+                setupEventListeners();
+                if (AppState.selectedCases.length > 0) {
+                    generateNewScramble();
+                }
+            }
+        );
+    }
+
+    openDataManagement() {
+        const modal = document.createElement('div');
+        modal.className = 'modal active data-management-modal';
+        modal.style.zIndex = '20000';
+        modal.innerHTML = `
+        <div class="modal-content devtool-modal" style="max-width: 500px;">
             <div class="modal-header">
                 <h2>Data Management</h2>
                 <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
@@ -1953,43 +2834,70 @@ openDataManagement() {
                 <div style="display: flex; flex-direction: column; gap: 12px;">
                     <button class="json-creator-btn" onclick="jsonCreator.exportAllData()">Export All Data</button>
                     <button class="json-creator-btn" onclick="jsonCreator.importData()">Import Data</button>
+                    <button class="json-creator-btn" onclick="jsonCreator.resetAllData()">Reset All Data</button>
                 </div>
             </div>
         </div>
     `;
-    document.body.appendChild(modal);
-    
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
-}
+        document.body.appendChild(modal);
 
-exportAllData() {
-    // Save current root first
-    AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
-    saveDevelopingJSONs();
-    
-    const allData = JSON.stringify(AppState.developingJSONs, null, 2);
-    const blob = new Blob([allData], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'sq1-all-data.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
 
-importData() {
-    document.querySelector('.modal').remove();
-    
-    const importModal = document.createElement('div');
-    importModal.className = 'modal active extract-json-modal';
-    importModal.style.zIndex = '20000';
-    importModal.innerHTML = `
+    resetAllData() {
+        showConfirmationModal(
+            'Reset All Data',
+            'Are you sure you want to reset ALL data? This will delete all developing JSONs and cannot be undone.',
+            () => {
+                AppState.developingJSONs = { 'default': DEFAULT_ALGSET };
+                AppState.activeDevelopingJSON = 'default';
+                saveDevelopingJSONs();
+
+                this.treeData = JSON.parse(JSON.stringify(DEFAULT_ALGSET));
+                this.selectedPath = '';
+                this.selectedItem = null;
+                this.expandedFolders.clear();
+                this.expandAllFolders(this.treeData, '');
+                this.renderTree();
+                this.showWelcome();
+
+                const rootBtn = document.getElementById('rootSelectorBtn');
+                if (rootBtn) rootBtn.textContent = 'default';
+
+                showFloatingMessage('All data has been reset', 'success');
+                document.querySelector('.data-management-modal').remove();
+            }
+        );
+    }
+
+    exportAllData() {
+        // Save current root first
+        AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
+        saveDevelopingJSONs();
+
+        const allData = JSON.stringify(AppState.developingJSONs, null, 2);
+        const blob = new Blob([allData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'sq1-all-data.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    importData() {
+        document.querySelector('.modal').remove();
+
+        const importModal = document.createElement('div');
+        importModal.className = 'modal active extract-json-modal';
+        importModal.style.zIndex = '20000';
+        importModal.innerHTML = `
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
                 <h2>Import Data</h2>
@@ -2004,7 +2912,7 @@ importData() {
                          ondragleave="this.style.background='#f9f9f9';"
                          ondrop="jsonCreator.handleImportFileDrop(event)"
                          style="width: 100%; min-height: 200px; background: #f9f9f9; border: 2px dashed #d0d0d0; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #666; text-align: center; padding: 20px;">
-                        <img src="viz/folder.svg" width="48" height="48" style="margin-bottom: 12px;">
+                        <div style="font-size: 48px; margin-bottom: 12px;">📁</div>
                         <div style="font-size: 14px; font-weight: 500; margin-bottom: 4px;">Drop file here or click to choose</div>
                         <div style="font-size: 12px; color: #999;">Supports .json files</div>
                         <div id="importFileName" style="margin-top: 12px; font-size: 13px; color: #0078d4; font-weight: 500;"></div>
@@ -2018,93 +2926,99 @@ importData() {
             </div>
         </div>
     `;
-    document.body.appendChild(importModal);
-    
-    importModal.addEventListener('click', (e) => {
-        if (e.target === importModal) {
-            importModal.remove();
+        document.body.appendChild(importModal);
+
+        importModal.addEventListener('click', (e) => {
+            if (e.target === importModal) {
+                importModal.remove();
+            }
+        });
+    }
+
+    handleImportFileDrop(event) {
+        event.preventDefault();
+        const dropZone = document.getElementById('importDropZone');
+        dropZone.style.background = '#f9f9f9';
+
+        const file = event.dataTransfer.files[0];
+        if (file && file.type === 'application/json') {
+            this.loadImportFile(file);
+        } else {
+            showFloatingMessage('Please drop a valid JSON file', 'error');
         }
-    });
-}
-
-handleImportFileDrop(event) {
-    event.preventDefault();
-    const dropZone = document.getElementById('importDropZone');
-    dropZone.style.background = '#f9f9f9';
-    
-    const file = event.dataTransfer.files[0];
-    if (file && file.type === 'application/json') {
-        this.loadImportFile(file);
-    } else {
-        alert('Please drop a valid JSON file');
     }
-}
 
-handleImportFileSelect(event) {
-    const file = event.target.files[0];
-    if (file && file.type === 'application/json') {
-        this.loadImportFile(file);
-    } else {
-        alert('Please select a valid JSON file');
-    }
-}
-
-loadImportFile(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        window.importedJSONData = e.target.result;
-        document.getElementById('importFileName').textContent = `Selected: ${file.name}`;
-        document.getElementById('importActions').style.display = 'flex';
-    };
-    reader.readAsText(file);
-}
-
-processImport(mode) {
-    const jsonText = window.importedJSONData;
-    
-    if (!jsonText) {
-        alert('Please select a file to import');
-        return;
-    }
-    
-    try {
-        const importedData = JSON.parse(jsonText);
-        
-        if (mode === 'override') {
-            AppState.developingJSONs = importedData;
-            AppState.activeDevelopingJSON = Object.keys(importedData)[0] || 'default';
-        } else if (mode === 'add') {
-            // Add to existing, auto-rename conflicts
-            Object.keys(importedData).forEach(rootName => {
-                let finalName = rootName;
-                let counter = 1;
-                while (AppState.developingJSONs[finalName]) {
-                    finalName = `${rootName}_${counter}`;
-                    counter++;
-                }
-                AppState.developingJSONs[finalName] = importedData[rootName];
-            });
+    handleImportFileSelect(event) {
+        const file = event.target.files[0];
+        if (file && file.type === 'application/json') {
+            this.loadImportFile(file);
+        } else {
+            showFloatingMessage('Please select a valid JSON file', 'error');
         }
-        
-        saveDevelopingJSONs();
-        
-        // Update selector
-        const selector = document.getElementById('rootSelector');
-        selector.innerHTML = Object.keys(AppState.developingJSONs).map(root => 
-            `<option value="${root}" ${root === AppState.activeDevelopingJSON ? 'selected' : ''}>${root}</option>`
-        ).join('');
-        
-        // Reload current root
-        this.switchRoot(AppState.activeDevelopingJSON);
-        
-        document.querySelector('.modal').remove();
-        alert('Data imported successfully!');
-    } catch (error) {
-        alert('Invalid JSON: ' + error.message);
     }
-}
 
-toggleSidebar() {
+    loadImportFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            window.importedJSONData = e.target.result;
+            document.getElementById('importFileName').textContent = `Selected: ${file.name}`;
+            document.getElementById('importActions').style.display = 'flex';
+        };
+        reader.readAsText(file);
+    }
+
+    processImport(mode) {
+        const jsonText = window.importedJSONData;
+
+        if (!jsonText) {
+            showFloatingMessage('Please select a file to import', 'error');
+            return;
+        }
+
+        try {
+            const importedData = JSON.parse(jsonText);
+
+            if (mode === 'override') {
+                AppState.developingJSONs = importedData;
+                this.rootOrder = Object.keys(importedData);
+                this.saveRootOrder();
+                AppState.activeDevelopingJSON = this.rootOrder[0] || 'default';
+            } else if (mode === 'add') {
+                // Add to existing, auto-rename conflicts
+                Object.keys(importedData).forEach(rootName => {
+                    let finalName = rootName;
+                    let counter = 1;
+                    while (AppState.developingJSONs[finalName]) {
+                        finalName = `${rootName}_${counter}`;
+                        counter++;
+                    }
+                    AppState.developingJSONs[finalName] = importedData[rootName];
+                    this.rootOrder.push(finalName);
+                });
+                this.saveRootOrder();
+            }
+
+            saveDevelopingJSONs();
+
+            // Update selector
+            const selector = document.getElementById('rootSelector');
+            if (selector) {
+                selector.innerHTML = this.rootOrder.map(root =>
+                    `<option value="${root}" ${root === AppState.activeDevelopingJSON ? 'selected' : ''}>${root}</option>`
+                ).join('');
+            }
+
+            // Reload current root
+            this.switchRoot(AppState.activeDevelopingJSON);
+
+            document.querySelector('.modal').remove();
+            showFloatingMessage('Data imported successfully!', 'success');
+        } catch (error) {
+            showFloatingMessage('Invalid JSON: ' + error.message, 'error');
+        }
+    }
+
+    toggleSidebar() {
         const sidebar = document.querySelector('.json-creator-sidebar');
         if (sidebar) {
             sidebar.classList.toggle('hidden');
@@ -2120,7 +3034,5 @@ function showJsonCreatorFullscreen() {
 }
 
 function closeJsonCreator() {
-    if (confirm('Close JSON Creator? All changes are auto-saved.')) {
-        jsonCreator.close();
-    }
+    jsonCreator.close();
 }

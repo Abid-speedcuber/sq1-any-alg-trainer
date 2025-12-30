@@ -13,13 +13,13 @@ const DEFAULT_COLOR_SCHEME = {
     leftColor: '#0066CC',
     placeholderEdge: '#525252ff',
     placeholderCorner: '#444444ff',
-    placeholderBlackEdge: '#1a1a1a',
-    placeholderBlackCorner: '#2d2d2d',
-    placeholderWhiteEdge: '#e0e0e0',
+    placeholderBlackEdge: '#000000ff',
+    placeholderBlackCorner: '#000000ff',
+    placeholderWhiteEdge: '#ffffffff',
     placeholderWhiteCorner: '#f5f5f5',
-    emptyFill: '#FFE0B2',
+    emptyFill: '#f6f6f6ff',
     emptyStroke: '#d0d0d0',
-    ringStroke: '#e0e0e0'
+    ringStroke: 'transparent'
 };
 
 // === PIECE DEFINITIONS FACTORY ===
@@ -444,7 +444,7 @@ function createInteractiveSVG(state, options = {}) {
 
     const baseSize = options.size || 200;
     const unitSize = baseSize * 0.3;
-    const svgSize = baseSize;
+    const svgSize = baseSize * 1.05;
     const cx = svgSize / 2,
         cy = svgSize / 2;
 
@@ -471,7 +471,7 @@ function createInteractiveSVG(state, options = {}) {
         svgHTML += `<circle cx="${cx}" cy="${cy}" r="${dimensions.cornerRingR}" class="corner-ring" fill="none" stroke="rgba(255,0,0,0.1)" stroke-width="1" stroke-dasharray="2,2"/>`;
         const p1L = polarToCartesian(cx, cy, dimensions.ringR + 6, 75);
         const p2L = polarToCartesian(cx, cy, dimensions.ringR + 6, 255);
-        svgHTML += `<line x1="${p1L.x}" y1="${p1L.y}" x2="${p2L.x}" y2="${p2L.y}" class="cluster-red-line"/>`;
+        svgHTML += `<line x1="${p1L.x}" y1="${p1L.y}" x2="${p2L.x}" y2="${p2L.y}" stroke="#d32f2f" stroke-width="3" pointer-events="none"/>`;
         svgHTML += `<circle cx="${cx}" cy="${cy}" r="${Math.max(2, Math.round(unitSize * 0.05))}" fill="rgba(0,0,0,0.06)"/>`;
 
         const leftLetterCenter = Array.from({ length: 12 }, (_, j) => 90 + j * 30);
@@ -530,7 +530,7 @@ function createInteractiveSVG(state, options = {}) {
         svgHTML += `<circle cx="${cx}" cy="${cy}" r="${dimensions.cornerRingR}" class="corner-ring" fill="none" stroke="rgba(255,0,0,0.1)" stroke-width="1" stroke-dasharray="2,2"/>`;
         const p1R = polarToCartesian(cx, cy, dimensions.ringR + 6, 105);
         const p2R = polarToCartesian(cx, cy, dimensions.ringR + 6, 285);
-        svgHTML += `<line x1="${p1R.x}" y1="${p1R.y}" x2="${p2R.x}" y2="${p2R.y}" class="cluster-red-line"/>`;
+        svgHTML += `<line x1="${p1R.x}" y1="${p1R.y}" x2="${p2R.x}" y2="${p2R.y}" stroke="#d32f2f" stroke-width="3" pointer-events="none"/>`;
         svgHTML += `<circle cx="${cx}" cy="${cy}" r="${Math.max(2, Math.round(unitSize * 0.05))}" fill="rgba(0,0,0,0.06)"/>`;
 
         const rightLetterCenter = Array.from({ length: 12 }, (_, j) => 300 + j * 30);
@@ -620,10 +620,9 @@ function createPieceSelectionModal() {
     return `
     <div id="pieceSelectionModal" style="display: none; position: fixed; background: white; border: 2px solid #333; border-radius: 8px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; max-width: 300px;">
       <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #333;">Select Piece</h3>
-      <div id="pieceGrid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-height: 300px; overflow-y: auto;">
+      <div id="pieceGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-height: 400px; overflow-y: auto;">
         <!-- Pieces will be populated here -->
       </div>
-      <button onclick="window.closePieceModal()" style="margin-top: 10px; width: 100%; padding: 8px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer;">Close</button>
     </div>
   `;
 }
@@ -730,7 +729,7 @@ function showPieceSelectionModal(state, position, layer, isCornerZone, x, y, con
 
     availablePieces.forEach(piece => {
         const button = document.createElement('button');
-        button.style.cssText = 'padding: 8px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px;';
+        button.style.cssText = 'padding: 12px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;';
         button.onmouseover = () => button.style.background = '#e0e0e0';
         button.onmouseout = () => button.style.background = '#f5f5f5';
         button.onclick = (e) => {
@@ -748,14 +747,47 @@ function showPieceSelectionModal(state, position, layer, isCornerZone, x, y, con
         };
 
         const svgName = piece === 'E' ? 'piece_E_placeholder' : piece === 'C' ? 'piece_C_placeholder' : `piece_${piece}`;
-button.innerHTML = `<img src="viz/piece/${svgName}.svg" width="30" height="30"><span style="font-family: monospace; font-size: 12px;">${piece}</span>`;
+        button.innerHTML = `<img src="viz/piece/${svgName}.svg" width="48" height="48">`;
         grid.appendChild(button);
     });
 
-    // Position modal near click
-    modal.style.left = `${Math.min(x, window.innerWidth - 320)}px`;
-    modal.style.top = `${Math.min(y, window.innerHeight - 400)}px`;
+    // Show modal first to get its dimensions
     modal.style.display = 'block';
+    modal.style.visibility = 'hidden';
+    
+    // Get modal dimensions after content is populated
+    const modalRect = modal.getBoundingClientRect();
+    const modalWidth = modalRect.width;
+    const modalHeight = modalRect.height;
+    
+    // Calculate position with screen bounds checking
+    let left = x;
+    let top = y;
+    
+    // Check right edge
+    if (left + modalWidth > window.innerWidth) {
+        left = window.innerWidth - modalWidth - 10;
+    }
+    
+    // Check left edge
+    if (left < 10) {
+        left = 10;
+    }
+    
+    // Check bottom edge
+    if (top + modalHeight > window.innerHeight) {
+        top = window.innerHeight - modalHeight - 10;
+    }
+    
+    // Check top edge
+    if (top < 10) {
+        top = 10;
+    }
+    
+    // Apply final position and make visible
+    modal.style.left = `${left}px`;
+    modal.style.top = `${top}px`;
+    modal.style.visibility = 'visible';
 
     // Close on outside click
     setTimeout(() => {
