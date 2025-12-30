@@ -1277,45 +1277,65 @@ class JSONCreator {
     }
 
     openRootSelectorModal() {
+        // Close existing modal if open
+        const existingModal = document.querySelector('.root-selector-modal');
+        if (existingModal) {
+            existingModal.remove();
+            return;
+        }
+
+        const button = document.getElementById('rootSelectorBtn');
+        const buttonRect = button.getBoundingClientRect();
+
         const modal = document.createElement('div');
-        modal.className = 'modal active root-selector-modal';
-        modal.style.zIndex = '20000';
-        modal.innerHTML = `
-            <div class="modal-content" style="max-width: 300px; background: #ffffff; border: 1px solid #d0d0d0;">
-                <div class="modal-header" style="border-bottom: 1px solid #d0d0d0;">
-                    <h2 style="color: #1a1a1a; font-size: 14px;">Select Root</h2>
-                    <button class="close-btn" onclick="this.closest('.modal').remove()" style="color: #666666;">×</button>
-                </div>
-                <div class="modal-body" style="padding: 0;">
-                    <div id="rootList" style="max-height: 400px; overflow-y: auto;">
-                        ${Object.keys(AppState.developingJSONs).map(root => `
-                            <div class="root-list-item ${root === AppState.activeDevelopingJSON ? 'active' : ''}" 
-                                 data-root="${root}"
-                                 onclick="jsonCreator.selectRootFromModal('${root}')"
-                                 oncontextmenu="jsonCreator.showRootContextMenu(event, '${root}')"
-                                 style="padding: 10px 16px; cursor: pointer; font-size: 13px; color: #1a1a1a; border-bottom: 1px solid #e0e0e0;">
-                                ${root}
-                            </div>
-                        `).join('')}
-                    </div>
-                    <button onclick="jsonCreator.addRootFromModal()" style="width: 100%; padding: 10px 16px; background: #f5f5f5; border: none; border-top: 2px solid #d0d0d0; cursor: pointer; font-size: 13px; color: #0078d4; text-align: left;">
-                        + Add Root
-                    </button>
-                </div>
-            </div>
+        modal.className = 'root-selector-modal';
+        modal.style.cssText = `
+            position: fixed;
+            left: ${buttonRect.left}px;
+            top: ${buttonRect.bottom + 2}px;
+            min-width: ${buttonRect.width}px;
+            background: #ffffff;
+            border: 1px solid #d0d0d0;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 20000;
         `;
+        
+        modal.innerHTML = `
+            <div id="rootList" style="max-height: 400px; overflow-y: auto;">
+                ${Object.keys(AppState.developingJSONs).map(root => `
+                    <div class="root-list-item ${root === AppState.activeDevelopingJSON ? 'active' : ''}" 
+                         data-root="${root}"
+                         onclick="jsonCreator.selectRootFromModal('${root}')"
+                         oncontextmenu="jsonCreator.showRootContextMenu(event, '${root}')"
+                         style="padding: 10px 16px; cursor: pointer; font-size: 13px; color: #1a1a1a; border-bottom: 1px solid #e0e0e0;">
+                        ${root}
+                    </div>
+                `).join('')}
+            </div>
+            <button onclick="jsonCreator.addRootFromModal()" style="width: 100%; padding: 10px 16px; background: #f5f5f5; border: none; border-top: 2px solid #d0d0d0; cursor: pointer; font-size: 13px; color: #0078d4; text-align: left;">
+                + Add Root
+            </button>
+        `;
+        
         document.body.appendChild(modal);
         
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
+        // Close on outside click
+        setTimeout(() => {
+            const closeOnOutsideClick = (e) => {
+                if (!modal.contains(e.target) && !button.contains(e.target)) {
+                    modal.remove();
+                    document.removeEventListener('click', closeOnOutsideClick);
+                }
+            };
+            document.addEventListener('click', closeOnOutsideClick);
+        }, 10);
     }
 
     selectRootFromModal(rootName) {
         this.switchRoot(rootName);
-        document.querySelector('.root-selector-modal').remove();
+        const modal = document.querySelector('.root-selector-modal');
+        if (modal) modal.remove();
     }
 
     showRootContextMenu(e, rootName) {
@@ -1353,6 +1373,9 @@ class JSONCreator {
     }
 
     addRootFromModal() {
+        const modal = document.querySelector('.root-selector-modal');
+        if (modal) modal.remove();
+        
         const name = prompt('Enter name for new root:');
         if (!name) return;
 
@@ -1364,12 +1387,13 @@ class JSONCreator {
         AppState.developingJSONs[name] = {};
         saveDevelopingJSONs();
 
-        // Close modal and switch to new root
-        document.querySelector('.root-selector-modal').remove();
         this.switchRoot(name);
     }
 
     renameRootFromModal(currentName) {
+        const modal = document.querySelector('.root-selector-modal');
+        if (modal) modal.remove();
+        
         const newName = prompt(`Rename root "${currentName}" to:`, currentName);
 
         if (!newName || newName === currentName) return;
@@ -1389,10 +1413,6 @@ class JSONCreator {
         
         saveDevelopingJSONs();
 
-        // Close modal and reopen to show updated list
-        document.querySelector('.root-selector-modal').remove();
-        this.openRootSelectorModal();
-        
         // Update button text if this was the active root
         const rootBtn = document.getElementById('rootSelectorBtn');
         if (rootBtn && AppState.activeDevelopingJSON === newName) {
@@ -1406,6 +1426,9 @@ class JSONCreator {
             return;
         }
         
+        const modal = document.querySelector('.root-selector-modal');
+        if (modal) modal.remove();
+        
         if (!confirm(`Delete root "${currentName}"?`)) return;
 
         delete AppState.developingJSONs[currentName];
@@ -1416,10 +1439,6 @@ class JSONCreator {
         }
         
         saveDevelopingJSONs();
-
-        // Close modal and reopen to show updated list
-        document.querySelector('.root-selector-modal').remove();
-        this.openRootSelectorModal();
     } 
 
     copyJSON() {
