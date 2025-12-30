@@ -733,6 +733,110 @@ textarea.settings-input {
     justify-content: center;
 }
 
+.data-management-modal .modal-content {
+    background: #2d2d2d;
+    border: 1px solid #404040;
+}
+
+.data-management-modal .modal-header {
+    border-bottom: 1px solid #404040;
+    color: #e0e0e0;
+}
+
+.data-management-modal .modal-header h2 {
+    color: #e0e0e0;
+}
+
+.data-management-modal .modal-body {
+    color: #e0e0e0;
+}
+
+.data-management-modal .json-creator-btn {
+    background: #3a3a3a;
+    border: 1px solid #505050;
+    color: #e0e0e0;
+}
+
+.data-management-modal .json-creator-btn:hover {
+    background: #454545;
+}
+
+.floating-message {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #3a3a3a;
+    border: 1px solid #505050;
+    color: #e0e0e0;
+    padding: 12px 24px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    z-index: 100001;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+.floating-message.error {
+    background: #991b1b;
+    border-color: #7f1d1d;
+    color: #fecaca;
+}
+
+.floating-message.success {
+    background: #065f46;
+    border-color: #064e3b;
+    color: #a7f3d0;
+}
+
+.confirmation-modal .modal-content {
+    max-width: 400px;
+    background: #2d2d2d;
+    border: 1px solid #404040;
+}
+
+.confirmation-modal .modal-header {
+    border-bottom: 1px solid #404040;
+}
+
+.confirmation-modal .modal-header h2 {
+    color: #e0e0e0;
+}
+
+.confirmation-modal .modal-body {
+    color: #b0b0b0;
+}
+
+.confirmation-modal .button-group {
+    margin-top: 20px;
+}
+
+.rename-modal-input {
+    width: 100%;
+    background: #1a1a1a;
+    border: 1px solid #404040;
+    color: #e0e0e0;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    margin-top: 12px;
+}
+
+.rename-modal-input:focus {
+    outline: none;
+    border-color: #0066cc;
+}
+
 .run-modal-content {
     background: #ffffff;
     border: 1px solid #d0d0d0;

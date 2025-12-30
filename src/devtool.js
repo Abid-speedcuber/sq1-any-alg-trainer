@@ -1,5 +1,104 @@
 //Every Update to the state should instantly render to ensure snappyness of the app.
 
+// Utility Functions
+function showFloatingMessage(message, type = 'info', duration = 3000) {
+    const existing = document.querySelector('.floating-message');
+    if (existing) existing.remove();
+    
+    const msg = document.createElement('div');
+    msg.className = `floating-message ${type}`;
+    msg.textContent = message;
+    document.body.appendChild(msg);
+    
+    setTimeout(() => {
+        msg.style.animation = 'slideDown 0.3s ease-out reverse';
+        setTimeout(() => msg.remove(), 300);
+    }, duration);
+}
+
+function showConfirmationModal(title, message, onConfirm, onCancel = null) {
+    const modal = document.createElement('div');
+    modal.className = 'modal active confirmation-modal';
+    modal.style.zIndex = '100001';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>${title}</h2>
+            </div>
+            <div class="modal-body">
+                <p>${message}</p>
+                <div class="button-group">
+                    <button class="btn btn-secondary" id="confirmCancelBtn">Cancel</button>
+                    <button class="btn btn-primary" id="confirmOkBtn">OK</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    document.getElementById('confirmOkBtn').onclick = () => {
+        modal.remove();
+        if (onConfirm) onConfirm();
+    };
+    
+    document.getElementById('confirmCancelBtn').onclick = () => {
+        modal.remove();
+        if (onCancel) onCancel();
+    };
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+            if (onCancel) onCancel();
+        }
+    });
+}
+
+function showRenameModal(title, currentValue, onConfirm) {
+    const modal = document.createElement('div');
+    modal.className = 'modal active confirmation-modal';
+    modal.style.zIndex = '100001';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>${title}</h2>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="rename-modal-input" id="renameInput" value="${currentValue}">
+                <div class="button-group">
+                    <button class="btn btn-secondary" id="renameCancelBtn">Cancel</button>
+                    <button class="btn btn-primary" id="renameOkBtn">OK</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    const input = document.getElementById('renameInput');
+    input.focus();
+    input.select();
+    
+    const handleConfirm = () => {
+        const value = input.value.trim();
+        if (value) {
+            modal.remove();
+            onConfirm(value);
+        }
+    };
+    
+    document.getElementById('renameOkBtn').onclick = handleConfirm;
+    document.getElementById('renameCancelBtn').onclick = () => modal.remove();
+    
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleConfirm();
+        if (e.key === 'Escape') modal.remove();
+    });
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
+}
+
 // JSON Creator Implementation
 class JSONCreator {
     constructor() {
@@ -374,7 +473,7 @@ class JSONCreator {
         pathParts.forEach(part => parent = parent[part]);
 
         if (parent[newName]) {
-            alert('An item with this name already exists');
+            showFloatingMessage('An item with this name already exists', 'error');
             return;
         }
 
@@ -527,8 +626,10 @@ class JSONCreator {
     delete() {
         if (!this.selectedPath) return;
 
-        const confirm = window.confirm(`Delete "${this.selectedPath.split('/').pop()}"?`);
-        if (!confirm) return;
+        showConfirmationModal(
+            'Delete Item',
+            `Delete "${this.selectedPath.split('/').pop()}"?`,
+            () => {
 
         const pathParts = this.selectedPath.split('/');
         const itemName = pathParts.pop();
@@ -536,10 +637,12 @@ class JSONCreator {
         pathParts.forEach(part => parent = parent[part]);
 
         delete parent[itemName];
-        this.selectedPath = '';
-        this.selectedItem = null;
-        this.renderTree();
-        this.showWelcome();
+                this.selectedPath = '';
+                this.selectedItem = null;
+                this.renderTree();
+                this.showWelcome();
+            }
+        );
     }
 
     showWelcome() {
@@ -933,7 +1036,10 @@ class JSONCreator {
                 <div class="json-creator-section-compact">
                     <h4>
                         Post ABF
-                        <button class="quick-info-btn" onclick="(function(e){ e.stopPropagation(); alert('Post ABF is Adjustment of Both Face After the algorithm is done.'); })(event)">?</button>
+                        <span class="info-wrapper">
+                            <button class="info-btn" aria-label="More info">i</button>
+                            <span class="info-box">Post ABF is Adjustment of Both Face After the algorithm is done.</span>
+                        </span>
                     </h4>
                     <div class="abf-grid">
                         ${['U0', 'U', 'U2', "U'", 'D0', 'D', 'D2', "D'"].map((move, idx) => {
@@ -1100,7 +1206,7 @@ class JSONCreator {
         const values = valsInput.value.trim().split(',').map(v => v.trim().toLowerCase());
 
         if (!position || !values.length || !values[0]) {
-            alert('Please enter both position and values');
+            showFloatingMessage('Please enter both position and values', 'error');
             return;
         }
 
@@ -1393,69 +1499,73 @@ class JSONCreator {
         const modal = document.querySelector('.root-selector-modal');
         if (modal) modal.remove();
         
-        const name = prompt('Enter name for new root:');
-        if (!name) return;
-
-        if (AppState.developingJSONs[name]) {
-            alert('A root with this name already exists');
-            return;
-        }
+        showRenameModal('New Root', '', (name) => {
+            if (AppState.developingJSONs[name]) {
+                showFloatingMessage('A root with this name already exists', 'error');
+                return;
+            }
 
         AppState.developingJSONs[name] = {};
-        saveDevelopingJSONs();
+            saveDevelopingJSONs();
 
-        this.switchRoot(name);
+            this.switchRoot(name);
+        });
     }
 
     renameRootFromModal(currentName) {
         const modal = document.querySelector('.root-selector-modal');
         if (modal) modal.remove();
         
-        const newName = prompt(`Rename root "${currentName}" to:`, currentName);
+        showRenameModal(`Rename Root: ${currentName}`, currentName, (newName) => {
+            if (newName === currentName) return;
 
-        if (!newName || newName === currentName) return;
-
-        if (AppState.developingJSONs[newName]) {
-            alert('A root with this name already exists');
-            return;
-        }
+            if (AppState.developingJSONs[newName]) {
+                showFloatingMessage('A root with this name already exists', 'error');
+                return;
+            }
 
         AppState.developingJSONs[newName] = AppState.developingJSONs[currentName];
-        delete AppState.developingJSONs[currentName];
-        
-        if (AppState.activeDevelopingJSON === currentName) {
-            AppState.activeDevelopingJSON = newName;
-            this.treeData = AppState.developingJSONs[newName];
-        }
-        
-        saveDevelopingJSONs();
+            delete AppState.developingJSONs[currentName];
+            
+            if (AppState.activeDevelopingJSON === currentName) {
+                AppState.activeDevelopingJSON = newName;
+                this.treeData = AppState.developingJSONs[newName];
+            }
+            
+            saveDevelopingJSONs();
 
-        // Update button text if this was the active root
-        const rootBtn = document.getElementById('rootSelectorBtn');
-        if (rootBtn && AppState.activeDevelopingJSON === newName) {
-            rootBtn.textContent = newName;
-        }
+            // Update button text if this was the active root
+            const rootBtn = document.getElementById('rootSelectorBtn');
+            if (rootBtn && AppState.activeDevelopingJSON === newName) {
+                rootBtn.textContent = newName;
+            }
+        });
     }
 
     deleteRootFromModal(currentName) {
         if (Object.keys(AppState.developingJSONs).length === 1) {
-            alert('Cannot delete the last root');
+            showFloatingMessage('Cannot delete the last root', 'error');
             return;
         }
         
         const modal = document.querySelector('.root-selector-modal');
         if (modal) modal.remove();
         
-        if (!confirm(`Delete root "${currentName}"?`)) return;
+        showConfirmationModal(
+            'Delete Root',
+            `Delete root "${currentName}"? This cannot be undone.`,
+            () => {
 
         delete AppState.developingJSONs[currentName];
-        
-        if (AppState.activeDevelopingJSON === currentName) {
-            AppState.activeDevelopingJSON = Object.keys(AppState.developingJSONs)[0];
-            this.switchRoot(AppState.activeDevelopingJSON);
-        }
-        
-        saveDevelopingJSONs();
+                
+                if (AppState.activeDevelopingJSON === currentName) {
+                    AppState.activeDevelopingJSON = Object.keys(AppState.developingJSONs)[0];
+                    this.switchRoot(AppState.activeDevelopingJSON);
+                }
+                
+                saveDevelopingJSONs();
+            }
+        );
     } 
 
     copyJSON() {
@@ -1522,9 +1632,9 @@ class JSONCreator {
         copyBtn.addEventListener('click', () => {
             const textarea = document.getElementById('extractedJSON');
             navigator.clipboard.writeText(textarea.value).then(() => {
-                alert('JSON copied to clipboard!');
+                showFloatingMessage('JSON copied to clipboard!', 'success');
             }).catch(err => {
-                alert('Failed to copy: ' + err);
+                showFloatingMessage('Failed to copy: ' + err, 'error');
             });
         });
 
@@ -1678,12 +1788,9 @@ async generateScrambles(jsonData, modal, isStopped) {
                 <div class="scramble-result-info">
                     <div><strong>Case Name:</strong> ${randomCase.caseName}</div>
                     <div><strong>Case Path:</strong> ${randomCase.path}</div>
-                    <div><strong>Input Hex:</strong> <span style="font-family: monospace;">${inputHex}</span></div>
-                    <div><strong>Final Hex:</strong> <span style="font-family: monospace;">${result.hexState}</span></div>
                     <div><strong>Scramble:</strong> <span style="font-family: monospace;">${scramble}</span></div>
-                    <div><strong>Shape Index:</strong> ${result.shapeIndex}</div>
-                    <div><strong>AUF:</strong> ${auf} | <strong>ADF:</strong> ${adf}</div>
-                    <div><strong>RUL:</strong> ${rul} | <strong>RDL:</strong> ${rdl}</div>
+                    <div><strong>AUF:</strong> ${auf} , <strong>ADF:</strong> ${adf}</div>
+                    <div><strong>RUL:</strong> ${rul} , <strong>RDL:</strong> ${rdl}</div>
                     <div><strong>Equator:</strong> ${result.equator}</div>
                 </div>
                 <div class="scramble-result-viz">
@@ -2245,32 +2352,39 @@ saveCaseTemplate() {
     this.caseTemplate = JSON.parse(JSON.stringify(this.editingTemplate));
     const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
     localStorage.setItem(templateKey, JSON.stringify(this.caseTemplate));
-    alert('Case template saved successfully!');
+    showFloatingMessage('Case template saved successfully!', 'success');
 }
 
 clearCaseTemplate() {
-    if (!confirm('Are you sure you want to clear the case template?')) return;
-    
-    this.caseTemplate = null;
-    this.editingTemplate = null;
-    const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
-    localStorage.removeItem(templateKey);
-    alert('Case template cleared!');
-    this.showWelcome();
+    showConfirmationModal(
+        'Clear Template',
+        'Are you sure you want to clear the case template?',
+        () => {
+            this.caseTemplate = null;
+            this.editingTemplate = null;
+            const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
+            localStorage.removeItem(templateKey);
+            showFloatingMessage('Case template cleared!', 'success');
+            this.showWelcome();
+        }
+    );
 }
 
 setAsTemplate(item) {
-    if (!confirm('Do you want to override your current template? This cannot be undone.')) return;
-    
-    // Clone the item and remove the alg and caseName fields
-    const template = JSON.parse(JSON.stringify(item));
-    delete template.alg;
-    delete template.caseName;
-    
-    this.caseTemplate = template;
-    const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
-    localStorage.setItem(templateKey, JSON.stringify(this.caseTemplate));
-    alert('Case set as template successfully!');
+    showConfirmationModal(
+        'Override Template',
+        'Do you want to override your current template? This cannot be undone.',
+        () => {
+            const template = JSON.parse(JSON.stringify(item));
+            delete template.alg;
+            delete template.caseName;
+            
+            this.caseTemplate = template;
+            const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
+            localStorage.setItem(templateKey, JSON.stringify(this.caseTemplate));
+            showFloatingMessage('Case set as template successfully!', 'success');
+        }
+    );
 }
 
 importDataToRoot() {
@@ -2324,7 +2438,7 @@ handleImportRootFileDrop(event) {
     if (file && file.type === 'application/json') {
         this.loadImportRootFile(file);
     } else {
-        alert('Please drop a valid JSON file');
+        showFloatingMessage('Please drop a valid JSON file', 'error');
     }
 }
 
@@ -2333,7 +2447,7 @@ handleImportRootFileSelect(event) {
     if (file && file.type === 'application/json') {
         this.loadImportRootFile(file);
     } else {
-        alert('Please select a valid JSON file');
+        showFloatingMessage('Please select a valid JSON file', 'error');
     }
 }
 
@@ -2351,7 +2465,7 @@ processImportToRoot(mode) {
     const jsonText = window.importedRootJSONData;
     
     if (!jsonText) {
-        alert('Please select a file to import');
+        showFloatingMessage('Please select a file to import', 'error');
         return;
     }
     
@@ -2402,50 +2516,60 @@ processImportToRoot(mode) {
         this.renderTree();
         
         document.querySelector('.modal').remove();
-        alert('Data imported to root successfully!');
+        showFloatingMessage('Data imported to root successfully!', 'success');
     } catch (error) {
-        alert('Invalid JSON: ' + error.message);
+        showFloatingMessage('Invalid JSON: ' + error.message, 'error');
     }
 }
 
 resetRoot() {
-    if (!confirm(`Are you sure you want to reset the root "${AppState.activeDevelopingJSON}"? This will delete all cases and folders. This cannot be undone.`)) return;
-    
-    this.treeData = {};
-    AppState.developingJSONs[AppState.activeDevelopingJSON] = {};
-    saveDevelopingJSONs();
-    
-    this.selectedPath = '';
-    this.selectedItem = null;
-    this.expandedFolders.clear();
-    this.renderTree();
-    this.showWelcome();
-    
-    alert('Root reset successfully!');
+    showConfirmationModal(
+        'Reset Root',
+        `Are you sure you want to reset the root "${AppState.activeDevelopingJSON}"? This will delete all cases and folders. This cannot be undone.`,
+        () => {
+            this.treeData = {};
+            AppState.developingJSONs[AppState.activeDevelopingJSON] = {};
+            saveDevelopingJSONs();
+            
+            this.selectedPath = '';
+            this.selectedItem = null;
+            this.expandedFolders.clear();
+            this.renderTree();
+            this.showWelcome();
+            
+            showFloatingMessage('Root reset successfully!', 'success');
+        }
+    );
 }
 
 close() {
-    // Save current root before closing
-    AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
-    saveDevelopingJSONs();
-    saveLastScreen('training');
-    
-    const fullscreen = document.getElementById('jsonCreatorFullscreen');
-    if (fullscreen) {
-        fullscreen.remove();
-    }
-    
-    // Return to training screen
-    renderApp();
-    setupEventListeners();
-    if (AppState.selectedCases.length > 0) {
-        generateNewScramble();
-    }
+    showConfirmationModal(
+        'Close JSON Creator',
+        'Close JSON Creator? All changes are auto-saved.',
+        () => {
+            // Save current root before closing
+            AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
+            saveDevelopingJSONs();
+            saveLastScreen('training');
+            
+            const fullscreen = document.getElementById('jsonCreatorFullscreen');
+            if (fullscreen) {
+                fullscreen.remove();
+            }
+            
+            // Return to training screen
+            renderApp();
+            setupEventListeners();
+            if (AppState.selectedCases.length > 0) {
+                generateNewScramble();
+            }
+        }
+    );
 }
 
 openDataManagement() {
     const modal = document.createElement('div');
-    modal.className = 'modal active extract-json-modal';
+    modal.className = 'modal active data-management-modal';
     modal.style.zIndex = '20000';
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 500px;">
@@ -2457,6 +2581,7 @@ openDataManagement() {
                 <div style="display: flex; flex-direction: column; gap: 12px;">
                     <button class="json-creator-btn" onclick="jsonCreator.exportAllData()">Export All Data</button>
                     <button class="json-creator-btn" onclick="jsonCreator.importData()">Import Data</button>
+                    <button class="json-creator-btn" onclick="jsonCreator.resetAllData()" style="background: #991b1b; border-color: #7f1d1d;">Reset All Data</button>
                 </div>
             </div>
         </div>
@@ -2468,6 +2593,32 @@ openDataManagement() {
             modal.remove();
         }
     });
+}
+
+resetAllData() {
+    showConfirmationModal(
+        'Reset All Data',
+        'Are you sure you want to reset ALL data? This will delete all developing JSONs and cannot be undone.',
+        () => {
+            AppState.developingJSONs = { 'default': DEFAULT_ALGSET };
+            AppState.activeDevelopingJSON = 'default';
+            saveDevelopingJSONs();
+            
+            this.treeData = JSON.parse(JSON.stringify(DEFAULT_ALGSET));
+            this.selectedPath = '';
+            this.selectedItem = null;
+            this.expandedFolders.clear();
+            this.expandAllFolders(this.treeData, '');
+            this.renderTree();
+            this.showWelcome();
+            
+            const rootBtn = document.getElementById('rootSelectorBtn');
+            if (rootBtn) rootBtn.textContent = 'default';
+            
+            showFloatingMessage('All data has been reset', 'success');
+            document.querySelector('.data-management-modal').remove();
+        }
+    );
 }
 
 exportAllData() {
@@ -2540,7 +2691,7 @@ handleImportFileDrop(event) {
     if (file && file.type === 'application/json') {
         this.loadImportFile(file);
     } else {
-        alert('Please drop a valid JSON file');
+        showFloatingMessage('Please drop a valid JSON file', 'error');
     }
 }
 
@@ -2549,7 +2700,7 @@ handleImportFileSelect(event) {
     if (file && file.type === 'application/json') {
         this.loadImportFile(file);
     } else {
-        alert('Please select a valid JSON file');
+        showFloatingMessage('Please select a valid JSON file', 'error');
     }
 }
 
@@ -2567,7 +2718,7 @@ processImport(mode) {
     const jsonText = window.importedJSONData;
     
     if (!jsonText) {
-        alert('Please select a file to import');
+        showFloatingMessage('Please select a file to import', 'error');
         return;
     }
     
@@ -2594,17 +2745,19 @@ processImport(mode) {
         
         // Update selector
         const selector = document.getElementById('rootSelector');
-        selector.innerHTML = Object.keys(AppState.developingJSONs).map(root => 
-            `<option value="${root}" ${root === AppState.activeDevelopingJSON ? 'selected' : ''}>${root}</option>`
-        ).join('');
+        if (selector) {
+            selector.innerHTML = Object.keys(AppState.developingJSONs).map(root => 
+                `<option value="${root}" ${root === AppState.activeDevelopingJSON ? 'selected' : ''}>${root}</option>`
+            ).join('');
+        }
         
         // Reload current root
         this.switchRoot(AppState.activeDevelopingJSON);
         
         document.querySelector('.modal').remove();
-        alert('Data imported successfully!');
+        showFloatingMessage('Data imported successfully!', 'success');
     } catch (error) {
-        alert('Invalid JSON: ' + error.message);
+        showFloatingMessage('Invalid JSON: ' + error.message, 'error');
     }
 }
 
@@ -2624,7 +2777,5 @@ function showJsonCreatorFullscreen() {
 }
 
 function closeJsonCreator() {
-    if (confirm('Close JSON Creator? All changes are auto-saved.')) {
-        jsonCreator.close();
-    }
+    jsonCreator.close();
 }

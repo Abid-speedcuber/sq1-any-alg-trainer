@@ -15,6 +15,60 @@ const AppState = {
     }
 };
 
+// Utility Functions (shared with devtool.js)
+function showFloatingMessage(message, type = 'info', duration = 3000) {
+    const existing = document.querySelector('.floating-message');
+    if (existing) existing.remove();
+    
+    const msg = document.createElement('div');
+    msg.className = `floating-message ${type}`;
+    msg.textContent = message;
+    document.body.appendChild(msg);
+    
+    setTimeout(() => {
+        msg.style.animation = 'slideDown 0.3s ease-out reverse';
+        setTimeout(() => msg.remove(), 300);
+    }, duration);
+}
+
+function showConfirmationModal(title, message, onConfirm, onCancel = null) {
+    const modal = document.createElement('div');
+    modal.className = 'modal active confirmation-modal';
+    modal.style.zIndex = '100001';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>${title}</h2>
+            </div>
+            <div class="modal-body">
+                <p>${message}</p>
+                <div class="button-group">
+                    <button class="btn btn-secondary" id="confirmCancelBtn">Cancel</button>
+                    <button class="btn btn-primary" id="confirmOkBtn">OK</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    document.getElementById('confirmOkBtn').onclick = () => {
+        modal.remove();
+        if (onConfirm) onConfirm();
+    };
+    
+    document.getElementById('confirmCancelBtn').onclick = () => {
+        modal.remove();
+        if (onCancel) onCancel();
+    };
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+            if (onCancel) onCancel();
+        }
+    });
+}
+
 // Default algset structure
 const DEFAULT_ALGSET = {
     "New Folder": {
@@ -390,7 +444,7 @@ function updateTimerDisplay() {
 // Case selection modal
 function openCaseSelectionModal() {
     if (Object.keys(AppState.trainingJSONs).length === 0) {
-        alert('Please import a training JSON first from Settings');
+        showFloatingMessage('Please import a training JSON first from Settings', 'error');
         return;
     }
 
@@ -547,7 +601,6 @@ function openSettingsModal() {
                         <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
                     </div>
                     <div class="modal-body">
-                        <div id="settingsMessage"></div>
                         <div class="settings-group">
                             <label class="settings-label">Loaded Training Sets</label>
                             <div id="trainingSetsList" style="background: #1a1a1a; padding: 12px; border-radius: 6px; margin-bottom: 12px; max-height: 200px; overflow-y: auto;">
@@ -593,7 +646,6 @@ window.openImportJSONModal = function () {
                         <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
                     </div>
                     <div class="modal-body">
-                        <div id="importMessage"></div>
                         <div class="settings-group">
                             <label class="settings-label">JSON Name</label>
                             <input type="text" id="importJSONName" class="settings-input" placeholder="Enter a name for this training set" style="margin-bottom: 12px;">
@@ -639,15 +691,14 @@ window.handleJSONFileDrop = function (event) {
 window.importTrainingJSON = function () {
     const name = document.getElementById('importJSONName').value.trim();
     const jsonText = document.getElementById('importJSONInput').value.trim();
-    const messageDiv = document.getElementById('importMessage');
 
     if (!name) {
-        messageDiv.innerHTML = '<div class="error-message">Please enter a name for this training set</div>';
+        showFloatingMessage('Please enter a name for this training set', 'error');
         return;
     }
 
     if (!jsonText) {
-        messageDiv.innerHTML = '<div class="error-message">Please paste or drop a JSON file</div>';
+        showFloatingMessage('Please paste or drop a JSON file', 'error');
         return;
     }
 
@@ -659,13 +710,13 @@ window.importTrainingJSON = function () {
         }
         saveTrainingJSONs();
 
-        messageDiv.innerHTML = '<div class="success-message">Training JSON imported successfully!</div>';
+        showFloatingMessage('Training JSON imported successfully!', 'success');
         setTimeout(() => {
             document.querySelector('.modal').remove();
             openSettingsModal();
-        }, 1000);
+        }, 500);
     } catch (error) {
-        messageDiv.innerHTML = `<div class="error-message">Invalid JSON: ${error.message}</div>`;
+        showFloatingMessage('Invalid JSON: ' + error.message, 'error');
     }
 };
 
@@ -680,17 +731,22 @@ window.setActiveTrainingJSON = function (name) {
 };
 
 window.removeTrainingJSON = function (name) {
-    if (!confirm(`Remove training set "${name}"?`)) return;
-    delete AppState.trainingJSONs[name];
-    if (AppState.activeTrainingJSON === name) {
-        AppState.activeTrainingJSON = Object.keys(AppState.trainingJSONs)[0] || null;
-        AppState.selectedCases = [];
-        saveSelectedCases();
-    }
-    saveTrainingJSONs();
-    document.querySelector('.modal').remove();
-    openSettingsModal();
-    renderApp();
+    showConfirmationModal(
+        'Remove Training Set',
+        `Remove training set "${name}"?`,
+        () => {
+            delete AppState.trainingJSONs[name];
+            if (AppState.activeTrainingJSON === name) {
+                AppState.activeTrainingJSON = Object.keys(AppState.trainingJSONs)[0] || null;
+                AppState.selectedCases = [];
+                saveSelectedCases();
+            }
+            saveTrainingJSONs();
+            document.querySelector('.modal').remove();
+            openSettingsModal();
+            renderApp();
+        }
+    );
 };
 
 // Scramble detail modal
