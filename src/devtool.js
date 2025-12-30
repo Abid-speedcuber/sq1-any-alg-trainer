@@ -5,8 +5,12 @@ function showFloatingMessage(message, type = 'info', duration = 3000) {
     const existing = document.querySelector('.floating-message');
     if (existing) existing.remove();
     
+    // Detect if we're in JSON Creator context
+    const isDevTool = document.getElementById('jsonCreatorFullscreen') !== null;
+    const themeClass = isDevTool ? 'devtool-theme' : '';
+    
     const msg = document.createElement('div');
-    msg.className = `floating-message ${type}`;
+    msg.className = `floating-message ${type} ${themeClass}`;
     msg.textContent = message;
     document.body.appendChild(msg);
     
@@ -20,8 +24,13 @@ function showConfirmationModal(title, message, onConfirm, onCancel = null) {
     const modal = document.createElement('div');
     modal.className = 'modal active confirmation-modal';
     modal.style.zIndex = '100001';
+    
+    // Detect if we're in JSON Creator context
+    const isDevTool = document.getElementById('jsonCreatorFullscreen') !== null;
+    const modalClass = isDevTool ? 'modal-content devtool-modal' : 'modal-content';
+    
     modal.innerHTML = `
-        <div class="modal-content">
+        <div class="${modalClass}">
             <div class="modal-header">
                 <h2>${title}</h2>
             </div>
@@ -58,8 +67,13 @@ function showRenameModal(title, currentValue, onConfirm) {
     const modal = document.createElement('div');
     modal.className = 'modal active confirmation-modal';
     modal.style.zIndex = '100001';
+    
+    // Detect if we're in JSON Creator context
+    const isDevTool = document.getElementById('jsonCreatorFullscreen') !== null;
+    const modalClass = isDevTool ? 'modal-content devtool-modal' : 'modal-content';
+    
     modal.innerHTML = `
-        <div class="modal-content">
+        <div class="${modalClass}">
             <div class="modal-header">
                 <h2>${title}</h2>
             </div>
@@ -343,12 +357,12 @@ class JSONCreator {
         });
 
         // Right-click on tree root
-        document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) => {
-            if (e.target.id === 'jsonCreatorTree') {
-                e.preventDefault();
-                this.showRootContextMenu(e);
-            }
-        });
+document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) => {
+    if (e.target.id === 'jsonCreatorTree') {
+        e.preventDefault();
+        this.showTreeRootContextMenu(e);
+    }
+});
     }
 
     renderTree() {
@@ -699,14 +713,32 @@ class JSONCreator {
     }
 
     switchCaseTab(tab) {
-        this.currentCaseTab = tab;
-        const tabs = document.querySelectorAll('.case-editor-tab');
-        tabs.forEach(t => t.classList.remove('active'));
-        event.target.classList.add('active');
+    this.currentCaseTab = tab;
+    const tabs = document.querySelectorAll('.case-editor-tab');
+    tabs.forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    // Force re-render with a small delay to ensure DOM is ready
+    setTimeout(() => {
         if (this.selectedItem) {
+            const content = document.getElementById('caseEditorContent');
+            if (!content) {
+                console.error('caseEditorContent not found after tab switch!');
+                return;
+            }
             this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
+            
+            // Verify the tab content actually rendered
+            setTimeout(() => {
+                const verifyContent = document.getElementById('caseEditorContent');
+                if (!verifyContent || verifyContent.children.length === 0) {
+                    console.error('Tab content failed to render, forcing re-render');
+                    this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
+                }
+            }, 50);
         }
-    }
+    }, 10);
+}
 
     renderCaseTab(item, name) {
         const content = document.getElementById('caseEditorContent');
@@ -1294,48 +1326,49 @@ class JSONCreator {
         this.contextMenu = menu;
     }
 
-    showRootContextMenu(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        this.hideContextMenu();
-        
-        this.setupContextMenuListener();
+    showTreeRootContextMenu(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    this.hideContextMenu();
+    
+    this.setupContextMenuListener();
 
-        const menu = document.createElement('div');
-        menu.className = 'context-menu';
-        menu.style.left = `${e.pageX}px`;
-        menu.style.top = `${e.pageY}px`;
+    const menu = document.createElement('div');
+    menu.className = 'context-menu tree-root-context-menu';
+    menu.style.left = `${e.pageX}px`;
+    menu.style.top = `${e.pageY}px`;
+    menu.style.zIndex = '10001';
 
-        const items = [
-            { text: 'New Case', action: () => { this.selectedPath = ''; this.selectedItem = null; this.newCase(); } },
-            { text: 'New Folder', action: () => { this.selectedPath = ''; this.selectedItem = null; this.newFolder(); } },
-            { text: 'Paste', action: () => { this.selectedPath = ''; this.selectedItem = null; this.paste(); }, disabled: !this.clipboard },
-            { separator: true },
-            { text: 'Run All', action: () => this.runJSON() }
-        ];
+    const items = [
+        { text: 'New Case', action: () => { this.selectedPath = ''; this.selectedItem = null; this.newCase(); } },
+        { text: 'New Folder', action: () => { this.selectedPath = ''; this.selectedItem = null; this.newFolder(); } },
+        { text: 'Paste', action: () => { this.selectedPath = ''; this.selectedItem = null; this.paste(); }, disabled: !this.clipboard },
+        { separator: true },
+        { text: 'Run All', action: () => this.runJSON() }
+    ];
 
-        items.forEach(item => {
-            if (item.separator) {
-                const sep = document.createElement('div');
-                sep.className = 'context-menu-separator';
-                menu.appendChild(sep);
-            } else {
-                const menuItem = document.createElement('div');
-                menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
-                menuItem.textContent = item.text;
-                if (!item.disabled) {
-                    menuItem.onclick = () => {
-                        this.hideContextMenu();
-                        item.action();
-                    };
-                }
-                menu.appendChild(menuItem);
+    items.forEach(item => {
+        if (item.separator) {
+            const sep = document.createElement('div');
+            sep.className = 'context-menu-separator';
+            menu.appendChild(sep);
+        } else {
+            const menuItem = document.createElement('div');
+            menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
+            menuItem.textContent = item.text;
+            if (!item.disabled) {
+                menuItem.onclick = () => {
+                    this.hideContextMenu();
+                    item.action();
+                };
             }
-        });
+            menu.appendChild(menuItem);
+        }
+    });
 
-        document.body.appendChild(menu);
-        this.contextMenu = menu;
-    }
+    document.body.appendChild(menu);
+    this.contextMenu = menu;
+}
 
     hideContextMenu() {
         if (this.contextMenu) {
@@ -1430,7 +1463,7 @@ class JSONCreator {
                     <div class="root-list-item ${root === AppState.activeDevelopingJSON ? 'active' : ''}" 
                          data-root="${root}"
                          onclick="jsonCreator.selectRootFromModal('${root}')"
-                         oncontextmenu="jsonCreator.showRootContextMenu(event, '${root}')"
+                         oncontextmenu="jsonCreator.showModalRootContextMenu(event, '${root}')"
                          style="padding: 10px 16px; cursor: pointer; font-size: 13px; color: #1a1a1a; border-bottom: 1px solid #e0e0e0;">
                         ${root}
                     </div>
@@ -1461,39 +1494,40 @@ class JSONCreator {
         if (modal) modal.remove();
     }
 
-    showRootContextMenu(e, rootName) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        this.hideContextMenu();
-        this.setupContextMenuListener();
+    showModalRootContextMenu(e, rootName) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    this.hideContextMenu();
+    this.setupContextMenuListener();
 
-        const menu = document.createElement('div');
-        menu.className = 'context-menu';
-        menu.style.left = `${e.pageX}px`;
-        menu.style.top = `${e.pageY}px`;
+    const menu = document.createElement('div');
+    menu.className = 'context-menu root-context-menu';
+    menu.style.left = `${e.pageX}px`;
+    menu.style.top = `${e.pageY}px`;
+    menu.style.zIndex = '20001';
 
-        const items = [
-            { text: 'Rename', action: () => this.renameRootFromModal(rootName) },
-            { text: 'Delete', action: () => this.deleteRootFromModal(rootName), disabled: Object.keys(AppState.developingJSONs).length === 1 }
-        ];
+    const items = [
+        { text: 'Rename', action: () => this.renameRootFromModal(rootName) },
+        { text: 'Delete', action: () => this.deleteRootFromModal(rootName), disabled: Object.keys(AppState.developingJSONs).length === 1 }
+    ];
 
-        items.forEach(item => {
-            const menuItem = document.createElement('div');
-            menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
-            menuItem.textContent = item.text;
-            if (!item.disabled) {
-                menuItem.onclick = () => {
-                    this.hideContextMenu();
-                    item.action();
-                };
-            }
-            menu.appendChild(menuItem);
-        });
+    items.forEach(item => {
+        const menuItem = document.createElement('div');
+        menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
+        menuItem.textContent = item.text;
+        if (!item.disabled) {
+            menuItem.onclick = () => {
+                this.hideContextMenu();
+                item.action();
+            };
+        }
+        menu.appendChild(menuItem);
+    });
 
-        document.body.appendChild(menu);
-        this.contextMenu = menu;
-    }
+    document.body.appendChild(menu);
+    this.contextMenu = menu;
+}
 
     addRootFromModal() {
         const modal = document.querySelector('.root-selector-modal');
@@ -1593,20 +1627,20 @@ class JSONCreator {
         modal.style.zIndex = '20000'; // Higher than json-creator-fullscreen (10000)
         modal.style.background = 'rgba(0, 0, 0, 0.5)';
         modal.innerHTML = `
-            <div class="modal-content" style="max-width: 800px; background: #ffffff; border: 1px solid #d0d0d0;">
-                <div class="modal-header" style="border-bottom: 1px solid #d0d0d0;">
-                    <h2 style="color: #1a1a1a;">Extract JSON: ${AppState.activeDevelopingJSON}</h2>
-                    <button class="close-btn" onclick="this.closest('.modal').remove()" style="color: #666666;">×</button>
-                </div>
-                <div class="modal-body">
-                    <textarea readonly id="extractedJSON" style="width: 100%; min-height: 400px; font-family: 'Courier New', monospace; background: #f9f9f9; color: #1a1a1a; border: 1px solid #d0d0d0; border-radius: 6px; padding: 12px;">${jsonString}</textarea>
-                    <div class="button-group" style="margin-top: 12px;">
-                        <button class="json-creator-btn" id="copyJSONBtn">Copy JSON</button>
-                        <button class="json-creator-btn" id="downloadJSONBtn">Download JSON</button>
-                    </div>
-                </div>
+        <div class="modal-content extract-json-content" style="max-width: 800px; background: #ffffff; border: 1px solid #d0d0d0;">
+            <div class="modal-header" style="border-bottom: 1px solid #d0d0d0;">
+                <h2 style="color: #1a1a1a;">Extract JSON: ${AppState.activeDevelopingJSON}</h2>
+                <button class="close-btn" onclick="this.closest('.modal').remove()" style="color: #666666;">×</button>
             </div>
-        `;
+            <div class="modal-body extract-json-body">
+                <textarea readonly id="extractedJSON" style="width: 100%; min-height: 400px; font-family: 'Courier New', monospace; background: #f9f9f9; color: #1a1a1a; border: 1px solid #d0d0d0; border-radius: 6px; padding: 12px; margin-bottom: 60px;">${jsonString}</textarea>
+            </div>
+            <div class="extract-json-footer">
+                <button class="json-creator-btn" id="copyJSONBtn">Copy JSON</button>
+                <button class="json-creator-btn" id="downloadJSONBtn">Download JSON</button>
+            </div>
+        </div>
+    `;
         document.body.appendChild(modal);
         
         // Check for elements that might be covering the modal
@@ -1925,7 +1959,25 @@ switchTemplateTab(tab) {
     const tabs = document.querySelectorAll('.case-editor-tab');
     tabs.forEach(t => t.classList.remove('active'));
     event.target.classList.add('active');
-    this.renderTemplateTab();
+    
+    // Force re-render with a small delay to ensure DOM is ready
+    setTimeout(() => {
+        const content = document.getElementById('templateEditorContent');
+        if (!content) {
+            console.error('templateEditorContent not found after tab switch!');
+            return;
+        }
+        this.renderTemplateTab();
+        
+        // Verify the tab content actually rendered
+        setTimeout(() => {
+            const verifyContent = document.getElementById('templateEditorContent');
+            if (!verifyContent || verifyContent.children.length === 0) {
+                console.error('Template tab content failed to render, forcing re-render');
+                this.renderTemplateTab();
+            }
+        }, 50);
+    }, 10);
 }
 
 renderTemplateTab() {
