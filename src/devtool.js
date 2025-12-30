@@ -1916,6 +1916,12 @@ showExtraTools(event) {
 }
 
 openCaseTemplate() {
+    // Store the last selected case path so we can return to it
+    this.lastCaseBeforeTemplate = {
+        path: this.selectedPath,
+        item: this.selectedItem
+    };
+
     const title = document.getElementById('jsonCreatorTitle');
     const subtitle = document.getElementById('jsonCreatorSubtitle');
     const body = document.getElementById('jsonCreatorBody');
@@ -2403,6 +2409,17 @@ saveCaseTemplate() {
     const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
     localStorage.setItem(templateKey, JSON.stringify(this.caseTemplate));
     showFloatingMessage('Case template saved successfully!', 'success');
+    
+    // Restore the last selected case
+    if (this.lastCaseBeforeTemplate && this.lastCaseBeforeTemplate.item && this.lastCaseBeforeTemplate.item.caseName) {
+        this.selectedPath = this.lastCaseBeforeTemplate.path;
+        this.selectedItem = this.lastCaseBeforeTemplate.item;
+        this.renderTree();
+        const caseName = this.selectedPath.split('/').pop();
+        this.showCaseEditor(this.selectedItem, caseName);
+    } else {
+        this.showWelcome();
+    }
 }
 
 clearCaseTemplate() {
@@ -2415,7 +2432,17 @@ clearCaseTemplate() {
             const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
             localStorage.removeItem(templateKey);
             showFloatingMessage('Case template cleared!', 'success');
-            this.showWelcome();
+            
+            // Restore the last selected case
+            if (this.lastCaseBeforeTemplate && this.lastCaseBeforeTemplate.item && this.lastCaseBeforeTemplate.item.caseName) {
+                this.selectedPath = this.lastCaseBeforeTemplate.path;
+                this.selectedItem = this.lastCaseBeforeTemplate.item;
+                this.renderTree();
+                const caseName = this.selectedPath.split('/').pop();
+                this.showCaseEditor(this.selectedItem, caseName);
+            } else {
+                this.showWelcome();
+            }
         }
     );
 }
