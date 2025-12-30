@@ -1592,30 +1592,31 @@ async generateScrambles(jsonData, modal, isStopped) {
             const result = generateHexState(config);
             
             let scramble = '';
-            try {
-                if (typeof window.Square1Solver !== 'undefined') {
-                    console.log('=== SOLVER ATTEMPT ===');
-                    console.log('Input Hex:', result.hexState);
-                    console.log('Hex Length:', result.hexState.length);
-                    console.log('Contains separator:', result.hexState.includes('/') || result.hexState.includes('|'));
+            let solverAttempts = 0;
+            const maxSolverAttempts = 10;
+            let solverSuccess = false;
+            
+            while (!solverSuccess && solverAttempts < maxSolverAttempts) {
+                solverAttempts++;
+                try {
+                    if (typeof window.Square1Solver !== 'undefined') {
+                        scramble = window.Square1Solver.solve(result.hexState);
+                        solverSuccess = true;
+                    } else {
+                        scramble = '⚠ Solver not loaded';
+                        solverSuccess = true;
+                    }
+                } catch (solverError) {
+                    const isShiftError = solverError.message && solverError.message.includes("Cannot read properties of undefined (reading 'shift')");
                     
-                    scramble = window.Square1Solver.solve(result.hexState);
+                    if (isShiftError && solverAttempts < maxSolverAttempts) {
+                        await new Promise(resolve => setTimeout(resolve, 10));
+                        continue;
+                    }
                     
-                    console.log('Solver returned:', scramble);
-                    console.log('======================');
-                } else {
-                    console.error('Square1Solver not defined on window object');
-                    scramble = '⚠Solver not loaded';
+                    scramble = `⚠ Error: ${solverError.message}`;
+                    solverSuccess = true;
                 }
-            } catch (solverError) {
-                console.error('=== SOLVER ERROR ===');
-                console.error('Error message:', solverError.message);
-                console.error('Error stack:', solverError.stack);
-                console.error('Input Hex was:', result.hexState);
-                console.error('Case:', randomCase.caseName);
-                console.error('Config:', config);
-                console.error('====================');
-                scramble = `⚠Error: ${solverError.message}`;
             }
 
             const inputHex = config.topLayer + '|' + config.bottomLayer;
