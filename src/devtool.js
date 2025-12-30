@@ -853,6 +853,7 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
 
                 <div class="json-creator-section">
                     <h4>Constraints</h4>
+                    <p style="font-size: 12px; color: #666; margin: 0 0 12px 0; font-style: italic;">Don't touch this unless you know what you are doing</p>
                     <div class="json-creator-form-group">
                         <label>Position (e.g., A, BC, D)</label>
                         <input type="text" id="constraintPosition" placeholder="Enter position...">
@@ -1919,8 +1920,8 @@ openCaseTemplate() {
     const subtitle = document.getElementById('jsonCreatorSubtitle');
     const body = document.getElementById('jsonCreatorBody');
 
-    title.textContent = 'Case Template';
-    subtitle.textContent = 'Case template decides what you are gonna get after clicking new case.';
+    title.innerHTML = `Case Template <button class="json-creator-icon-btn" onclick="jsonCreator.saveCaseTemplate()" title="Save Template" style="margin-left: 8px; display: inline-flex; align-items: center; vertical-align: middle;"><img src="viz/save.svg" width="14" height="14" onerror="this.outerHTML='Save'"></button> <button class="json-creator-icon-btn" onclick="jsonCreator.clearCaseTemplate()" title="Clear Template" style="margin-left: 4px; display: inline-flex; align-items: center; vertical-align: middle;"><img src="viz/reset.svg" width="14" height="14" onerror="this.outerHTML='Reset'"></button>`;
+    subtitle.innerHTML = `Any new case from now on will be pre-configured according to this case template.`;
 
     // Use existing template or create default
     const template = this.caseTemplate || {
@@ -1944,10 +1945,6 @@ openCaseTemplate() {
             <button class="case-editor-tab" onclick="jsonCreator.switchTemplateTab('additional')">Additional Information</button>
         </div>
         <div id="templateEditorContent"></div>
-        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #404040; display: flex; gap: 12px;">
-            <button class="json-creator-btn" onclick="jsonCreator.saveCaseTemplate()">Save Template</button>
-            <button class="json-creator-btn json-creator-btn-secondary" onclick="jsonCreator.clearCaseTemplate()">Clear Template</button>
-        </div>
     `;
 
     this.currentTemplateTab = 'shape';
@@ -2073,6 +2070,7 @@ renderTemplateTab() {
 
             <div class="json-creator-section">
                 <h4>Constraints</h4>
+                <p style="font-size: 12px; color: #666; margin: 0 0 12px 0; font-style: italic;">Don't touch this unless you know what you are doing</p>
                 <div class="json-creator-form-group">
                     <label>Position (e.g., A, BC, D)</label>
                     <input type="text" id="constraintPosition" placeholder="Enter position...">
@@ -2624,7 +2622,7 @@ openDataManagement() {
     modal.className = 'modal active data-management-modal';
     modal.style.zIndex = '20000';
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-content devtool-modal" style="max-width: 500px;">
             <div class="modal-header">
                 <h2>Data Management</h2>
                 <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
@@ -2633,7 +2631,7 @@ openDataManagement() {
                 <div style="display: flex; flex-direction: column; gap: 12px;">
                     <button class="json-creator-btn" onclick="jsonCreator.exportAllData()">Export All Data</button>
                     <button class="json-creator-btn" onclick="jsonCreator.importData()">Import Data</button>
-                    <button class="json-creator-btn" onclick="jsonCreator.resetAllData()" style="background: #991b1b; border-color: #7f1d1d;">Reset All Data</button>
+                    <button class="json-creator-btn" onclick="jsonCreator.resetAllData()">Reset All Data</button>
                 </div>
             </div>
         </div>

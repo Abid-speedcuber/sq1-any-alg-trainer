@@ -545,7 +545,10 @@ textarea.settings-input {
 }
 
 .json-creator-content-header p {
-    display: none;
+    display: block;
+    margin: 4px 0 0 0;
+    font-size: 12px;
+    color: #666666;
 }
 
 .json-creator-content-body {
@@ -685,7 +688,7 @@ textarea.settings-input {
 }
 
 .json-creator-btn {
-    background: #0e639c;
+    background: #676767;
     border: none;
     color: white;
     padding: 8px 16px;
@@ -695,7 +698,7 @@ textarea.settings-input {
 }
 
 .json-creator-btn:hover {
-    background: #1177bb;
+    background: #717171;
 }
 
 .json-creator-btn-secondary {
@@ -731,34 +734,6 @@ textarea.settings-input {
     display: flex;
     align-items: center;
     justify-content: center;
-}
-
-.data-management-modal .modal-content {
-    background: #2d2d2d;
-    border: 1px solid #404040;
-}
-
-.data-management-modal .modal-header {
-    border-bottom: 1px solid #404040;
-    color: #e0e0e0;
-}
-
-.data-management-modal .modal-header h2 {
-    color: #e0e0e0;
-}
-
-.data-management-modal .modal-body {
-    color: #e0e0e0;
-}
-
-.data-management-modal .json-creator-btn {
-    background: #3a3a3a;
-    border: 1px solid #505050;
-    color: #e0e0e0;
-}
-
-.data-management-modal .json-creator-btn:hover {
-    background: #454545;
 }
 
 .floating-message {
