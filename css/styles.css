@@ -707,6 +707,19 @@ textarea.settings-input {
     background: #505050;
 }
 
+.root-list-item {
+    transition: background 0.2s;
+}
+
+.root-list-item:hover {
+    background: #f0f0f0 !important;
+}
+
+.root-list-item.active {
+    background: #e0e0e0;
+    font-weight: 500;
+}
+
 .run-modal {
     position: fixed;
     top: 0;

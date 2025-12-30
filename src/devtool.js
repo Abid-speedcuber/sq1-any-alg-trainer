@@ -75,24 +75,9 @@ class JSONCreator {
             <img src="viz/hamburger-menu.svg" width="16" height="16">
         </button>
         <h2 style="margin: 0;">JSON Creator</h2>
-        <div style="position: relative;">
-                    <select id="rootSelector" style="background: #f5f5f5; border: 1px solid #d0d0d0; color: #1a1a1a; padding: 4px 8px; border-radius: 4px;">
-                    ${Object.keys(AppState.developingJSONs).map(root => 
-                        `<option value="${root}" ${root === AppState.activeDevelopingJSON ? 'selected' : ''}>${root}</option>`
-                    ).join('')}
-                </select>
-                <div style="position: absolute; top: 100%; left: 0; right: 0; background: #f5f5f5; border: 1px solid #d0d0d0; border-top: none; border-radius: 0 0 4px 4px; display: none; z-index: 1000; margin-top: -1px;" id="rootActions">
-                <button onclick="jsonCreator.addRoot()" style="width: 100%; padding: 6px 8px; background: transparent; border: none; display: flex; align-items: center; gap: 8px; cursor: pointer; color: #1a1a1a; font-size: 13px;" onmouseover="this.style.background='#e0e0e0'" onmouseout="this.style.background='transparent'">
-                    <img src="viz/add.svg" width="14" height="14"> Add Root
-                </button>
-                <button onclick="jsonCreator.renameRoot()" style="width: 100%; padding: 6px 8px; background: transparent; border: none; display: flex; align-items: center; gap: 8px; cursor: pointer; color: #1a1a1a; font-size: 13px; border-top: 1px solid #d0d0d0;" onmouseover="this.style.background='#e0e0e0'" onmouseout="this.style.background='transparent'">
-                    <img src="viz/rename.svg" width="14" height="14"> Rename Root
-                </button>
-                <button onclick="jsonCreator.deleteRoot()" style="width: 100%; padding: 6px 8px; background: transparent; border: none; display: flex; align-items: center; gap: 8px; cursor: pointer; color: #1a1a1a; font-size: 13px; border-top: 1px solid #d0d0d0;" onmouseover="this.style.background='#e0e0e0'" onmouseout="this.style.background='transparent'">
-                    <img src="viz/delete.svg" width="14" height="14"> Delete Root
-                </button>
-            </div>
-        </div>
+        <button id="rootSelectorBtn" onclick="jsonCreator.openRootSelectorModal()" style="background: #f5f5f5; border: 1px solid #d0d0d0; color: #1a1a1a; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+            ${AppState.activeDevelopingJSON}
+        </button>
     </div>
     <div style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
             <button class="json-creator-icon-btn" onclick="jsonCreator.openDataManagement()" title="Data Management">
@@ -196,59 +181,7 @@ class JSONCreator {
                 e.preventDefault();
                 this.delete();
             }
-        });
-
-        const rootSelector = document.getElementById('rootSelector');
-        if (rootSelector) {
-            rootSelector.addEventListener('change', (e) => {
-                this.switchRoot(e.target.value);
-                document.getElementById('rootActions').style.display = 'none';
-            });
-            
-            let isActionsHovered = false;
-            
-            rootSelector.addEventListener('mousedown', (e) => {
-                const rootActions = document.getElementById('rootActions');
-                if (rootActions.style.display === 'block') {
-                    rootActions.style.display = 'none';
-                } else {
-                    rootActions.style.display = 'block';
-                }
-            });
-            
-            const rootActions = document.getElementById('rootActions');
-            if (rootActions) {
-                rootActions.addEventListener('mouseenter', () => {
-                    isActionsHovered = true;
-                });
-                
-                rootActions.addEventListener('mouseleave', () => {
-                    isActionsHovered = false;
-                    setTimeout(() => {
-                        if (!isActionsHovered) {
-                            rootActions.style.display = 'none';
-                        }
-                    }, 100);
-                });
-                
-                // Close on button clicks
-                rootActions.querySelectorAll('button').forEach(btn => {
-                    const originalOnclick = btn.onclick;
-                    btn.onclick = function() {
-                        if (originalOnclick) originalOnclick.call(this);
-                        rootActions.style.display = 'none';
-                    };
-                });
-            }
-            
-            // Close when clicking outside
-            document.addEventListener('click', (e) => {
-                const rootActions = document.getElementById('rootActions');
-                if (rootActions && !rootSelector.contains(e.target) && !rootActions.contains(e.target)) {
-                    rootActions.style.display = 'none';
-                }
-            });
-        }
+        });    
 
         // Info button handler
         document.addEventListener('click', (e) => {
@@ -754,7 +687,7 @@ class JSONCreator {
                         <h4>Top Layer</h4>
                         <div class="json-creator-form-group">
                             <input type="text" maxlength="12" id="topLayerInput" value="${item.inputTop || 'RRRRRRRRRRRR'}" 
-                                   style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0;">
+                                   style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; display: none;">
                         </div>
                         <div id="topInteractive" style="display: flex; justify-content: center; margin-top: 12px;"></div>
                     </div>
@@ -763,7 +696,7 @@ class JSONCreator {
                         <h4>Bottom Layer</h4>
                         <div class="json-creator-form-group">
                             <input type="text" maxlength="12" id="bottomLayerInput" value="${item.inputBottom || 'RRRRRRRRRRRR'}" 
-                                   style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0;">
+                                   style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; display: none;">
                         </div>
                         <div id="bottomInteractive" style="display: flex; justify-content: center; margin-top: 12px;"></div>
                     </div>
@@ -1335,9 +1268,91 @@ class JSONCreator {
         this.expandAllFolders(this.treeData, '');
         this.renderTree();
         this.showWelcome();
+        
+        // Update button text
+        const rootBtn = document.getElementById('rootSelectorBtn');
+        if (rootBtn) {
+            rootBtn.textContent = rootName;
+        }
     }
 
-    addRoot() {
+    openRootSelectorModal() {
+        const modal = document.createElement('div');
+        modal.className = 'modal active root-selector-modal';
+        modal.style.zIndex = '20000';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 300px; background: #ffffff; border: 1px solid #d0d0d0;">
+                <div class="modal-header" style="border-bottom: 1px solid #d0d0d0;">
+                    <h2 style="color: #1a1a1a; font-size: 14px;">Select Root</h2>
+                    <button class="close-btn" onclick="this.closest('.modal').remove()" style="color: #666666;">×</button>
+                </div>
+                <div class="modal-body" style="padding: 0;">
+                    <div id="rootList" style="max-height: 400px; overflow-y: auto;">
+                        ${Object.keys(AppState.developingJSONs).map(root => `
+                            <div class="root-list-item ${root === AppState.activeDevelopingJSON ? 'active' : ''}" 
+                                 data-root="${root}"
+                                 onclick="jsonCreator.selectRootFromModal('${root}')"
+                                 oncontextmenu="jsonCreator.showRootContextMenu(event, '${root}')"
+                                 style="padding: 10px 16px; cursor: pointer; font-size: 13px; color: #1a1a1a; border-bottom: 1px solid #e0e0e0;">
+                                ${root}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button onclick="jsonCreator.addRootFromModal()" style="width: 100%; padding: 10px 16px; background: #f5f5f5; border: none; border-top: 2px solid #d0d0d0; cursor: pointer; font-size: 13px; color: #0078d4; text-align: left;">
+                        + Add Root
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+
+    selectRootFromModal(rootName) {
+        this.switchRoot(rootName);
+        document.querySelector('.root-selector-modal').remove();
+    }
+
+    showRootContextMenu(e, rootName) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        this.hideContextMenu();
+        this.setupContextMenuListener();
+
+        const menu = document.createElement('div');
+        menu.className = 'context-menu';
+        menu.style.left = `${e.pageX}px`;
+        menu.style.top = `${e.pageY}px`;
+
+        const items = [
+            { text: 'Rename', action: () => this.renameRootFromModal(rootName) },
+            { text: 'Delete', action: () => this.deleteRootFromModal(rootName), disabled: Object.keys(AppState.developingJSONs).length === 1 }
+        ];
+
+        items.forEach(item => {
+            const menuItem = document.createElement('div');
+            menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
+            menuItem.textContent = item.text;
+            if (!item.disabled) {
+                menuItem.onclick = () => {
+                    this.hideContextMenu();
+                    item.action();
+                };
+            }
+            menu.appendChild(menuItem);
+        });
+
+        document.body.appendChild(menu);
+        this.contextMenu = menu;
+    }
+
+    addRootFromModal() {
         const name = prompt('Enter name for new root:');
         if (!name) return;
 
@@ -1349,19 +1364,12 @@ class JSONCreator {
         AppState.developingJSONs[name] = {};
         saveDevelopingJSONs();
 
-        // Update selector
-        const selector = document.getElementById('rootSelector');
-        const option = document.createElement('option');
-        option.value = name;
-        option.textContent = name;
-        selector.appendChild(option);
-        selector.value = name;
-
+        // Close modal and switch to new root
+        document.querySelector('.root-selector-modal').remove();
         this.switchRoot(name);
     }
 
-    renameRoot() {
-        const currentName = AppState.activeDevelopingJSON;
+    renameRootFromModal(currentName) {
         const newName = prompt(`Rename root "${currentName}" to:`, currentName);
 
         if (!newName || newName === currentName) return;
@@ -1373,23 +1381,26 @@ class JSONCreator {
 
         AppState.developingJSONs[newName] = AppState.developingJSONs[currentName];
         delete AppState.developingJSONs[currentName];
-        AppState.activeDevelopingJSON = newName;
+        
+        if (AppState.activeDevelopingJSON === currentName) {
+            AppState.activeDevelopingJSON = newName;
+            this.treeData = AppState.developingJSONs[newName];
+        }
+        
         saveDevelopingJSONs();
 
-        // Update selector
-        const selector = document.getElementById('rootSelector');
-        const options = Array.from(selector.options);
-        const currentOption = options.find(opt => opt.value === currentName);
-        if (currentOption) {
-            currentOption.value = newName;
-            currentOption.textContent = newName;
-            selector.value = newName;
+        // Close modal and reopen to show updated list
+        document.querySelector('.root-selector-modal').remove();
+        this.openRootSelectorModal();
+        
+        // Update button text if this was the active root
+        const rootBtn = document.getElementById('rootSelectorBtn');
+        if (rootBtn && AppState.activeDevelopingJSON === newName) {
+            rootBtn.textContent = newName;
         }
     }
 
-    deleteRoot() {
-        const currentName = AppState.activeDevelopingJSON;
-        
+    deleteRootFromModal(currentName) {
         if (Object.keys(AppState.developingJSONs).length === 1) {
             alert('Cannot delete the last root');
             return;
@@ -1398,20 +1409,18 @@ class JSONCreator {
         if (!confirm(`Delete root "${currentName}"?`)) return;
 
         delete AppState.developingJSONs[currentName];
-        AppState.activeDevelopingJSON = Object.keys(AppState.developingJSONs)[0];
+        
+        if (AppState.activeDevelopingJSON === currentName) {
+            AppState.activeDevelopingJSON = Object.keys(AppState.developingJSONs)[0];
+            this.switchRoot(AppState.activeDevelopingJSON);
+        }
+        
         saveDevelopingJSONs();
 
-        // Update selector
-        const selector = document.getElementById('rootSelector');
-        const options = Array.from(selector.options);
-        const currentOption = options.find(opt => opt.value === currentName);
-        if (currentOption) {
-            selector.removeChild(currentOption);
-            selector.value = AppState.activeDevelopingJSON;
-        }
-
-        this.switchRoot(AppState.activeDevelopingJSON);
-    }
+        // Close modal and reopen to show updated list
+        document.querySelector('.root-selector-modal').remove();
+        this.openRootSelectorModal();
+    } 
 
     copyJSON() {
         navigator.clipboard.writeText(JSON.stringify(this.treeData, null, 2))
