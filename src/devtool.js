@@ -4,16 +4,16 @@
 function showFloatingMessage(message, type = 'info', duration = 3000) {
     const existing = document.querySelector('.floating-message');
     if (existing) existing.remove();
-    
+
     // Detect if we're in JSON Creator context
     const isDevTool = document.getElementById('jsonCreatorFullscreen') !== null;
     const themeClass = isDevTool ? 'devtool-theme' : '';
-    
+
     const msg = document.createElement('div');
     msg.className = `floating-message ${type} ${themeClass}`;
     msg.textContent = message;
     document.body.appendChild(msg);
-    
+
     setTimeout(() => {
         msg.style.animation = 'slideDown 0.3s ease-out reverse';
         setTimeout(() => msg.remove(), 300);
@@ -24,11 +24,11 @@ function showConfirmationModal(title, message, onConfirm, onCancel = null) {
     const modal = document.createElement('div');
     modal.className = 'modal active confirmation-modal';
     modal.style.zIndex = '100001';
-    
+
     // Detect if we're in JSON Creator context
     const isDevTool = document.getElementById('jsonCreatorFullscreen') !== null;
     const modalClass = isDevTool ? 'modal-content devtool-modal' : 'modal-content';
-    
+
     modal.innerHTML = `
         <div class="${modalClass}">
             <div class="modal-header">
@@ -44,17 +44,17 @@ function showConfirmationModal(title, message, onConfirm, onCancel = null) {
         </div>
     `;
     document.body.appendChild(modal);
-    
+
     document.getElementById('confirmOkBtn').onclick = () => {
         modal.remove();
         if (onConfirm) onConfirm();
     };
-    
+
     document.getElementById('confirmCancelBtn').onclick = () => {
         modal.remove();
         if (onCancel) onCancel();
     };
-    
+
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             modal.remove();
@@ -67,11 +67,11 @@ function showRenameModal(title, currentValue, onConfirm) {
     const modal = document.createElement('div');
     modal.className = 'modal active confirmation-modal';
     modal.style.zIndex = '100001';
-    
+
     // Detect if we're in JSON Creator context
     const isDevTool = document.getElementById('jsonCreatorFullscreen') !== null;
     const modalClass = isDevTool ? 'modal-content devtool-modal' : 'modal-content';
-    
+
     modal.innerHTML = `
         <div class="${modalClass}">
             <div class="modal-header">
@@ -87,11 +87,11 @@ function showRenameModal(title, currentValue, onConfirm) {
         </div>
     `;
     document.body.appendChild(modal);
-    
+
     const input = document.getElementById('renameInput');
     input.focus();
     input.select();
-    
+
     const handleConfirm = () => {
         const value = input.value.trim();
         if (value) {
@@ -99,15 +99,15 @@ function showRenameModal(title, currentValue, onConfirm) {
             onConfirm(value);
         }
     };
-    
+
     document.getElementById('renameOkBtn').onclick = handleConfirm;
     document.getElementById('renameCancelBtn').onclick = () => modal.remove();
-    
+
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') handleConfirm();
         if (e.key === 'Escape') modal.remove();
     });
-    
+
     modal.addEventListener('click', (e) => {
         if (e.target === modal) modal.remove();
     });
@@ -130,18 +130,18 @@ class JSONCreator {
         saveLastScreen('jsonCreator');
         // Load current developing JSON
         this.treeData = JSON.parse(JSON.stringify(AppState.developingJSONs[AppState.activeDevelopingJSON] || DEFAULT_ALGSET));
-        
+
         // Load case template
         const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
         this.caseTemplate = localStorage.getItem(templateKey) ? JSON.parse(localStorage.getItem(templateKey)) : null;
-        
+
         // Expand all folders on initialization
         this.expandAllFolders(this.treeData, '');
-        
+
         // Load last selected case from localStorage
         const lastSelectedPath = localStorage.getItem('jsonCreator_lastSelectedPath');
         const lastSelectedRoot = localStorage.getItem('jsonCreator_lastSelectedRoot');
-        
+
         if (lastSelectedRoot === AppState.activeDevelopingJSON && lastSelectedPath) {
             this.selectedPath = lastSelectedPath;
             const pathParts = lastSelectedPath.split('/');
@@ -158,7 +158,7 @@ class JSONCreator {
                 this.selectedItem = current;
             }
         }
-        
+
         // If no valid selection, select first case found
         if (!this.selectedPath || !this.selectedItem) {
             const findFirstCase = (obj, path = []) => {
@@ -174,7 +174,7 @@ class JSONCreator {
                 }
                 return null;
             };
-            
+
             const firstCase = findFirstCase(this.treeData);
             if (firstCase) {
                 this.selectedPath = firstCase.path;
@@ -192,7 +192,10 @@ class JSONCreator {
         <button class="json-creator-icon-btn" onclick="jsonCreator.toggleSidebar()" title="Toggle Sidebar">
             <img src="viz/hamburger-menu.svg" width="16" height="16">
         </button>
-        <h2 style="margin: 0;">JSON Creator</h2>
+        <div style="margin: 0; display: flex; flex-direction: column; line-height: 1.2;">
+            <span style="font-size: 18px; font-weight: 700;">SquanGo</span>
+            <span style="font-size: 11px; font-weight: 400; color: #666666;">Algset Devtool</span>
+        </div>
         <button id="rootSelectorBtn" onclick="jsonCreator.openRootSelectorModal()" style="background: #f5f5f5; border: 1px solid #d0d0d0; color: #1a1a1a; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 13px;">
             ${AppState.activeDevelopingJSON}
         </button>
@@ -238,14 +241,13 @@ class JSONCreator {
                         </div>
                         <div class="json-creator-content">
                             <div class="json-creator-content-header">
-                                <h3 id="jsonCreatorTitle">JSON Creator</h3>
-                                <p id="jsonCreatorSubtitle">Select or create an item to begin</p>
+                                <div style="display: flex; flex-direction: column; line-height: 1.3;"><span style="font-size: 18px; font-weight: 700;">SquanGo</span><span style="font-size: 12px; font-weight: 400; color: #666666;">Case Editor</span></div>
                             </div>
                             <div class="json-creator-content-body" id="jsonCreatorBody">
                                 <div class="json-creator-welcome">
-                                    <h3>Welcome to JSON Creator</h3>
-                                    <p>Create and organize your Square-1 algset cases.</p>
-                                    <p>Use the toolbar to add folders and cases.</p>
+                                    <h3>Welcome to Algset Devtool</h3>
+                                    <p>Create your own Square-1 algset trainer.</p>
+                                    <p>Use the toolbar or right click context menu to add folders and cases.</p>
                                 </div>
                             </div>
                         </div>
@@ -255,7 +257,7 @@ class JSONCreator {
         document.body.appendChild(fullscreen);
         this.renderTree();
         this.setupEventListeners();
-        
+
         // Show case editor if a case is selected
         if (this.selectedItem && this.selectedItem.caseName) {
             const caseName = this.selectedPath.split('/').pop();
@@ -302,46 +304,46 @@ class JSONCreator {
                 e.preventDefault();
                 this.delete();
             }
-        });    
+        });
 
         // Info button handler
         document.addEventListener('click', (e) => {
             // Close all info boxes first
-            document.querySelectorAll('.info-box').forEach(box => 
+            document.querySelectorAll('.info-box').forEach(box =>
                 box.classList.remove('show')
             );
-            
+
             // If an info button was clicked, open only that one
             if (e.target.classList.contains('info-btn')) {
                 e.preventDefault();
                 e.stopPropagation();
                 const infoBox = e.target.nextElementSibling;
                 infoBox.classList.add('show');
-                
+
                 // Position the info box dynamically
                 const btnRect = e.target.getBoundingClientRect();
                 const boxWidth = 300;
                 const boxHeight = infoBox.offsetHeight || 100;
-                
+
                 // Try to position above the button
                 let top = btnRect.top - boxHeight - 10;
                 let left = btnRect.right - boxWidth;
-                
+
                 // If it goes above viewport, position below
                 if (top < 10) {
                     top = btnRect.bottom + 10;
                 }
-                
+
                 // If it goes off left edge, align to left of button
                 if (left < 10) {
                     left = btnRect.left;
                 }
-                
+
                 // If it goes off right edge, align to right edge
                 if (left + boxWidth > window.innerWidth - 10) {
                     left = window.innerWidth - boxWidth - 10;
                 }
-                
+
                 infoBox.style.top = top + 'px';
                 infoBox.style.left = left + 'px';
             }
@@ -357,19 +359,19 @@ class JSONCreator {
         });
 
         // Right-click on tree root
-document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) => {
-    if (e.target.id === 'jsonCreatorTree') {
-        e.preventDefault();
-        this.showTreeRootContextMenu(e);
-    }
-});
+        document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) => {
+            if (e.target.id === 'jsonCreatorTree') {
+                e.preventDefault();
+                this.showTreeRootContextMenu(e);
+            }
+        });
     }
 
     renderTree() {
         // Auto-save whenever tree is rendered (indicates a change)
         AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
         saveDevelopingJSONs();
-        
+
         const container = document.getElementById('jsonCreatorTree');
         if (!container) return;
         container.innerHTML = '';
@@ -548,12 +550,12 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
         const parent = this.getTargetFolder();
         const name = this.getUniqueName(parent, 'New Folder');
         parent[name] = {};
-        
+
         // Auto-expand parent folder if not already expanded
         if (this.selectedPath && !this.expandedFolders.has(this.selectedPath)) {
             this.expandedFolders.add(this.selectedPath);
         }
-        
+
         this.renderTree();
 
         // Auto-start rename
@@ -645,12 +647,12 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
             `Delete "${this.selectedPath.split('/').pop()}"?`,
             () => {
 
-        const pathParts = this.selectedPath.split('/');
-        const itemName = pathParts.pop();
-        let parent = this.treeData;
-        pathParts.forEach(part => parent = parent[part]);
+                const pathParts = this.selectedPath.split('/');
+                const itemName = pathParts.pop();
+                let parent = this.treeData;
+                pathParts.forEach(part => parent = parent[part]);
 
-        delete parent[itemName];
+                delete parent[itemName];
                 this.selectedPath = '';
                 this.selectedItem = null;
                 this.renderTree();
@@ -664,13 +666,12 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
         const title = document.getElementById('jsonCreatorTitle');
         const subtitle = document.getElementById('jsonCreatorSubtitle');
 
-        title.textContent = 'JSON Creator';
-        subtitle.textContent = 'Select or create an item to begin';
+        title.innerHTML = '<div style="display: flex; flex-direction: column; line-height: 1.3;"><span style="font-size: 18px; font-weight: 600;">SquanGo</span><span style="font-size: 12px; font-weight: 400; color: #666666;">Case Editor</span></div>';
         body.innerHTML = `
                     <div class="json-creator-welcome">
                         <h3>Welcome to JSON Creator</h3>
-                        <p>Create and organize your Square-1 algset cases.</p>
-                        <p>Use the toolbar to add folders and cases.</p>
+                        <p>Create your Square-1 algset trainer.</p>
+                        <p>Use the toolbar or right click context menu to add folders and cases.</p>
                     </div>
                 `;
     }
@@ -680,7 +681,7 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
         // Just update the title to show folder is selected
         const title = document.getElementById('jsonCreatorTitle');
         const subtitle = document.getElementById('jsonCreatorSubtitle');
-        
+
         title.textContent = `Folder: ${name}`;
         subtitle.textContent = 'Folder selected - use toolbar to add cases or subfolders';
     }
@@ -713,32 +714,32 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
     }
 
     switchCaseTab(tab) {
-    this.currentCaseTab = tab;
-    const tabs = document.querySelectorAll('.case-editor-tab');
-    tabs.forEach(t => t.classList.remove('active'));
-    event.target.classList.add('active');
-    
-    // Force re-render with a small delay to ensure DOM is ready
-    setTimeout(() => {
-        if (this.selectedItem) {
-            const content = document.getElementById('caseEditorContent');
-            if (!content) {
-                console.error('caseEditorContent not found after tab switch!');
-                return;
-            }
-            this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
-            
-            // Verify the tab content actually rendered
-            setTimeout(() => {
-                const verifyContent = document.getElementById('caseEditorContent');
-                if (!verifyContent || verifyContent.children.length === 0) {
-                    console.error('Tab content failed to render, forcing re-render');
-                    this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
+        this.currentCaseTab = tab;
+        const tabs = document.querySelectorAll('.case-editor-tab');
+        tabs.forEach(t => t.classList.remove('active'));
+        event.target.classList.add('active');
+
+        // Force re-render with a small delay to ensure DOM is ready
+        setTimeout(() => {
+            if (this.selectedItem) {
+                const content = document.getElementById('caseEditorContent');
+                if (!content) {
+                    console.error('caseEditorContent not found after tab switch!');
+                    return;
                 }
-            }, 50);
-        }
-    }, 10);
-}
+                this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
+
+                // Verify the tab content actually rendered
+                setTimeout(() => {
+                    const verifyContent = document.getElementById('caseEditorContent');
+                    if (!verifyContent || verifyContent.children.length === 0) {
+                        console.error('Tab content failed to render, forcing re-render');
+                        this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
+                    }
+                }, 50);
+            }
+        }, 10);
+    }
 
     renderCaseTab(item, name) {
         const content = document.getElementById('caseEditorContent');
@@ -746,7 +747,7 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
             console.error('caseEditorContent not found!');
             return;
         }
-        
+
         if (!item) {
             console.error('No item provided to renderCaseTab');
             return;
@@ -755,16 +756,16 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
         if (this.currentCaseTab === 'shape') {
             // Check if we already rendered this tab - if so, just update the states
             const alreadyRendered = content.querySelector('#topLayerInput');
-            
-            if (alreadyRendered) {                
+
+            if (alreadyRendered) {
                 // Update input values
                 const topInput = document.getElementById('topLayerInput');
                 const bottomInput = document.getElementById('bottomLayerInput');
                 const topValue = item.inputTop || 'RRRRRRRRRRRR';
-            const bottomValue = item.inputBottom || 'RRRRRRRRRRRR';
+                const bottomValue = item.inputBottom || 'RRRRRRRRRRRR';
                 if (topInput) topInput.value = topValue;
                 if (bottomInput) bottomInput.value = bottomValue;
-                
+
                 // Update visualizations
                 if (this.topState && window.InteractiveScrambleRenderer) {
                     this.topState.topText = topValue;
@@ -776,7 +777,7 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
                         window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
                     }
                 }
-                
+
                 if (this.bottomState && window.InteractiveScrambleRenderer) {
                     this.bottomState.topText = '';
                     this.bottomState.bottomText = bottomValue;
@@ -787,10 +788,10 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
                         window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
                     }
                 }
-                
+
                 return;
             }
-            
+
             // Always recreate states to ensure they're fresh
             if (window.InteractiveScrambleRenderer) {
                 this.topState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
@@ -916,14 +917,14 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
                 topInput.addEventListener('input', (e) => {
                     const value = e.target.value.toUpperCase().substring(0, 12);
                     e.target.value = value;
-                    
+
                     if (value.length < 12) {
                         e.target.style.borderColor = '#ef4444';
                         return;
                     }
-                    
+
                     e.target.style.borderColor = '#404040';
-                    
+
                     if (value.length === 12) {
                         try {
                             this.topState.topText = value;
@@ -947,14 +948,14 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
                 bottomInput.addEventListener('input', (e) => {
                     const value = e.target.value.toUpperCase().substring(0, 12);
                     e.target.value = value;
-                    
+
                     if (value.length < 12) {
                         e.target.style.borderColor = '#ef4444';
                         return;
                     }
-                    
+
                     e.target.style.borderColor = '#404040';
-                    
+
                     if (value.length === 12) {
                         try {
                             this.bottomState.bottomText = value;
@@ -1076,15 +1077,15 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
                     </h4>
                     <div class="abf-grid">
                         ${['U0', 'U', 'U2', "U'", 'D0', 'D', 'D2', "D'"].map((move, idx) => {
-                            const field = idx < 4 ? 'auf' : 'adf';
-                            return `
+                const field = idx < 4 ? 'auf' : 'adf';
+                return `
                                 <div class="json-creator-grid-item">
                                     <input type="checkbox" ${item[field].includes(move) ? 'checked' : ''} 
                                            onchange="jsonCreator.updateMoveArray('${field}', '${move}', this.checked)">
                                     <label>${move}</label>
                                 </div>
                             `;
-                        }).join('')}
+            }).join('')}
                     </div>
                 </div>
 
@@ -1158,7 +1159,7 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
             saveDevelopingJSONs();
         }
     }
-    
+
     updateParity(type, value) {
         if (this.selectedItem) {
             this.selectedItem.parity[type] = value;
@@ -1269,14 +1270,14 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
     showContextMenu(e, path, item, key) {
         e.preventDefault();
         e.stopPropagation();
-        
+
         // Switch focus first
         this.selectedPath = path;
         this.selectedItem = item;
         this.renderTree();
-        
+
         this.hideContextMenu();
-        
+
         this.setupContextMenuListener();
 
         const menu = document.createElement('div');
@@ -1328,48 +1329,48 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
     }
 
     showTreeRootContextMenu(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    this.hideContextMenu();
-    
-    this.setupContextMenuListener();
+        e.preventDefault();
+        e.stopPropagation();
+        this.hideContextMenu();
 
-    const menu = document.createElement('div');
-    menu.className = 'context-menu tree-root-context-menu';
-    menu.style.left = `${e.pageX}px`;
-    menu.style.top = `${e.pageY}px`;
-    menu.style.zIndex = '10001';
+        this.setupContextMenuListener();
 
-    const items = [
-        { text: 'New Case', action: () => { this.selectedPath = ''; this.selectedItem = null; this.newCase(); } },
-        { text: 'New Folder', action: () => { this.selectedPath = ''; this.selectedItem = null; this.newFolder(); } },
-        { text: 'Paste', action: () => { this.selectedPath = ''; this.selectedItem = null; this.paste(); }, disabled: !this.clipboard },
-        { separator: true },
-        { text: 'Run All', action: () => this.runJSON() }
-    ];
+        const menu = document.createElement('div');
+        menu.className = 'context-menu tree-root-context-menu';
+        menu.style.left = `${e.pageX}px`;
+        menu.style.top = `${e.pageY}px`;
+        menu.style.zIndex = '10001';
 
-    items.forEach(item => {
-        if (item.separator) {
-            const sep = document.createElement('div');
-            sep.className = 'context-menu-separator';
-            menu.appendChild(sep);
-        } else {
-            const menuItem = document.createElement('div');
-            menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
-            menuItem.textContent = item.text;
-            if (!item.disabled) {
-                menuItem.onclick = () => {
-                    this.hideContextMenu();
-                    item.action();
-                };
+        const items = [
+            { text: 'New Case', action: () => { this.selectedPath = ''; this.selectedItem = null; this.newCase(); } },
+            { text: 'New Folder', action: () => { this.selectedPath = ''; this.selectedItem = null; this.newFolder(); } },
+            { text: 'Paste', action: () => { this.selectedPath = ''; this.selectedItem = null; this.paste(); }, disabled: !this.clipboard },
+            { separator: true },
+            { text: 'Run All', action: () => this.runJSON() }
+        ];
+
+        items.forEach(item => {
+            if (item.separator) {
+                const sep = document.createElement('div');
+                sep.className = 'context-menu-separator';
+                menu.appendChild(sep);
+            } else {
+                const menuItem = document.createElement('div');
+                menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
+                menuItem.textContent = item.text;
+                if (!item.disabled) {
+                    menuItem.onclick = () => {
+                        this.hideContextMenu();
+                        item.action();
+                    };
+                }
+                menu.appendChild(menuItem);
             }
-            menu.appendChild(menuItem);
-        }
-    });
+        });
 
-    document.body.appendChild(menu);
-    this.contextMenu = menu;
-}
+        document.body.appendChild(menu);
+        this.contextMenu = menu;
+    }
 
     hideContextMenu() {
         if (this.contextMenu) {
@@ -1384,12 +1385,12 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
                 this.hideContextMenu();
             }
         };
-        
+
         // Remove old listener if exists
         if (this.outsideClickHandler) {
             document.removeEventListener('click', this.outsideClickHandler);
         }
-        
+
         this.outsideClickHandler = handleOutsideClick;
         setTimeout(() => {
             document.addEventListener('click', handleOutsideClick);
@@ -1408,8 +1409,8 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
     }
 
     runItem(item, key) {
-    this.openRunModal(item, key);
-}
+        this.openRunModal(item, key);
+    }
 
     switchRoot(rootName) {
         // Save current root
@@ -1425,7 +1426,7 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
         this.expandAllFolders(this.treeData, '');
         this.renderTree();
         this.showWelcome();
-        
+
         // Update button text
         const rootBtn = document.getElementById('rootSelectorBtn');
         if (rootBtn) {
@@ -1457,7 +1458,7 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             z-index: 20000;
         `;
-        
+
         modal.innerHTML = `
             <div id="rootList" style="max-height: 400px; overflow-y: auto;">
                 ${Object.keys(AppState.developingJSONs).map(root => `
@@ -1474,9 +1475,9 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
                 + Add Root
             </button>
         `;
-        
+
         document.body.appendChild(modal);
-        
+
         // Close on outside click
         setTimeout(() => {
             const closeOnOutsideClick = (e) => {
@@ -1496,51 +1497,51 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
     }
 
     showModalRootContextMenu(e, rootName) {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    this.hideContextMenu();
-    this.setupContextMenuListener();
+        e.preventDefault();
+        e.stopPropagation();
 
-    const menu = document.createElement('div');
-    menu.className = 'context-menu root-context-menu';
-    menu.style.left = `${e.pageX}px`;
-    menu.style.top = `${e.pageY}px`;
-    menu.style.zIndex = '20001';
+        this.hideContextMenu();
+        this.setupContextMenuListener();
 
-    const items = [
-        { text: 'Rename', action: () => this.renameRootFromModal(rootName) },
-        { text: 'Delete', action: () => this.deleteRootFromModal(rootName), disabled: Object.keys(AppState.developingJSONs).length === 1 }
-    ];
+        const menu = document.createElement('div');
+        menu.className = 'context-menu root-context-menu';
+        menu.style.left = `${e.pageX}px`;
+        menu.style.top = `${e.pageY}px`;
+        menu.style.zIndex = '20001';
 
-    items.forEach(item => {
-        const menuItem = document.createElement('div');
-        menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
-        menuItem.textContent = item.text;
-        if (!item.disabled) {
-            menuItem.onclick = () => {
-                this.hideContextMenu();
-                item.action();
-            };
-        }
-        menu.appendChild(menuItem);
-    });
+        const items = [
+            { text: 'Rename', action: () => this.renameRootFromModal(rootName) },
+            { text: 'Delete', action: () => this.deleteRootFromModal(rootName), disabled: Object.keys(AppState.developingJSONs).length === 1 }
+        ];
 
-    document.body.appendChild(menu);
-    this.contextMenu = menu;
-}
+        items.forEach(item => {
+            const menuItem = document.createElement('div');
+            menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
+            menuItem.textContent = item.text;
+            if (!item.disabled) {
+                menuItem.onclick = () => {
+                    this.hideContextMenu();
+                    item.action();
+                };
+            }
+            menu.appendChild(menuItem);
+        });
+
+        document.body.appendChild(menu);
+        this.contextMenu = menu;
+    }
 
     addRootFromModal() {
         const modal = document.querySelector('.root-selector-modal');
         if (modal) modal.remove();
-        
+
         showRenameModal('New Root', '', (name) => {
             if (AppState.developingJSONs[name]) {
                 showFloatingMessage('A root with this name already exists', 'error');
                 return;
             }
 
-        AppState.developingJSONs[name] = {};
+            AppState.developingJSONs[name] = {};
             saveDevelopingJSONs();
 
             this.switchRoot(name);
@@ -1550,7 +1551,7 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
     renameRootFromModal(currentName) {
         const modal = document.querySelector('.root-selector-modal');
         if (modal) modal.remove();
-        
+
         showRenameModal(`Rename Root: ${currentName}`, currentName, (newName) => {
             if (newName === currentName) return;
 
@@ -1559,14 +1560,14 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
                 return;
             }
 
-        AppState.developingJSONs[newName] = AppState.developingJSONs[currentName];
+            AppState.developingJSONs[newName] = AppState.developingJSONs[currentName];
             delete AppState.developingJSONs[currentName];
-            
+
             if (AppState.activeDevelopingJSON === currentName) {
                 AppState.activeDevelopingJSON = newName;
                 this.treeData = AppState.developingJSONs[newName];
             }
-            
+
             saveDevelopingJSONs();
 
             // Update button text if this was the active root
@@ -1582,26 +1583,26 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
             showFloatingMessage('Cannot delete the last root', 'error');
             return;
         }
-        
+
         const modal = document.querySelector('.root-selector-modal');
         if (modal) modal.remove();
-        
+
         showConfirmationModal(
             'Delete Root',
             `Delete root "${currentName}"? This cannot be undone.`,
             () => {
 
-        delete AppState.developingJSONs[currentName];
-                
+                delete AppState.developingJSONs[currentName];
+
                 if (AppState.activeDevelopingJSON === currentName) {
                     AppState.activeDevelopingJSON = Object.keys(AppState.developingJSONs)[0];
                     this.switchRoot(AppState.activeDevelopingJSON);
                 }
-                
+
                 saveDevelopingJSONs();
             }
         );
-    } 
+    }
 
     copyJSON() {
         navigator.clipboard.writeText(JSON.stringify(this.treeData, null, 2))
@@ -1610,19 +1611,19 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
     }
 
     extractJSON() {
-    
-    // Save current root before extracting
-    AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
-    saveDevelopingJSONs();
-    
-    const jsonString = JSON.stringify(this.treeData, null, 2);
 
-    // Remove any existing extract modal first
-    const existingModal = document.querySelector('.extract-json-modal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-        
+        // Save current root before extracting
+        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+        saveDevelopingJSONs();
+
+        const jsonString = JSON.stringify(this.treeData, null, 2);
+
+        // Remove any existing extract modal first
+        const existingModal = document.querySelector('.extract-json-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
         const modal = document.createElement('div');
         modal.className = 'modal active extract-json-modal';
         modal.style.zIndex = '20000'; // Higher than json-creator-fullscreen (10000)
@@ -1643,13 +1644,13 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
         </div>
     `;
         document.body.appendChild(modal);
-        
+
         // Check for elements that might be covering the modal
         const allElements = Array.from(document.body.children);
         allElements.forEach((el, idx) => {
             const styles = window.getComputedStyle(el);
         });
-        
+
         // Check if json-creator-fullscreen exists
         const jsonCreatorFullscreen = document.getElementById('jsonCreatorFullscreen');
         if (jsonCreatorFullscreen) {
@@ -1658,12 +1659,12 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
         // Add event listeners after modal is in DOM
         const copyBtn = document.getElementById('copyJSONBtn');
         const downloadBtn = document.getElementById('downloadJSONBtn');
-        
+
         if (!copyBtn || !downloadBtn) {
             console.error('[extractJSON] Buttons not found!', { copyBtn, downloadBtn });
             return;
         }
-        
+
         copyBtn.addEventListener('click', () => {
             const textarea = document.getElementById('extractedJSON');
             navigator.clipboard.writeText(textarea.value).then(() => {
@@ -1694,13 +1695,13 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
     }
 
     runJSON() {
-    this.openRunModal(this.treeData, AppState.activeDevelopingJSON);
-}
+        this.openRunModal(this.treeData, AppState.activeDevelopingJSON);
+    }
 
     openRunModal(jsonData, name) {
-    const modal = document.createElement('div');
-    modal.className = 'run-modal';
-    modal.innerHTML = `
+        const modal = document.createElement('div');
+        modal.className = 'run-modal';
+        modal.innerHTML = `
         <div class="run-modal-content">
             <div class="run-modal-header">
                 <h2>Running: ${name}</h2>
@@ -1716,110 +1717,110 @@ document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) =
             <div class="run-modal-body" id="runResultsContainer"></div>
         </div>
     `;
-    document.body.appendChild(modal);
+        document.body.appendChild(modal);
 
-    let stopped = false;
-    const stopButton = document.getElementById('stopRunButton');
-    stopButton.onclick = () => {
-        stopped = true;
-        stopButton.disabled = true;
-        stopButton.textContent = 'Stopped';
-    };
+        let stopped = false;
+        const stopButton = document.getElementById('stopRunButton');
+        stopButton.onclick = () => {
+            stopped = true;
+            stopButton.disabled = true;
+            stopButton.textContent = 'Stopped';
+        };
 
-    // Wrap single case in an object structure if needed
-    const dataToRun = jsonData.caseName ? { [name]: jsonData } : jsonData;
-    this.generateScrambles(dataToRun, modal, () => stopped);
-}
-
-async generateScrambles(jsonData, modal, isStopped) {
-    const resultsContainer = document.getElementById('runResultsContainer');
-    const progressBar = document.getElementById('runProgressBar');
-    const progressText = document.getElementById('runProgressText');
-    
-    // Collect all cases
-    const cases = [];
-    const collectCases = (obj, path = []) => {
-        for (const [key, value] of Object.entries(obj)) {
-            if (value && typeof value === 'object') {
-                if (value.caseName) {
-                    cases.push({ ...value, path: [...path, key].join(' > ') });
-                } else {
-                    collectCases(value, [...path, key]);
-                }
-            }
-        }
-    };
-    collectCases(jsonData);
-
-    if (cases.length === 0) {
-        resultsContainer.innerHTML = '<div style="color: #888; text-align: center; padding: 40px;">No cases found in this JSON</div>';
-        return;
+        // Wrap single case in an object structure if needed
+        const dataToRun = jsonData.caseName ? { [name]: jsonData } : jsonData;
+        this.generateScrambles(dataToRun, modal, () => stopped);
     }
 
-    const totalScrambles = 100;
-    let generated = 0;
+    async generateScrambles(jsonData, modal, isStopped) {
+        const resultsContainer = document.getElementById('runResultsContainer');
+        const progressBar = document.getElementById('runProgressBar');
+        const progressText = document.getElementById('runProgressText');
 
-    const generateOne = async () => {
-        if (isStopped() || generated >= totalScrambles) {
+        // Collect all cases
+        const cases = [];
+        const collectCases = (obj, path = []) => {
+            for (const [key, value] of Object.entries(obj)) {
+                if (value && typeof value === 'object') {
+                    if (value.caseName) {
+                        cases.push({ ...value, path: [...path, key].join(' > ') });
+                    } else {
+                        collectCases(value, [...path, key]);
+                    }
+                }
+            }
+        };
+        collectCases(jsonData);
+
+        if (cases.length === 0) {
+            resultsContainer.innerHTML = '<div style="color: #888; text-align: center; padding: 40px;">No cases found in this JSON</div>';
             return;
         }
 
-        try {
-            const randomCase = cases[Math.floor(Math.random() * cases.length)];
-            
-            const config = {
-                topLayer: randomCase.inputTop,
-                bottomLayer: randomCase.inputBottom,
-                middleLayer: randomCase.equator || ['/'],
-                RUL: randomCase.rul || [0],
-                RDL: randomCase.rdl || [0],
-                AUF: randomCase.auf || ['U0'],
-                ADF: randomCase.adf || ['D0'],
-                constraints: randomCase.constraints || {},
-                parity: randomCase.parity || ['on']
-            };
+        const totalScrambles = 100;
+        let generated = 0;
 
-            const result = generateHexState(config);
-            
-            let scramble = '';
-            let solverAttempts = 0;
-            const maxSolverAttempts = 10;
-            let solverSuccess = false;
-            
-            while (!solverSuccess && solverAttempts < maxSolverAttempts) {
-                solverAttempts++;
-                try {
-                    if (typeof window.Square1Solver !== 'undefined') {
-                        scramble = window.Square1Solver.solve(result.hexState);
-                        solverSuccess = true;
-                    } else {
-                        scramble = '⚠ Solver not loaded';
-                        solverSuccess = true;
-                    }
-                } catch (solverError) {
-                    const isShiftError = solverError.message && solverError.message.includes("Cannot read properties of undefined (reading 'shift')");
-                    
-                    if (isShiftError && solverAttempts < maxSolverAttempts) {
-                        await new Promise(resolve => setTimeout(resolve, 10));
-                        continue;
-                    }
-                    
-                    scramble = `⚠ Error: ${solverError.message}`;
-                    solverSuccess = true;
-                }
+        const generateOne = async () => {
+            if (isStopped() || generated >= totalScrambles) {
+                return;
             }
 
-            const inputHex = config.topLayer + '|' + config.bottomLayer;
-            
-            // Extract ABF and RBL details
-            const [auf, adf] = result.abf.split('-');
-            const rblMatch = result.rbl.match(/RUL:(-?\d+), RDL:(-?\d+)/);
-            const rul = rblMatch ? rblMatch[1] : '0';
-            const rdl = rblMatch ? rblMatch[2] : '0';
+            try {
+                const randomCase = cases[Math.floor(Math.random() * cases.length)];
 
-            const resultDiv = document.createElement('div');
-            resultDiv.className = 'scramble-result-item';
-            resultDiv.innerHTML = `
+                const config = {
+                    topLayer: randomCase.inputTop,
+                    bottomLayer: randomCase.inputBottom,
+                    middleLayer: randomCase.equator || ['/'],
+                    RUL: randomCase.rul || [0],
+                    RDL: randomCase.rdl || [0],
+                    AUF: randomCase.auf || ['U0'],
+                    ADF: randomCase.adf || ['D0'],
+                    constraints: randomCase.constraints || {},
+                    parity: randomCase.parity || ['on']
+                };
+
+                const result = generateHexState(config);
+
+                let scramble = '';
+                let solverAttempts = 0;
+                const maxSolverAttempts = 10;
+                let solverSuccess = false;
+
+                while (!solverSuccess && solverAttempts < maxSolverAttempts) {
+                    solverAttempts++;
+                    try {
+                        if (typeof window.Square1Solver !== 'undefined') {
+                            scramble = window.Square1Solver.solve(result.hexState);
+                            solverSuccess = true;
+                        } else {
+                            scramble = '⚠ Solver not loaded';
+                            solverSuccess = true;
+                        }
+                    } catch (solverError) {
+                        const isShiftError = solverError.message && solverError.message.includes("Cannot read properties of undefined (reading 'shift')");
+
+                        if (isShiftError && solverAttempts < maxSolverAttempts) {
+                            await new Promise(resolve => setTimeout(resolve, 10));
+                            continue;
+                        }
+
+                        scramble = `⚠ Error: ${solverError.message}`;
+                        solverSuccess = true;
+                    }
+                }
+
+                const inputHex = config.topLayer + '|' + config.bottomLayer;
+
+                // Extract ABF and RBL details
+                const [auf, adf] = result.abf.split('-');
+                const rblMatch = result.rbl.match(/RUL:(-?\d+), RDL:(-?\d+)/);
+                const rul = rblMatch ? rblMatch[1] : '0';
+                const rdl = rblMatch ? rblMatch[2] : '0';
+
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'scramble-result-item';
+                resultDiv.innerHTML = `
                 <div class="scramble-result-info">
                     <div><strong>Case Name:</strong> ${randomCase.caseName}</div>
                     <div><strong>Case Path:</strong> ${randomCase.path}</div>
@@ -1829,7 +1830,7 @@ async generateScrambles(jsonData, modal, isStopped) {
                     <div><strong>Equator:</strong> ${result.equator}</div>
                 </div>
                 <div class="scramble-result-viz">
-                    ${typeof window.Square1VisualizerLibraryWithSillyNames !== 'undefined' 
+                    ${typeof window.Square1VisualizerLibraryWithSillyNames !== 'undefined'
                         ? window.Square1VisualizerLibraryWithSillyNames.visualizeFromHexCodePlease(
                             result.hexState,
                             150,
@@ -1849,103 +1850,103 @@ async generateScrambles(jsonData, modal, isStopped) {
                     }
                 </div>
             `;
-            
-            resultsContainer.appendChild(resultDiv);
-            generated++;
 
-            const progress = (generated / totalScrambles) * 100;
-            progressBar.style.width = `${progress}%`;
-            progressText.textContent = `${generated} / ${totalScrambles}`;
+                resultsContainer.appendChild(resultDiv);
+                generated++;
 
-            // Debounce: wait 50ms before next generation
-            await new Promise(resolve => setTimeout(resolve, 50));
-            
-            // Continue generating
-            generateOne();
-            
-        } catch (error) {
-            console.error('Error generating scramble:', error);
-            const errorDiv = document.createElement('div');
-            errorDiv.style.cssText = 'color: #ef4444; padding: 12px; background: #3a1a1a; border-radius: 6px; margin-bottom: 12px;';
-            errorDiv.textContent = `Error: ${error.message}`;
-            resultsContainer.appendChild(errorDiv);
-            
-            // Continue despite error
-            generated++;
-            await new Promise(resolve => setTimeout(resolve, 50));
-            generateOne();
-        }
-    };
+                const progress = (generated / totalScrambles) * 100;
+                progressBar.style.width = `${progress}%`;
+                progressText.textContent = `${generated} / ${totalScrambles}`;
 
-    // Start generation
-    generateOne();
-}
+                // Debounce: wait 50ms before next generation
+                await new Promise(resolve => setTimeout(resolve, 50));
 
-showExtraTools(event) {
-    event.stopPropagation();
-    this.hideContextMenu();
-    this.setupContextMenuListener();
+                // Continue generating
+                generateOne();
 
-    const button = event.currentTarget;
-    const buttonRect = button.getBoundingClientRect();
+            } catch (error) {
+                console.error('Error generating scramble:', error);
+                const errorDiv = document.createElement('div');
+                errorDiv.style.cssText = 'color: #ef4444; padding: 12px; background: #3a1a1a; border-radius: 6px; margin-bottom: 12px;';
+                errorDiv.textContent = `Error: ${error.message}`;
+                resultsContainer.appendChild(errorDiv);
 
-    const menu = document.createElement('div');
-    menu.className = 'context-menu';
-    menu.style.left = `${buttonRect.left}px`;
-    menu.style.top = `${buttonRect.bottom + 2}px`;
-
-    const items = [
-        { text: 'Case Template', action: () => this.openCaseTemplate() },
-        { text: 'Import Data to Root', action: () => this.importDataToRoot() },
-        { text: 'Reset Root', action: () => this.resetRoot() }
-    ];
-
-    items.forEach(item => {
-        const menuItem = document.createElement('div');
-        menuItem.className = 'context-menu-item';
-        menuItem.textContent = item.text;
-        menuItem.onclick = () => {
-            this.hideContextMenu();
-            item.action();
+                // Continue despite error
+                generated++;
+                await new Promise(resolve => setTimeout(resolve, 50));
+                generateOne();
+            }
         };
-        menu.appendChild(menuItem);
-    });
 
-    document.body.appendChild(menu);
-    this.contextMenu = menu;
-}
+        // Start generation
+        generateOne();
+    }
 
-openCaseTemplate() {
-    // Store the last selected case path so we can return to it
-    this.lastCaseBeforeTemplate = {
-        path: this.selectedPath,
-        item: this.selectedItem
-    };
+    showExtraTools(event) {
+        event.stopPropagation();
+        this.hideContextMenu();
+        this.setupContextMenuListener();
 
-    const title = document.getElementById('jsonCreatorTitle');
-    const subtitle = document.getElementById('jsonCreatorSubtitle');
-    const body = document.getElementById('jsonCreatorBody');
+        const button = event.currentTarget;
+        const buttonRect = button.getBoundingClientRect();
 
-    title.innerHTML = `Case Template <button class="json-creator-icon-btn" onclick="jsonCreator.saveCaseTemplate()" title="Save Template" style="margin-left: 8px; display: inline-flex; align-items: center; vertical-align: middle;"><img src="viz/save.svg" width="14" height="14" onerror="this.outerHTML='Save'"></button> <button class="json-creator-icon-btn" onclick="jsonCreator.clearCaseTemplate()" title="Clear Template" style="margin-left: 4px; display: inline-flex; align-items: center; vertical-align: middle;"><img src="viz/reset.svg" width="14" height="14" onerror="this.outerHTML='Reset'"></button>`;
-    subtitle.innerHTML = `Any new case from now on will be pre-configured according to this case template.`;
+        const menu = document.createElement('div');
+        menu.className = 'context-menu';
+        menu.style.left = `${buttonRect.left}px`;
+        menu.style.top = `${buttonRect.bottom + 2}px`;
 
-    // Use existing template or create default
-    const template = this.caseTemplate || {
-        inputTop: "RRRRRRRRRRRR",
-        inputBottom: "RRRRRRRRRRRR",
-        equator: ["/", "|"],
-        parity: ["on"],
-        constraints: {},
-        auf: ["U0"],
-        adf: ["D0"],
-        rul: [0],
-        rdl: [0]
-    };
+        const items = [
+            { text: 'Case Template', action: () => this.openCaseTemplate() },
+            { text: 'Import Data to Root', action: () => this.importDataToRoot() },
+            { text: 'Reset Root', action: () => this.resetRoot() }
+        ];
 
-    // Store the template temporarily for editing
-    this.editingTemplate = JSON.parse(JSON.stringify(template));
+        items.forEach(item => {
+            const menuItem = document.createElement('div');
+            menuItem.className = 'context-menu-item';
+            menuItem.textContent = item.text;
+            menuItem.onclick = () => {
+                this.hideContextMenu();
+                item.action();
+            };
+            menu.appendChild(menuItem);
+        });
 
-    body.innerHTML = `
+        document.body.appendChild(menu);
+        this.contextMenu = menu;
+    }
+
+    openCaseTemplate() {
+        // Store the last selected case path so we can return to it
+        this.lastCaseBeforeTemplate = {
+            path: this.selectedPath,
+            item: this.selectedItem
+        };
+
+        const title = document.getElementById('jsonCreatorTitle');
+        const subtitle = document.getElementById('jsonCreatorSubtitle');
+        const body = document.getElementById('jsonCreatorBody');
+
+        title.innerHTML = `Case Template <button class="json-creator-icon-btn" onclick="jsonCreator.saveCaseTemplate()" title="Save Template" style="margin-left: 8px; display: inline-flex; align-items: center; vertical-align: middle;"><img src="viz/save.svg" width="14" height="14" onerror="this.outerHTML='Save'"></button> <button class="json-creator-icon-btn" onclick="jsonCreator.clearCaseTemplate()" title="Clear Template" style="margin-left: 4px; display: inline-flex; align-items: center; vertical-align: middle;"><img src="viz/reset.svg" width="14" height="14" onerror="this.outerHTML='Reset'"></button>`;
+        subtitle.innerHTML = `Any new case from now on will be pre-configured according to this case template.`;
+
+        // Use existing template or create default
+        const template = this.caseTemplate || {
+            inputTop: "RRRRRRRRRRRR",
+            inputBottom: "RRRRRRRRRRRR",
+            equator: ["/", "|"],
+            parity: ["on"],
+            constraints: {},
+            auf: ["U0"],
+            adf: ["D0"],
+            rul: [0],
+            rdl: [0]
+        };
+
+        // Store the template temporarily for editing
+        this.editingTemplate = JSON.parse(JSON.stringify(template));
+
+        body.innerHTML = `
         <div class="case-editor-tabs">
             <button class="case-editor-tab active" onclick="jsonCreator.switchTemplateTab('shape')">Shape Input</button>
             <button class="case-editor-tab" onclick="jsonCreator.switchTemplateTab('additional')">Additional Information</button>
@@ -1953,107 +1954,107 @@ openCaseTemplate() {
         <div id="templateEditorContent"></div>
     `;
 
-    this.currentTemplateTab = 'shape';
-    this.renderTemplateTab();
-}
-
-switchTemplateTab(tab) {
-    this.currentTemplateTab = tab;
-    const tabs = document.querySelectorAll('.case-editor-tab');
-    tabs.forEach(t => t.classList.remove('active'));
-    event.target.classList.add('active');
-    
-    // Force re-render with a small delay to ensure DOM is ready
-    setTimeout(() => {
-        const content = document.getElementById('templateEditorContent');
-        if (!content) {
-            console.error('templateEditorContent not found after tab switch!');
-            return;
-        }
+        this.currentTemplateTab = 'shape';
         this.renderTemplateTab();
-        
-        // Verify the tab content actually rendered
+    }
+
+    switchTemplateTab(tab) {
+        this.currentTemplateTab = tab;
+        const tabs = document.querySelectorAll('.case-editor-tab');
+        tabs.forEach(t => t.classList.remove('active'));
+        event.target.classList.add('active');
+
+        // Force re-render with a small delay to ensure DOM is ready
         setTimeout(() => {
-            const verifyContent = document.getElementById('templateEditorContent');
-            if (!verifyContent || verifyContent.children.length === 0) {
-                console.error('Template tab content failed to render, forcing re-render');
-                this.renderTemplateTab();
+            const content = document.getElementById('templateEditorContent');
+            if (!content) {
+                console.error('templateEditorContent not found after tab switch!');
+                return;
             }
-        }, 50);
-    }, 10);
-}
+            this.renderTemplateTab();
 
-renderTemplateTab() {
-    const content = document.getElementById('templateEditorContent');
-    if (!content || !this.editingTemplate) return;
+            // Verify the tab content actually rendered
+            setTimeout(() => {
+                const verifyContent = document.getElementById('templateEditorContent');
+                if (!verifyContent || verifyContent.children.length === 0) {
+                    console.error('Template tab content failed to render, forcing re-render');
+                    this.renderTemplateTab();
+                }
+            }, 50);
+        }, 10);
+    }
 
-    if (this.currentTemplateTab === 'shape') {
-        const alreadyRendered = content.querySelector('#topLayerInput');
-        
-        if (alreadyRendered) {
-            const topInput = document.getElementById('topLayerInput');
-            const bottomInput = document.getElementById('bottomLayerInput');
-            const topValue = this.editingTemplate.inputTop || 'RRRRRRRRRRRR';
-            const bottomValue = this.editingTemplate.inputBottom || 'RRRRRRRRRRRR';
-            if (topInput) topInput.value = topValue;
-            if (bottomInput) bottomInput.value = bottomValue;
-            
-            if (this.topState && window.InteractiveScrambleRenderer) {
-                this.topState.topText = topValue;
-                this.topState.bottomText = '';
-                this.topState.parse();
-                const topContainer = document.getElementById('topInteractive');
-                if (topContainer) {
-                    topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
-                    window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
-                }
-            }
-            
-            if (this.bottomState && window.InteractiveScrambleRenderer) {
-                this.bottomState.topText = '';
-                this.bottomState.bottomText = bottomValue;
-                this.bottomState.parse();
-                const bottomContainer = document.getElementById('bottomInteractive');
-                if (bottomContainer) {
-                    bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
-                    window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
-                }
-            }
-            
-            return;
-        }
-        
-        if (window.InteractiveScrambleRenderer) {
-            this.topState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
-                this.editingTemplate.inputTop || 'RRRRRRRRRRRR',
-                '',
-                window.InteractiveScrambleRenderer.DEFAULT_COLOR_SCHEME
-            );
-            this.topState.onChange(() => {
-                this.editingTemplate.inputTop = this.topState.topText;
+    renderTemplateTab() {
+        const content = document.getElementById('templateEditorContent');
+        if (!content || !this.editingTemplate) return;
+
+        if (this.currentTemplateTab === 'shape') {
+            const alreadyRendered = content.querySelector('#topLayerInput');
+
+            if (alreadyRendered) {
                 const topInput = document.getElementById('topLayerInput');
-                if (topInput) {
-                    topInput.value = this.topState.topText;
-                }
-            });
-        }
-
-        if (window.InteractiveScrambleRenderer) {
-            this.bottomState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
-                '',
-                this.editingTemplate.inputBottom || 'RRRRRRRRRRRR',
-                window.InteractiveScrambleRenderer.DEFAULT_COLOR_SCHEME
-            );
-            this.bottomState.onChange(() => {
-                this.editingTemplate.inputBottom = this.bottomState.bottomText;
                 const bottomInput = document.getElementById('bottomLayerInput');
-                if (bottomInput) {
-                    bottomInput.value = this.bottomState.bottomText;
-                }
-            });
-        }
+                const topValue = this.editingTemplate.inputTop || 'RRRRRRRRRRRR';
+                const bottomValue = this.editingTemplate.inputBottom || 'RRRRRRRRRRRR';
+                if (topInput) topInput.value = topValue;
+                if (bottomInput) bottomInput.value = bottomValue;
 
-        content.innerHTML = `
+                if (this.topState && window.InteractiveScrambleRenderer) {
+                    this.topState.topText = topValue;
+                    this.topState.bottomText = '';
+                    this.topState.parse();
+                    const topContainer = document.getElementById('topInteractive');
+                    if (topContainer) {
+                        topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
+                        window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
+                    }
+                }
+
+                if (this.bottomState && window.InteractiveScrambleRenderer) {
+                    this.bottomState.topText = '';
+                    this.bottomState.bottomText = bottomValue;
+                    this.bottomState.parse();
+                    const bottomContainer = document.getElementById('bottomInteractive');
+                    if (bottomContainer) {
+                        bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
+                        window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
+                    }
+                }
+
+                return;
+            }
+
+            if (window.InteractiveScrambleRenderer) {
+                this.topState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
+                    this.editingTemplate.inputTop || 'RRRRRRRRRRRR',
+                    '',
+                    window.InteractiveScrambleRenderer.DEFAULT_COLOR_SCHEME
+                );
+                this.topState.onChange(() => {
+                    this.editingTemplate.inputTop = this.topState.topText;
+                    const topInput = document.getElementById('topLayerInput');
+                    if (topInput) {
+                        topInput.value = this.topState.topText;
+                    }
+                });
+            }
+
+            if (window.InteractiveScrambleRenderer) {
+                this.bottomState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
+                    '',
+                    this.editingTemplate.inputBottom || 'RRRRRRRRRRRR',
+                    window.InteractiveScrambleRenderer.DEFAULT_COLOR_SCHEME
+                );
+                this.bottomState.onChange(() => {
+                    this.editingTemplate.inputBottom = this.bottomState.bottomText;
+                    const bottomInput = document.getElementById('bottomLayerInput');
+                    if (bottomInput) {
+                        bottomInput.value = this.bottomState.bottomText;
+                    }
+                });
+            }
+
+            content.innerHTML = `
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                 <div class="json-creator-section">
                     <h4>Top Layer</h4>
@@ -2097,97 +2098,97 @@ renderTemplateTab() {
             </div>
         `;
 
-        const topContainer = document.getElementById('topInteractive');
-        const bottomContainer = document.getElementById('bottomInteractive');
+            const topContainer = document.getElementById('topInteractive');
+            const bottomContainer = document.getElementById('bottomInteractive');
 
-        if (topContainer && window.InteractiveScrambleRenderer) {
-            this.topState.topText = this.editingTemplate.inputTop || 'RRRRRRRRRRRR';
-            this.topState.bottomText = '';
-            this.topState.parse();
-            topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
-            window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
-        }
-
-        if (bottomContainer && window.InteractiveScrambleRenderer) {
-            this.bottomState.topText = '';
-            this.bottomState.bottomText = this.editingTemplate.inputBottom || 'RRRRRRRRRRRR';
-            this.bottomState.parse();
-            bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
-            window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
-        }
-
-        const topInput = document.getElementById('topLayerInput');
-        const bottomInput = document.getElementById('bottomLayerInput');
-
-        if (topInput) {
-            topInput.addEventListener('input', (e) => {
-                const value = e.target.value.toUpperCase().substring(0, 12);
-                e.target.value = value;
-                
-                if (value.length < 12) {
-                    e.target.style.borderColor = '#ef4444';
-                    return;
-                }
-                
-                e.target.style.borderColor = '#404040';
-                
-                if (value.length === 12) {
-                    try {
-                        this.topState.topText = value;
-                        this.topState.parse();
-                        const topContainer = document.getElementById('topInteractive');
-                        topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
-                        window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
-                        this.editingTemplate.inputTop = value;
-                    } catch (error) {
-                        console.error('Parse error:', error);
-                        alert('Invalid input: ' + error.message);
-                        e.target.style.borderColor = '#ef4444';
-                    }
-                }
-            });
-        }
-
-        if (bottomInput) {
-            bottomInput.addEventListener('input', (e) => {
-                const value = e.target.value.toUpperCase().substring(0, 12);
-                e.target.value = value;
-                
-                if (value.length < 12) {
-                    e.target.style.borderColor = '#ef4444';
-                    return;
-                }
-                
-                e.target.style.borderColor = '#404040';
-                
-                if (value.length === 12) {
-                    try {
-                        this.bottomState.bottomText = value;
-                        this.bottomState.parse();
-                        const bottomContainer = document.getElementById('bottomInteractive');
-                        bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
-                        window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
-                        this.editingTemplate.inputBottom = value;
-                    } catch (error) {
-                        console.error('Parse error:', error);
-                        alert('Invalid input: ' + error.message);
-                        e.target.style.borderColor = '#ef4444';
-                    }
-                }
-            });
-        }
-
-    } else if (this.currentTemplateTab === 'additional') {
-        let parityMode = 'ignore';
-        if (Array.isArray(this.editingTemplate.parity) && this.editingTemplate.parity.length > 0) {
-            if (this.editingTemplate.parity.includes('on') || this.editingTemplate.parity.includes('op')) {
-                parityMode = 'overall';
-            } else {
-                parityMode = 'color-specific';
+            if (topContainer && window.InteractiveScrambleRenderer) {
+                this.topState.topText = this.editingTemplate.inputTop || 'RRRRRRRRRRRR';
+                this.topState.bottomText = '';
+                this.topState.parse();
+                topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
+                window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
             }
-        }
 
-        content.innerHTML = `
+            if (bottomContainer && window.InteractiveScrambleRenderer) {
+                this.bottomState.topText = '';
+                this.bottomState.bottomText = this.editingTemplate.inputBottom || 'RRRRRRRRRRRR';
+                this.bottomState.parse();
+                bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
+                window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
+            }
+
+            const topInput = document.getElementById('topLayerInput');
+            const bottomInput = document.getElementById('bottomLayerInput');
+
+            if (topInput) {
+                topInput.addEventListener('input', (e) => {
+                    const value = e.target.value.toUpperCase().substring(0, 12);
+                    e.target.value = value;
+
+                    if (value.length < 12) {
+                        e.target.style.borderColor = '#ef4444';
+                        return;
+                    }
+
+                    e.target.style.borderColor = '#404040';
+
+                    if (value.length === 12) {
+                        try {
+                            this.topState.topText = value;
+                            this.topState.parse();
+                            const topContainer = document.getElementById('topInteractive');
+                            topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
+                            window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
+                            this.editingTemplate.inputTop = value;
+                        } catch (error) {
+                            console.error('Parse error:', error);
+                            alert('Invalid input: ' + error.message);
+                            e.target.style.borderColor = '#ef4444';
+                        }
+                    }
+                });
+            }
+
+            if (bottomInput) {
+                bottomInput.addEventListener('input', (e) => {
+                    const value = e.target.value.toUpperCase().substring(0, 12);
+                    e.target.value = value;
+
+                    if (value.length < 12) {
+                        e.target.style.borderColor = '#ef4444';
+                        return;
+                    }
+
+                    e.target.style.borderColor = '#404040';
+
+                    if (value.length === 12) {
+                        try {
+                            this.bottomState.bottomText = value;
+                            this.bottomState.parse();
+                            const bottomContainer = document.getElementById('bottomInteractive');
+                            bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
+                            window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
+                            this.editingTemplate.inputBottom = value;
+                        } catch (error) {
+                            console.error('Parse error:', error);
+                            alert('Invalid input: ' + error.message);
+                            e.target.style.borderColor = '#ef4444';
+                        }
+                    }
+                });
+            }
+
+        } else if (this.currentTemplateTab === 'additional') {
+            let parityMode = 'ignore';
+            if (Array.isArray(this.editingTemplate.parity) && this.editingTemplate.parity.length > 0) {
+                if (this.editingTemplate.parity.includes('on') || this.editingTemplate.parity.includes('op')) {
+                    parityMode = 'overall';
+                } else {
+                    parityMode = 'color-specific';
+                }
+            }
+
+            content.innerHTML = `
             <div class="json-creator-section-compact">
                 <h4>Middle Layer</h4>
                 <div class="json-creator-grid">
@@ -2275,15 +2276,15 @@ renderTemplateTab() {
                 </h4>
                 <div class="abf-grid">
                     ${['U0', 'U', 'U2', "U'", 'D0', 'D', 'D2', "D'"].map((move, idx) => {
-                        const field = idx < 4 ? 'auf' : 'adf';
-                        return `
+                const field = idx < 4 ? 'auf' : 'adf';
+                return `
                             <div class="json-creator-grid-item">
                                 <input type="checkbox" ${this.editingTemplate[field].includes(move) ? 'checked' : ''} 
                                        onchange="jsonCreator.updateTemplateMoveArray('${field}', '${move}', this.checked)">
                                 <label>${move}</label>
                             </div>
                         `;
-                    }).join('')}
+            }).join('')}
                 </div>
             </div>
 
@@ -2323,152 +2324,152 @@ renderTemplateTab() {
                 </div>
             </div>
         `;
-    }
-}
-
-updateTemplateEquator(symbol, checked) {
-    if (!Array.isArray(this.editingTemplate.equator)) {
-        this.editingTemplate.equator = [];
-    }
-    if (checked) {
-        if (!this.editingTemplate.equator.includes(symbol)) {
-            this.editingTemplate.equator.push(symbol);
         }
-    } else {
-        this.editingTemplate.equator = this.editingTemplate.equator.filter(s => s !== symbol);
     }
-}
 
-updateTemplateParityMode(mode) {
-    if (mode === 'ignore') {
-        this.editingTemplate.parity = [];
-    } else if (mode === 'overall') {
-        this.editingTemplate.parity = ['on'];
-    } else if (mode === 'color-specific') {
-        this.editingTemplate.parity = ['tnbn'];
-    }
-    this.renderTemplateTab();
-}
-
-updateTemplateMoveArray(field, move, checked) {
-    if (!Array.isArray(this.editingTemplate[field])) {
-        this.editingTemplate[field] = [];
-    }
-    if (checked) {
-        if (!this.editingTemplate[field].includes(move)) {
-            this.editingTemplate[field].push(move);
+    updateTemplateEquator(symbol, checked) {
+        if (!Array.isArray(this.editingTemplate.equator)) {
+            this.editingTemplate.equator = [];
         }
-    } else {
-        this.editingTemplate[field] = this.editingTemplate[field].filter(m => m !== move);
-    }
-}
-
-updateTemplateNumberArray(field, num, checked) {
-    if (!Array.isArray(this.editingTemplate[field])) {
-        this.editingTemplate[field] = [];
-    }
-    if (checked) {
-        if (!this.editingTemplate[field].includes(num)) {
-            this.editingTemplate[field].push(num);
+        if (checked) {
+            if (!this.editingTemplate.equator.includes(symbol)) {
+                this.editingTemplate.equator.push(symbol);
+            }
+        } else {
+            this.editingTemplate.equator = this.editingTemplate.equator.filter(s => s !== symbol);
         }
-    } else {
-        this.editingTemplate[field] = this.editingTemplate[field].filter(n => n !== num);
-    }
-}
-
-addTemplateConstraint() {
-    const posInput = document.getElementById('constraintPosition');
-    const valsInput = document.getElementById('constraintValues');
-
-    const position = posInput.value.trim().toUpperCase();
-    const values = valsInput.value.trim().split(',').map(v => v.trim().toLowerCase());
-
-    if (!position || !values.length || !values[0]) {
-        alert('Please enter both position and values');
-        return;
     }
 
-    if (!this.editingTemplate.constraints) this.editingTemplate.constraints = {};
-    this.editingTemplate.constraints[position] = values;
-
-    posInput.value = '';
-    valsInput.value = '';
-
-    this.renderTemplateTab();
-}
-
-removeTemplateConstraint(position) {
-    if (this.editingTemplate && this.editingTemplate.constraints) {
-        delete this.editingTemplate.constraints[position];
+    updateTemplateParityMode(mode) {
+        if (mode === 'ignore') {
+            this.editingTemplate.parity = [];
+        } else if (mode === 'overall') {
+            this.editingTemplate.parity = ['on'];
+        } else if (mode === 'color-specific') {
+            this.editingTemplate.parity = ['tnbn'];
+        }
         this.renderTemplateTab();
     }
-}
 
-saveCaseTemplate() {
-    this.caseTemplate = JSON.parse(JSON.stringify(this.editingTemplate));
-    const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
-    localStorage.setItem(templateKey, JSON.stringify(this.caseTemplate));
-    showFloatingMessage('Case template saved successfully!', 'success');
-    
-    // Restore the last selected case
-    if (this.lastCaseBeforeTemplate && this.lastCaseBeforeTemplate.item && this.lastCaseBeforeTemplate.item.caseName) {
-        this.selectedPath = this.lastCaseBeforeTemplate.path;
-        this.selectedItem = this.lastCaseBeforeTemplate.item;
-        this.renderTree();
-        const caseName = this.selectedPath.split('/').pop();
-        this.showCaseEditor(this.selectedItem, caseName);
-    } else {
-        this.showWelcome();
-    }
-}
-
-clearCaseTemplate() {
-    showConfirmationModal(
-        'Clear Template',
-        'Are you sure you want to clear the case template?',
-        () => {
-            this.caseTemplate = null;
-            this.editingTemplate = null;
-            const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
-            localStorage.removeItem(templateKey);
-            showFloatingMessage('Case template cleared!', 'success');
-            
-            // Restore the last selected case
-            if (this.lastCaseBeforeTemplate && this.lastCaseBeforeTemplate.item && this.lastCaseBeforeTemplate.item.caseName) {
-                this.selectedPath = this.lastCaseBeforeTemplate.path;
-                this.selectedItem = this.lastCaseBeforeTemplate.item;
-                this.renderTree();
-                const caseName = this.selectedPath.split('/').pop();
-                this.showCaseEditor(this.selectedItem, caseName);
-            } else {
-                this.showWelcome();
+    updateTemplateMoveArray(field, move, checked) {
+        if (!Array.isArray(this.editingTemplate[field])) {
+            this.editingTemplate[field] = [];
+        }
+        if (checked) {
+            if (!this.editingTemplate[field].includes(move)) {
+                this.editingTemplate[field].push(move);
             }
+        } else {
+            this.editingTemplate[field] = this.editingTemplate[field].filter(m => m !== move);
         }
-    );
-}
+    }
 
-setAsTemplate(item) {
-    showConfirmationModal(
-        'Override Template',
-        'Do you want to override your current template? This cannot be undone.',
-        () => {
-            const template = JSON.parse(JSON.stringify(item));
-            delete template.alg;
-            delete template.caseName;
-            
-            this.caseTemplate = template;
-            const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
-            localStorage.setItem(templateKey, JSON.stringify(this.caseTemplate));
-            showFloatingMessage('Case set as template successfully!', 'success');
+    updateTemplateNumberArray(field, num, checked) {
+        if (!Array.isArray(this.editingTemplate[field])) {
+            this.editingTemplate[field] = [];
         }
-    );
-}
+        if (checked) {
+            if (!this.editingTemplate[field].includes(num)) {
+                this.editingTemplate[field].push(num);
+            }
+        } else {
+            this.editingTemplate[field] = this.editingTemplate[field].filter(n => n !== num);
+        }
+    }
 
-importDataToRoot() {
-    const modal = document.createElement('div');
-    modal.className = 'modal active extract-json-modal';
-    modal.style.zIndex = '20000';
-    modal.innerHTML = `
+    addTemplateConstraint() {
+        const posInput = document.getElementById('constraintPosition');
+        const valsInput = document.getElementById('constraintValues');
+
+        const position = posInput.value.trim().toUpperCase();
+        const values = valsInput.value.trim().split(',').map(v => v.trim().toLowerCase());
+
+        if (!position || !values.length || !values[0]) {
+            alert('Please enter both position and values');
+            return;
+        }
+
+        if (!this.editingTemplate.constraints) this.editingTemplate.constraints = {};
+        this.editingTemplate.constraints[position] = values;
+
+        posInput.value = '';
+        valsInput.value = '';
+
+        this.renderTemplateTab();
+    }
+
+    removeTemplateConstraint(position) {
+        if (this.editingTemplate && this.editingTemplate.constraints) {
+            delete this.editingTemplate.constraints[position];
+            this.renderTemplateTab();
+        }
+    }
+
+    saveCaseTemplate() {
+        this.caseTemplate = JSON.parse(JSON.stringify(this.editingTemplate));
+        const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
+        localStorage.setItem(templateKey, JSON.stringify(this.caseTemplate));
+        showFloatingMessage('Case template saved successfully!', 'success');
+
+        // Restore the last selected case
+        if (this.lastCaseBeforeTemplate && this.lastCaseBeforeTemplate.item && this.lastCaseBeforeTemplate.item.caseName) {
+            this.selectedPath = this.lastCaseBeforeTemplate.path;
+            this.selectedItem = this.lastCaseBeforeTemplate.item;
+            this.renderTree();
+            const caseName = this.selectedPath.split('/').pop();
+            this.showCaseEditor(this.selectedItem, caseName);
+        } else {
+            this.showWelcome();
+        }
+    }
+
+    clearCaseTemplate() {
+        showConfirmationModal(
+            'Clear Template',
+            'Are you sure you want to clear the case template?',
+            () => {
+                this.caseTemplate = null;
+                this.editingTemplate = null;
+                const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
+                localStorage.removeItem(templateKey);
+                showFloatingMessage('Case template cleared!', 'success');
+
+                // Restore the last selected case
+                if (this.lastCaseBeforeTemplate && this.lastCaseBeforeTemplate.item && this.lastCaseBeforeTemplate.item.caseName) {
+                    this.selectedPath = this.lastCaseBeforeTemplate.path;
+                    this.selectedItem = this.lastCaseBeforeTemplate.item;
+                    this.renderTree();
+                    const caseName = this.selectedPath.split('/').pop();
+                    this.showCaseEditor(this.selectedItem, caseName);
+                } else {
+                    this.showWelcome();
+                }
+            }
+        );
+    }
+
+    setAsTemplate(item) {
+        showConfirmationModal(
+            'Override Template',
+            'Do you want to override your current template? This cannot be undone.',
+            () => {
+                const template = JSON.parse(JSON.stringify(item));
+                delete template.alg;
+                delete template.caseName;
+
+                this.caseTemplate = template;
+                const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
+                localStorage.setItem(templateKey, JSON.stringify(this.caseTemplate));
+                showFloatingMessage('Case set as template successfully!', 'success');
+            }
+        );
+    }
+
+    importDataToRoot() {
+        const modal = document.createElement('div');
+        modal.className = 'modal active extract-json-modal';
+        modal.style.zIndex = '20000';
+        modal.innerHTML = `
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
                 <h2>Import Data to Root: ${AppState.activeDevelopingJSON}</h2>
@@ -2497,158 +2498,158 @@ importDataToRoot() {
             </div>
         </div>
     `;
-    document.body.appendChild(modal);
-    
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.remove();
+        document.body.appendChild(modal);
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+
+    handleImportRootFileDrop(event) {
+        event.preventDefault();
+        const dropZone = document.getElementById('importRootDropZone');
+        dropZone.style.background = '#f9f9f9';
+
+        const file = event.dataTransfer.files[0];
+        if (file && file.type === 'application/json') {
+            this.loadImportRootFile(file);
+        } else {
+            showFloatingMessage('Please drop a valid JSON file', 'error');
         }
-    });
-}
-
-handleImportRootFileDrop(event) {
-    event.preventDefault();
-    const dropZone = document.getElementById('importRootDropZone');
-    dropZone.style.background = '#f9f9f9';
-    
-    const file = event.dataTransfer.files[0];
-    if (file && file.type === 'application/json') {
-        this.loadImportRootFile(file);
-    } else {
-        showFloatingMessage('Please drop a valid JSON file', 'error');
     }
-}
 
-handleImportRootFileSelect(event) {
-    const file = event.target.files[0];
-    if (file && file.type === 'application/json') {
-        this.loadImportRootFile(file);
-    } else {
-        showFloatingMessage('Please select a valid JSON file', 'error');
-    }
-}
-
-loadImportRootFile(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        window.importedRootJSONData = e.target.result;
-        document.getElementById('importRootFileName').textContent = `Selected: ${file.name}`;
-        document.getElementById('importRootActions').style.display = 'flex';
-    };
-    reader.readAsText(file);
-}
-
-processImportToRoot(mode) {
-    const jsonText = window.importedRootJSONData;
-    
-    if (!jsonText) {
-        showFloatingMessage('Please select a file to import', 'error');
-        return;
-    }
-    
-    try {
-        const importedData = JSON.parse(jsonText);
-        
-        if (mode === 'override') {
-            // Replace current root entirely
-            this.treeData = importedData;
-            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(importedData));
-        } else if (mode === 'add') {
-            // Merge with existing root, auto-rename conflicts
-            const mergeObjects = (target, source, path = []) => {
-                Object.keys(source).forEach(key => {
-                    const sourcePath = [...path, key];
-                    
-                    if (source[key] && typeof source[key] === 'object' && !source[key].caseName) {
-                        // It's a folder
-                        if (!target[key]) {
-                            target[key] = {};
-                        }
-                        mergeObjects(target[key], source[key], sourcePath);
-                    } else {
-                        // It's a case or primitive value
-                        let finalKey = key;
-                        let counter = 1;
-                        while (target[finalKey]) {
-                            finalKey = `${key}_${counter}`;
-                            counter++;
-                        }
-                        target[finalKey] = JSON.parse(JSON.stringify(source[key]));
-                        if (target[finalKey].caseName) {
-                            target[finalKey].caseName = finalKey;
-                        }
-                    }
-                });
-            };
-            
-            mergeObjects(this.treeData, importedData);
-            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+    handleImportRootFileSelect(event) {
+        const file = event.target.files[0];
+        if (file && file.type === 'application/json') {
+            this.loadImportRootFile(file);
+        } else {
+            showFloatingMessage('Please select a valid JSON file', 'error');
         }
-        
-        saveDevelopingJSONs();
-        
-        // Reload current root
-        this.expandedFolders.clear();
-        this.expandAllFolders(this.treeData, '');
-        this.renderTree();
-        
-        document.querySelector('.modal').remove();
-        showFloatingMessage('Data imported to root successfully!', 'success');
-    } catch (error) {
-        showFloatingMessage('Invalid JSON: ' + error.message, 'error');
     }
-}
 
-resetRoot() {
-    showConfirmationModal(
-        'Reset Root',
-        `Are you sure you want to reset the root "${AppState.activeDevelopingJSON}"? This will delete all cases and folders. This cannot be undone.`,
-        () => {
-            this.treeData = {};
-            AppState.developingJSONs[AppState.activeDevelopingJSON] = {};
+    loadImportRootFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            window.importedRootJSONData = e.target.result;
+            document.getElementById('importRootFileName').textContent = `Selected: ${file.name}`;
+            document.getElementById('importRootActions').style.display = 'flex';
+        };
+        reader.readAsText(file);
+    }
+
+    processImportToRoot(mode) {
+        const jsonText = window.importedRootJSONData;
+
+        if (!jsonText) {
+            showFloatingMessage('Please select a file to import', 'error');
+            return;
+        }
+
+        try {
+            const importedData = JSON.parse(jsonText);
+
+            if (mode === 'override') {
+                // Replace current root entirely
+                this.treeData = importedData;
+                AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(importedData));
+            } else if (mode === 'add') {
+                // Merge with existing root, auto-rename conflicts
+                const mergeObjects = (target, source, path = []) => {
+                    Object.keys(source).forEach(key => {
+                        const sourcePath = [...path, key];
+
+                        if (source[key] && typeof source[key] === 'object' && !source[key].caseName) {
+                            // It's a folder
+                            if (!target[key]) {
+                                target[key] = {};
+                            }
+                            mergeObjects(target[key], source[key], sourcePath);
+                        } else {
+                            // It's a case or primitive value
+                            let finalKey = key;
+                            let counter = 1;
+                            while (target[finalKey]) {
+                                finalKey = `${key}_${counter}`;
+                                counter++;
+                            }
+                            target[finalKey] = JSON.parse(JSON.stringify(source[key]));
+                            if (target[finalKey].caseName) {
+                                target[finalKey].caseName = finalKey;
+                            }
+                        }
+                    });
+                };
+
+                mergeObjects(this.treeData, importedData);
+                AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+            }
+
             saveDevelopingJSONs();
-            
-            this.selectedPath = '';
-            this.selectedItem = null;
+
+            // Reload current root
             this.expandedFolders.clear();
+            this.expandAllFolders(this.treeData, '');
             this.renderTree();
-            this.showWelcome();
-            
-            showFloatingMessage('Root reset successfully!', 'success');
-        }
-    );
-}
 
-close() {
-    showConfirmationModal(
-        'Close JSON Creator',
-        'Close JSON Creator? All changes are auto-saved.',
-        () => {
-            // Save current root before closing
-            AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
-            saveDevelopingJSONs();
-            saveLastScreen('training');
-            
-            const fullscreen = document.getElementById('jsonCreatorFullscreen');
-            if (fullscreen) {
-                fullscreen.remove();
-            }
-            
-            // Return to training screen
-            renderApp();
-            setupEventListeners();
-            if (AppState.selectedCases.length > 0) {
-                generateNewScramble();
-            }
+            document.querySelector('.modal').remove();
+            showFloatingMessage('Data imported to root successfully!', 'success');
+        } catch (error) {
+            showFloatingMessage('Invalid JSON: ' + error.message, 'error');
         }
-    );
-}
+    }
 
-openDataManagement() {
-    const modal = document.createElement('div');
-    modal.className = 'modal active data-management-modal';
-    modal.style.zIndex = '20000';
-    modal.innerHTML = `
+    resetRoot() {
+        showConfirmationModal(
+            'Reset Root',
+            `Are you sure you want to reset the root "${AppState.activeDevelopingJSON}"? This will delete all cases and folders. This cannot be undone.`,
+            () => {
+                this.treeData = {};
+                AppState.developingJSONs[AppState.activeDevelopingJSON] = {};
+                saveDevelopingJSONs();
+
+                this.selectedPath = '';
+                this.selectedItem = null;
+                this.expandedFolders.clear();
+                this.renderTree();
+                this.showWelcome();
+
+                showFloatingMessage('Root reset successfully!', 'success');
+            }
+        );
+    }
+
+    close() {
+        showConfirmationModal(
+            'Close JSON Creator',
+            'Close JSON Creator? All changes are auto-saved.',
+            () => {
+                // Save current root before closing
+                AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
+                saveDevelopingJSONs();
+                saveLastScreen('training');
+
+                const fullscreen = document.getElementById('jsonCreatorFullscreen');
+                if (fullscreen) {
+                    fullscreen.remove();
+                }
+
+                // Return to training screen
+                renderApp();
+                setupEventListeners();
+                if (AppState.selectedCases.length > 0) {
+                    generateNewScramble();
+                }
+            }
+        );
+    }
+
+    openDataManagement() {
+        const modal = document.createElement('div');
+        modal.className = 'modal active data-management-modal';
+        modal.style.zIndex = '20000';
+        modal.innerHTML = `
         <div class="modal-content devtool-modal" style="max-width: 500px;">
             <div class="modal-header">
                 <h2>Data Management</h2>
@@ -2663,65 +2664,65 @@ openDataManagement() {
             </div>
         </div>
     `;
-    document.body.appendChild(modal);
-    
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
-}
+        document.body.appendChild(modal);
 
-resetAllData() {
-    showConfirmationModal(
-        'Reset All Data',
-        'Are you sure you want to reset ALL data? This will delete all developing JSONs and cannot be undone.',
-        () => {
-            AppState.developingJSONs = { 'default': DEFAULT_ALGSET };
-            AppState.activeDevelopingJSON = 'default';
-            saveDevelopingJSONs();
-            
-            this.treeData = JSON.parse(JSON.stringify(DEFAULT_ALGSET));
-            this.selectedPath = '';
-            this.selectedItem = null;
-            this.expandedFolders.clear();
-            this.expandAllFolders(this.treeData, '');
-            this.renderTree();
-            this.showWelcome();
-            
-            const rootBtn = document.getElementById('rootSelectorBtn');
-            if (rootBtn) rootBtn.textContent = 'default';
-            
-            showFloatingMessage('All data has been reset', 'success');
-            document.querySelector('.data-management-modal').remove();
-        }
-    );
-}
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
 
-exportAllData() {
-    // Save current root first
-    AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
-    saveDevelopingJSONs();
-    
-    const allData = JSON.stringify(AppState.developingJSONs, null, 2);
-    const blob = new Blob([allData], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'sq1-all-data.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
+    resetAllData() {
+        showConfirmationModal(
+            'Reset All Data',
+            'Are you sure you want to reset ALL data? This will delete all developing JSONs and cannot be undone.',
+            () => {
+                AppState.developingJSONs = { 'default': DEFAULT_ALGSET };
+                AppState.activeDevelopingJSON = 'default';
+                saveDevelopingJSONs();
 
-importData() {
-    document.querySelector('.modal').remove();
-    
-    const importModal = document.createElement('div');
-    importModal.className = 'modal active extract-json-modal';
-    importModal.style.zIndex = '20000';
-    importModal.innerHTML = `
+                this.treeData = JSON.parse(JSON.stringify(DEFAULT_ALGSET));
+                this.selectedPath = '';
+                this.selectedItem = null;
+                this.expandedFolders.clear();
+                this.expandAllFolders(this.treeData, '');
+                this.renderTree();
+                this.showWelcome();
+
+                const rootBtn = document.getElementById('rootSelectorBtn');
+                if (rootBtn) rootBtn.textContent = 'default';
+
+                showFloatingMessage('All data has been reset', 'success');
+                document.querySelector('.data-management-modal').remove();
+            }
+        );
+    }
+
+    exportAllData() {
+        // Save current root first
+        AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
+        saveDevelopingJSONs();
+
+        const allData = JSON.stringify(AppState.developingJSONs, null, 2);
+        const blob = new Blob([allData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'sq1-all-data.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    importData() {
+        document.querySelector('.modal').remove();
+
+        const importModal = document.createElement('div');
+        importModal.className = 'modal active extract-json-modal';
+        importModal.style.zIndex = '20000';
+        importModal.innerHTML = `
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
                 <h2>Import Data</h2>
@@ -2750,95 +2751,95 @@ importData() {
             </div>
         </div>
     `;
-    document.body.appendChild(importModal);
-    
-    importModal.addEventListener('click', (e) => {
-        if (e.target === importModal) {
-            importModal.remove();
+        document.body.appendChild(importModal);
+
+        importModal.addEventListener('click', (e) => {
+            if (e.target === importModal) {
+                importModal.remove();
+            }
+        });
+    }
+
+    handleImportFileDrop(event) {
+        event.preventDefault();
+        const dropZone = document.getElementById('importDropZone');
+        dropZone.style.background = '#f9f9f9';
+
+        const file = event.dataTransfer.files[0];
+        if (file && file.type === 'application/json') {
+            this.loadImportFile(file);
+        } else {
+            showFloatingMessage('Please drop a valid JSON file', 'error');
         }
-    });
-}
-
-handleImportFileDrop(event) {
-    event.preventDefault();
-    const dropZone = document.getElementById('importDropZone');
-    dropZone.style.background = '#f9f9f9';
-    
-    const file = event.dataTransfer.files[0];
-    if (file && file.type === 'application/json') {
-        this.loadImportFile(file);
-    } else {
-        showFloatingMessage('Please drop a valid JSON file', 'error');
     }
-}
 
-handleImportFileSelect(event) {
-    const file = event.target.files[0];
-    if (file && file.type === 'application/json') {
-        this.loadImportFile(file);
-    } else {
-        showFloatingMessage('Please select a valid JSON file', 'error');
-    }
-}
-
-loadImportFile(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        window.importedJSONData = e.target.result;
-        document.getElementById('importFileName').textContent = `Selected: ${file.name}`;
-        document.getElementById('importActions').style.display = 'flex';
-    };
-    reader.readAsText(file);
-}
-
-processImport(mode) {
-    const jsonText = window.importedJSONData;
-    
-    if (!jsonText) {
-        showFloatingMessage('Please select a file to import', 'error');
-        return;
-    }
-    
-    try {
-        const importedData = JSON.parse(jsonText);
-        
-        if (mode === 'override') {
-            AppState.developingJSONs = importedData;
-            AppState.activeDevelopingJSON = Object.keys(importedData)[0] || 'default';
-        } else if (mode === 'add') {
-            // Add to existing, auto-rename conflicts
-            Object.keys(importedData).forEach(rootName => {
-                let finalName = rootName;
-                let counter = 1;
-                while (AppState.developingJSONs[finalName]) {
-                    finalName = `${rootName}_${counter}`;
-                    counter++;
-                }
-                AppState.developingJSONs[finalName] = importedData[rootName];
-            });
+    handleImportFileSelect(event) {
+        const file = event.target.files[0];
+        if (file && file.type === 'application/json') {
+            this.loadImportFile(file);
+        } else {
+            showFloatingMessage('Please select a valid JSON file', 'error');
         }
-        
-        saveDevelopingJSONs();
-        
-        // Update selector
-        const selector = document.getElementById('rootSelector');
-        if (selector) {
-            selector.innerHTML = Object.keys(AppState.developingJSONs).map(root => 
-                `<option value="${root}" ${root === AppState.activeDevelopingJSON ? 'selected' : ''}>${root}</option>`
-            ).join('');
-        }
-        
-        // Reload current root
-        this.switchRoot(AppState.activeDevelopingJSON);
-        
-        document.querySelector('.modal').remove();
-        showFloatingMessage('Data imported successfully!', 'success');
-    } catch (error) {
-        showFloatingMessage('Invalid JSON: ' + error.message, 'error');
     }
-}
 
-toggleSidebar() {
+    loadImportFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            window.importedJSONData = e.target.result;
+            document.getElementById('importFileName').textContent = `Selected: ${file.name}`;
+            document.getElementById('importActions').style.display = 'flex';
+        };
+        reader.readAsText(file);
+    }
+
+    processImport(mode) {
+        const jsonText = window.importedJSONData;
+
+        if (!jsonText) {
+            showFloatingMessage('Please select a file to import', 'error');
+            return;
+        }
+
+        try {
+            const importedData = JSON.parse(jsonText);
+
+            if (mode === 'override') {
+                AppState.developingJSONs = importedData;
+                AppState.activeDevelopingJSON = Object.keys(importedData)[0] || 'default';
+            } else if (mode === 'add') {
+                // Add to existing, auto-rename conflicts
+                Object.keys(importedData).forEach(rootName => {
+                    let finalName = rootName;
+                    let counter = 1;
+                    while (AppState.developingJSONs[finalName]) {
+                        finalName = `${rootName}_${counter}`;
+                        counter++;
+                    }
+                    AppState.developingJSONs[finalName] = importedData[rootName];
+                });
+            }
+
+            saveDevelopingJSONs();
+
+            // Update selector
+            const selector = document.getElementById('rootSelector');
+            if (selector) {
+                selector.innerHTML = Object.keys(AppState.developingJSONs).map(root =>
+                    `<option value="${root}" ${root === AppState.activeDevelopingJSON ? 'selected' : ''}>${root}</option>`
+                ).join('');
+            }
+
+            // Reload current root
+            this.switchRoot(AppState.activeDevelopingJSON);
+
+            document.querySelector('.modal').remove();
+            showFloatingMessage('Data imported successfully!', 'success');
+        } catch (error) {
+            showFloatingMessage('Invalid JSON: ' + error.message, 'error');
+        }
+    }
+
+    toggleSidebar() {
         const sidebar = document.querySelector('.json-creator-sidebar');
         if (sidebar) {
             sidebar.classList.toggle('hidden');
