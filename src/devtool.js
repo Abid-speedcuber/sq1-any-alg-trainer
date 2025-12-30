@@ -124,12 +124,104 @@ class JSONCreator {
         this.expandedFolders = new Set();
         this.contextMenu = null;
         this.caseTemplate = null;
+        this.itemOrder = {}; // Track insertion order for all paths
+        this.rootOrder = []; // Track order of roots
+    }
+
+    getOrderedKeys(node, path) {
+        const keys = Object.keys(node);
+        const orderKey = path || '__root__';
+        
+        if (!this.itemOrder[orderKey]) {
+            // Initialize order for this path
+            this.itemOrder[orderKey] = keys;
+            this.saveItemOrder();
+        } else {
+            // Ensure all current keys are in the order array
+            const existingOrder = this.itemOrder[orderKey];
+            const newKeys = keys.filter(k => !existingOrder.includes(k));
+            if (newKeys.length > 0) {
+                this.itemOrder[orderKey] = [...existingOrder, ...newKeys];
+                this.saveItemOrder();
+            }
+            // Filter out any keys that no longer exist
+            this.itemOrder[orderKey] = this.itemOrder[orderKey].filter(k => keys.includes(k));
+        }
+        
+        return this.itemOrder[orderKey];
+    }
+
+    saveItemOrder() {
+        localStorage.setItem(`itemOrder_${AppState.activeDevelopingJSON}`, JSON.stringify(this.itemOrder));
+    }
+
+    saveRootOrder() {
+        localStorage.setItem('rootOrder', JSON.stringify(this.rootOrder));
+    }
+
+    moveItemUp(path) {
+        const pathParts = path.split('/');
+        const itemName = pathParts.pop();
+        const parentPath = pathParts.join('/') || '__root__';
+        
+        const order = this.itemOrder[parentPath];
+        if (!order) return;
+        
+        const index = order.indexOf(itemName);
+        if (index > 0) {
+            [order[index], order[index - 1]] = [order[index - 1], order[index]];
+            this.saveItemOrder();
+            this.renderTree();
+        }
+    }
+
+    moveItemDown(path) {
+        const pathParts = path.split('/');
+        const itemName = pathParts.pop();
+        const parentPath = pathParts.join('/') || '__root__';
+        
+        const order = this.itemOrder[parentPath];
+        if (!order) return;
+        
+        const index = order.indexOf(itemName);
+        if (index < order.length - 1 && index !== -1) {
+            [order[index], order[index + 1]] = [order[index + 1], order[index]];
+            this.saveItemOrder();
+            this.renderTree();
+        }
+    }
+
+    moveRootUp(rootName) {
+        const index = this.rootOrder.indexOf(rootName);
+        if (index > 0) {
+            [this.rootOrder[index], this.rootOrder[index - 1]] = [this.rootOrder[index - 1], this.rootOrder[index]];
+            this.saveRootOrder();
+        }
+    }
+
+    moveRootDown(rootName) {
+        const index = this.rootOrder.indexOf(rootName);
+        if (index < this.rootOrder.length - 1 && index !== -1) {
+            [this.rootOrder[index], this.rootOrder[index + 1]] = [this.rootOrder[index + 1], this.rootOrder[index]];
+            this.saveRootOrder();
+        }
     }
 
     show() {
         saveLastScreen('jsonCreator');
         // Load current developing JSON
         this.treeData = JSON.parse(JSON.stringify(AppState.developingJSONs[AppState.activeDevelopingJSON] || DEFAULT_ALGSET));
+
+        // Load item order
+        this.itemOrder = JSON.parse(localStorage.getItem(`itemOrder_${AppState.activeDevelopingJSON}`) || '{}');
+        
+        // Load root order
+        this.rootOrder = JSON.parse(localStorage.getItem('rootOrder') || '[]');
+        // Initialize root order if empty
+        if (this.rootOrder.length === 0) {
+            this.rootOrder = Object.keys(AppState.developingJSONs);
+            this.saveRootOrder();
+        }
 
         // Load case template
         const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
@@ -266,7 +358,8 @@ class JSONCreator {
     }
 
     expandAllFolders(node, path) {
-        Object.keys(node).forEach(key => {
+        const keys = this.getOrderedKeys(node, path);
+        keys.forEach(key => {
             const item = node[key];
             if (typeof item === 'object' && item !== null && !item.caseName) {
                 const currentPath = path ? `${path}/${key}` : key;
@@ -277,6 +370,51 @@ class JSONCreator {
     }
 
     setupEventListeners() {
+        // Setup long press for context menu on mobile
+        let longPressTimer = null;
+        let longPressTarget = null;
+        
+        document.addEventListener('touchstart', (e) => {
+            const treeItem = e.target.closest('.json-creator-tree-item');
+            if (treeItem) {
+                longPressTarget = treeItem;
+                longPressTimer = setTimeout(() => {
+                    const path = treeItem.dataset.path;
+                    const pathParts = path.split('/');
+                    let current = this.treeData;
+                    for (const part of pathParts) {
+                        current = current[part];
+                    }
+                    const key = pathParts[pathParts.length - 1];
+                    
+                    // Create a synthetic event for context menu
+                    const syntheticEvent = {
+                        preventDefault: () => {},
+                        stopPropagation: () => {},
+                        pageX: e.touches[0].pageX,
+                        pageY: e.touches[0].pageY
+                    };
+                    this.showContextMenu(syntheticEvent, path, current, key);
+                }, 500); // 500ms long press
+            }
+        }, { passive: true });
+        
+        document.addEventListener('touchend', () => {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+                longPressTarget = null;
+            }
+        }, { passive: true });
+        
+        document.addEventListener('touchmove', () => {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+                longPressTarget = null;
+            }
+        }, { passive: true });
+
         document.addEventListener('keydown', (e) => {
             const fullscreen = document.getElementById('jsonCreatorFullscreen');
             if (!fullscreen) return;
@@ -379,7 +517,8 @@ class JSONCreator {
     }
 
     renderTreeNode(node, container, path, level) {
-        Object.keys(node).forEach(key => {
+        const keys = this.getOrderedKeys(node, path);
+        keys.forEach(key => {
             const item = node[key];
             if (typeof item !== 'object' || item === null) return;
 
@@ -1300,6 +1439,9 @@ class JSONCreator {
             items.push({ text: 'Set as Template', action: () => this.setAsTemplate(item) });
         }
         items.push({ separator: true });
+        items.push({ text: 'Move Up', action: () => this.moveItemUp(path) });
+        items.push({ text: 'Move Down', action: () => this.moveItemDown(path) });
+        items.push({ separator: true });
         items.push({ text: 'Copy', action: () => this.copy() });
         items.push({ text: 'Paste', action: () => this.paste(), disabled: !this.clipboard });
         items.push({ separator: true });
@@ -1413,13 +1555,18 @@ class JSONCreator {
     }
 
     switchRoot(rootName) {
-        // Save current root
+        // Save current root and its item order
         AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+        this.saveItemOrder();
         saveDevelopingJSONs();
 
         // Switch to new root
         AppState.activeDevelopingJSON = rootName;
         this.treeData = JSON.parse(JSON.stringify(AppState.developingJSONs[rootName]));
+        
+        // Load item order for new root
+        this.itemOrder = JSON.parse(localStorage.getItem(`itemOrder_${AppState.activeDevelopingJSON}`) || '{}');
+        
         this.selectedPath = '';
         this.selectedItem = null;
         this.expandedFolders.clear();
@@ -1459,9 +1606,12 @@ class JSONCreator {
             z-index: 20000;
         `;
 
+        // Get ordered roots
+        const orderedRoots = this.rootOrder.filter(r => AppState.developingJSONs[r]);
+        
         modal.innerHTML = `
             <div id="rootList" style="max-height: 400px; overflow-y: auto;">
-                ${Object.keys(AppState.developingJSONs).map(root => `
+                ${orderedRoots.map(root => `
                     <div class="root-list-item ${root === AppState.activeDevelopingJSON ? 'active' : ''}" 
                          data-root="${root}"
                          onclick="jsonCreator.selectRootFromModal('${root}')"
@@ -1511,20 +1661,29 @@ class JSONCreator {
 
         const items = [
             { text: 'Rename', action: () => this.renameRootFromModal(rootName) },
+            { text: 'Move Up', action: () => { this.moveRootUp(rootName); this.openRootSelectorModal(); } },
+            { text: 'Move Down', action: () => { this.moveRootDown(rootName); this.openRootSelectorModal(); } },
+            { separator: true },
             { text: 'Delete', action: () => this.deleteRootFromModal(rootName), disabled: Object.keys(AppState.developingJSONs).length === 1 }
         ];
 
         items.forEach(item => {
-            const menuItem = document.createElement('div');
-            menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
-            menuItem.textContent = item.text;
-            if (!item.disabled) {
-                menuItem.onclick = () => {
-                    this.hideContextMenu();
-                    item.action();
-                };
+            if (item.separator) {
+                const sep = document.createElement('div');
+                sep.className = 'context-menu-separator';
+                menu.appendChild(sep);
+            } else {
+                const menuItem = document.createElement('div');
+                menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
+                menuItem.textContent = item.text;
+                if (!item.disabled) {
+                    menuItem.onclick = () => {
+                        this.hideContextMenu();
+                        item.action();
+                    };
+                }
+                menu.appendChild(menuItem);
             }
-            menu.appendChild(menuItem);
         });
 
         document.body.appendChild(menu);
@@ -1542,6 +1701,8 @@ class JSONCreator {
             }
 
             AppState.developingJSONs[name] = {};
+            this.rootOrder.push(name);
+            this.saveRootOrder();
             saveDevelopingJSONs();
 
             this.switchRoot(name);
@@ -1562,6 +1723,13 @@ class JSONCreator {
 
             AppState.developingJSONs[newName] = AppState.developingJSONs[currentName];
             delete AppState.developingJSONs[currentName];
+
+            // Update root order
+            const index = this.rootOrder.indexOf(currentName);
+            if (index !== -1) {
+                this.rootOrder[index] = newName;
+                this.saveRootOrder();
+            }
 
             if (AppState.activeDevelopingJSON === currentName) {
                 AppState.activeDevelopingJSON = newName;
@@ -1594,8 +1762,15 @@ class JSONCreator {
 
                 delete AppState.developingJSONs[currentName];
 
+                // Remove from root order
+                const index = this.rootOrder.indexOf(currentName);
+                if (index !== -1) {
+                    this.rootOrder.splice(index, 1);
+                    this.saveRootOrder();
+                }
+
                 if (AppState.activeDevelopingJSON === currentName) {
-                    AppState.activeDevelopingJSON = Object.keys(AppState.developingJSONs)[0];
+                    AppState.activeDevelopingJSON = this.rootOrder[0] || Object.keys(AppState.developingJSONs)[0];
                     this.switchRoot(AppState.activeDevelopingJSON);
                 }
 
@@ -2805,7 +2980,9 @@ class JSONCreator {
 
             if (mode === 'override') {
                 AppState.developingJSONs = importedData;
-                AppState.activeDevelopingJSON = Object.keys(importedData)[0] || 'default';
+                this.rootOrder = Object.keys(importedData);
+                this.saveRootOrder();
+                AppState.activeDevelopingJSON = this.rootOrder[0] || 'default';
             } else if (mode === 'add') {
                 // Add to existing, auto-rename conflicts
                 Object.keys(importedData).forEach(rootName => {
@@ -2816,7 +2993,9 @@ class JSONCreator {
                         counter++;
                     }
                     AppState.developingJSONs[finalName] = importedData[rootName];
+                    this.rootOrder.push(finalName);
                 });
+                this.saveRootOrder();
             }
 
             saveDevelopingJSONs();
@@ -2824,7 +3003,7 @@ class JSONCreator {
             // Update selector
             const selector = document.getElementById('rootSelector');
             if (selector) {
-                selector.innerHTML = Object.keys(AppState.developingJSONs).map(root =>
+                selector.innerHTML = this.rootOrder.map(root =>
                     `<option value="${root}" ${root === AppState.activeDevelopingJSON ? 'selected' : ''}>${root}</option>`
                 ).join('');
             }
