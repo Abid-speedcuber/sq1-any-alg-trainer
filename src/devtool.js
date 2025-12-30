@@ -333,7 +333,8 @@ class JSONCreator {
                         </div>
                         <div class="json-creator-content">
                             <div class="json-creator-content-header">
-                                <div style="display: flex; flex-direction: column; line-height: 1.3;"><span style="font-size: 18px; font-weight: 700;">SquanGo</span><span style="font-size: 12px; font-weight: 400; color: #666666;">Case Editor</span></div>
+                                <div id="jsonCreatorTitle" style="display: flex; flex-direction: column; line-height: 1.3;"><span style="font-size: 18px; font-weight: 700;">SquanGo</span><span style="font-size: 12px; font-weight: 400; color: #666666;">Case Editor</span></div>
+                                <div id="jsonCreatorSubtitle" style="font-size: 12px; color: #999; margin-top: 4px;"></div>
                             </div>
                             <div class="json-creator-content-body" id="jsonCreatorBody">
                                 <div class="json-creator-welcome">
