@@ -372,27 +372,49 @@ function setupEventListeners() {
 
 // Timer handlers
 let spacePressed = false;
+let timerHoldStartTime = 0;
+let timerPreparingInterval = null;
 
 function handleTimerMouseDown() {
+    if (AppState.timerState === 'running') return;
     if (AppState.timerState === 'idle') {
         AppState.timerState = 'preparing';
-        AppState.holdStart = Date.now();
+        timerHoldStartTime = Date.now();
         updateTimerDisplay();
+        
+        const requiredDuration = AppState.settings.startingCueDuration * 1000;
+        if (requiredDuration > 0) {
+            timerPreparingInterval = setInterval(() => {
+                if (AppState.timerState !== 'preparing') {
+                    clearInterval(timerPreparingInterval);
+                    return;
+                }
+                const holdDuration = Date.now() - timerHoldStartTime;
+                if (holdDuration >= requiredDuration) {
+                    updateTimerDisplay();
+                    clearInterval(timerPreparingInterval);
+                }
+            }, 50);
+        }
     }
 }
 
 function handleTimerMouseUp() {
-    if (AppState.timerState === 'preparing') {
-        const holdDuration = Date.now() - AppState.holdStart;
+    const display = document.getElementById('timerDisplay');
+    if (!display) return;
+    
+    if (AppState.timerState === 'running') {
+        stopTimer();
+    } else if (AppState.timerState === 'preparing') {
+        const holdDuration = Date.now() - timerHoldStartTime;
         const requiredDuration = AppState.settings.startingCueDuration * 1000;
+        clearInterval(timerPreparingInterval);
+        AppState.timerState = 'idle';
+        display.className = 'timer-display';
+        
         if (holdDuration >= requiredDuration) {
             startTimer();
-        } else {
-            AppState.timerState = 'idle';
-            updateTimerDisplay();
         }
-    } else if (AppState.timerState === 'running') {
-        stopTimer();
     }
 }
 
@@ -413,8 +435,23 @@ function handleKeyDown(e) {
             spacePressed = true;
             if (AppState.timerState === 'idle') {
                 AppState.timerState = 'preparing';
-                AppState.holdStart = Date.now();
+                timerHoldStartTime = Date.now();
                 updateTimerDisplay();
+                
+                const requiredDuration = AppState.settings.startingCueDuration * 1000;
+                if (requiredDuration > 0) {
+                    timerPreparingInterval = setInterval(() => {
+                        if (AppState.timerState !== 'preparing') {
+                            clearInterval(timerPreparingInterval);
+                            return;
+                        }
+                        const holdDuration = Date.now() - timerHoldStartTime;
+                        if (holdDuration >= requiredDuration) {
+                            updateTimerDisplay();
+                            clearInterval(timerPreparingInterval);
+                        }
+                    }, 50);
+                }
             }
         }
     }
@@ -425,17 +462,20 @@ function handleKeyUp(e) {
         e.preventDefault();
         if (spacePressed) {
             spacePressed = false;
-            if (AppState.timerState === 'preparing') {
-                const holdDuration = Date.now() - AppState.holdStart;
+            const display = document.getElementById('timerDisplay');
+            
+            if (AppState.timerState === 'running') {
+                stopTimer();
+            } else if (AppState.timerState === 'preparing') {
+                const holdDuration = Date.now() - timerHoldStartTime;
                 const requiredDuration = AppState.settings.startingCueDuration * 1000;
+                clearInterval(timerPreparingInterval);
+                AppState.timerState = 'idle';
+                display.className = 'timer-display';
+                
                 if (holdDuration >= requiredDuration) {
                     startTimer();
-                } else {
-                    AppState.timerState = 'idle';
-                    updateTimerDisplay();
                 }
-            } else if (AppState.timerState === 'running') {
-                stopTimer();
             }
         }
     }
@@ -447,23 +487,32 @@ function startTimer() {
     AppState.timerElapsed = 0;
     const display = document.getElementById('timerDisplay');
     if (display) {
-        display.textContent = '0.000';
+        display.className = 'timer-display';
     }
-    updateTimerDisplay();
     requestAnimationFrame(updateTimer);
 }
 
 function stopTimer() {
     AppState.timerState = 'idle';
     AppState.timerElapsed = Date.now() - AppState.timerStart;
-    updateTimerDisplay();
+    clearInterval(AppState.timerInterval);
+    const display = document.getElementById('timerDisplay');
+    if (display) {
+        display.className = 'timer-display';
+        const seconds = (AppState.timerElapsed / 1000).toFixed(3);
+        display.textContent = seconds;
+    }
     generateNewScramble();
 }
 
 function updateTimer() {
     if (AppState.timerState === 'running') {
         AppState.timerElapsed = Date.now() - AppState.timerStart;
-        updateTimerDisplay();
+        const display = document.getElementById('timerDisplay');
+        if (display) {
+            const seconds = (AppState.timerElapsed / 1000).toFixed(3);
+            display.textContent = seconds;
+        }
         requestAnimationFrame(updateTimer);
     }
 }
@@ -472,23 +521,26 @@ function updateTimerDisplay() {
     const display = document.getElementById('timerDisplay');
     if (!display) return;
 
-    display.className = 'timer-display';
-
     if (AppState.timerState === 'preparing') {
-        const holdDuration = Date.now() - AppState.holdStart;
+        const holdDuration = Date.now() - timerHoldStartTime;
         const requiredDuration = AppState.settings.startingCueDuration * 1000;
+        
+        display.className = 'timer-display';
         if (holdDuration >= requiredDuration) {
             display.classList.add('ready');
         } else {
             display.classList.add('preparing');
         }
     } else if (AppState.timerState === 'running') {
+        display.className = 'timer-display';
         const seconds = (AppState.timerElapsed / 1000).toFixed(3);
         display.textContent = seconds;
     } else if (AppState.timerState === 'idle' && AppState.timerElapsed > 0) {
+        display.className = 'timer-display';
         const seconds = (AppState.timerElapsed / 1000).toFixed(3);
         display.textContent = seconds;
     } else {
+        display.className = 'timer-display';
         display.textContent = '0.000';
     }
 }

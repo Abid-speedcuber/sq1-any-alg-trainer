@@ -192,11 +192,11 @@ body {
 }
 
 .theme-light .timer-display.ready {
-    color: #666666;
+    color: #444444;
 }
 
 .theme-light .timer-display.preparing {
-    color: #d0d0d0;
+    color: #777777;
 }
 
 /* Scramble Visualization */
