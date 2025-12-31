@@ -1044,23 +1044,26 @@ class JSONCreator {
     }
 
     handleItemClick(e, path, item, key) {
-        e.stopPropagation();
+    e.stopPropagation();
+    
+    // Close any open context menu immediately
+    this.hideContextMenu();
 
-        if (!item.caseName) {
-            // Folders only toggle expansion
-            this.toggleFolder(path);
-            this.selectedPath = path;
-            this.selectedItem = item;
-            this.renderTree();
-        } else {
-            this.selectedPath = path;
-            this.selectedItem = item;
-            localStorage.setItem('jsonCreator_lastSelectedPath', path);
-            localStorage.setItem('jsonCreator_lastSelectedRoot', AppState.activeDevelopingJSON);
-            this.renderTree();
-            this.showCaseEditor(item, key);
-        }
+    if (!item.caseName) {
+        // Folders only toggle expansion
+        this.toggleFolder(path);
+        this.selectedPath = path;
+        this.selectedItem = item;
+        this.renderTree();
+    } else {
+        this.selectedPath = path;
+        this.selectedItem = item;
+        localStorage.setItem('jsonCreator_lastSelectedPath', path);
+        localStorage.setItem('jsonCreator_lastSelectedRoot', AppState.activeDevelopingJSON);
+        this.renderTree();
+        this.showCaseEditor(item, key);
     }
+}
 
     toggleFolder(path) {
         if (this.expandedFolders.has(path)) {
