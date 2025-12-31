@@ -130,7 +130,7 @@ class JSONCreator {
             inputTop: "RRRRRRRRRRRR",
             inputBottom: "RRRRRRRRRRRR",
             equator: ["/", "|"],
-            parity: ["on"],
+            parity: [],
             constraints: {},
             auf: ["U0"],
             adf: ["D0"],
@@ -407,6 +407,8 @@ class JSONCreator {
             } else {
                 parityMode = 'color-specific';
             }
+        } else if (!Array.isArray(item.parity) || item.parity.length === 0) {
+            parityMode = 'ignore';
         }
 
         const parityOptionsHTML = parityMode === 'overall' ? `
@@ -781,9 +783,10 @@ class JSONCreator {
         // Load current developing JSON
         this.treeData = JSON.parse(JSON.stringify(AppState.developingJSONs[AppState.activeDevelopingJSON] || DEFAULT_ALGSET));
         
-        // Load case template
+        // Load root-specific case template
         const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
-        this.caseTemplate = localStorage.getItem(templateKey) ? JSON.parse(localStorage.getItem(templateKey)) : null;
+        const storedTemplate = localStorage.getItem(templateKey);
+        this.caseTemplate = storedTemplate ? JSON.parse(storedTemplate) : null;
         
         // Expand all folders on initialization
         this.expandAllFolders(this.treeData, '');
@@ -1505,6 +1508,12 @@ showTreeRootContextMenu(e) {
         this._saveCurrentRoot();
         AppState.activeDevelopingJSON = rootName;
         this._loadRoot(rootName);
+        
+        // Load root-specific case template
+        const templateKey = `caseTemplate_${rootName}`;
+        const storedTemplate = localStorage.getItem(templateKey);
+        this.caseTemplate = storedTemplate ? JSON.parse(storedTemplate) : null;
+        
         this.renderTree();
         this.showWelcome();
         
@@ -1729,15 +1738,23 @@ showModalRootContextMenu(e, rootName) {
 
         downloadBtn.addEventListener('click', () => {
             const textarea = document.getElementById('extractedJSON');
-            const blob = new Blob([textarea.value], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${AppState.activeDevelopingJSON}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            const jsonContent = textarea.value;
+            
+            showConfirmationModal(
+                'Download JSON',
+                `<p><strong>Tip:</strong> Save your JSON with the same name as your algset.</p><p>This will download as: <strong>${AppState.activeDevelopingJSON}.json</strong></p>`,
+                () => {
+                    const blob = new Blob([jsonContent], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${AppState.activeDevelopingJSON}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
+            );
         });
 
         modal.addEventListener('click', (e) => {
