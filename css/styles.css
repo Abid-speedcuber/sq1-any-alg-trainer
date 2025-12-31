@@ -118,6 +118,20 @@ body {
     padding: 8px 12px;
 }
 
+.nav-button.algset-selector-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nav-button.algset-selector-btn:hover {
+    background: var(--bg-tertiary);
+}
+
 .case-count {
     color: var(--text-tertiary);
     font-size: 13px;
@@ -139,6 +153,7 @@ body {
     font-family: 'Courier New', monospace;
     font-size: 16px;
     color: var(--text-secondary);
+    font-weight: 600;
 }
 
 /* Main Content Area */
@@ -168,12 +183,20 @@ body {
     letter-spacing: 6px;
 }
 
-.timer-display.ready {
-    color: var(--text-tertiary);
+.theme-dark .timer-display.ready {
+    color: #b0b0b0;
 }
 
-.timer-display.preparing {
-    color: var(--text-tertiary);
+.theme-dark .timer-display.preparing {
+    color: #404040;
+}
+
+.theme-light .timer-display.ready {
+    color: #666666;
+}
+
+.theme-light .timer-display.preparing {
+    color: #d0d0d0;
 }
 
 /* Scramble Visualization */

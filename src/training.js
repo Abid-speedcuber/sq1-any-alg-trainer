@@ -12,7 +12,8 @@ const AppState = {
     activeDevelopingJSON: 'default', // Currently selected root in JSON creator
     settings: {
         visualizationSize: 200,
-        theme: 'dark' // 'light' or 'dark'
+        theme: 'dark', // 'light' or 'dark'
+        startingCueDuration: 0.2 // Duration in seconds (0.0 to 0.5)
     }
 };
 
@@ -226,8 +227,8 @@ function renderApp() {
                             <div class="logo-title">SquanGo</div>
                             <div class="logo-subtitle">Algset Trainer</div>
                         </div>
-                        <button class="nav-button primary" id="selectAlgsetBtn">Select Algset</button>
-                        <span class="case-count" id="caseCount">${AppState.selectedCases.length} case(s) selected${AppState.activeTrainingJSON ? ` - ${AppState.activeTrainingJSON}` : ''}</span>
+                        <button class="nav-button algset-selector-btn" id="selectAlgsetBtn">${AppState.activeTrainingJSON || 'Select Algset'}</button>
+                        <span class="case-count" id="caseCount">${AppState.selectedCases.length} case(s) selected</span>
                     </div>
                     <div class="nav-right">
                         <button class="nav-button" id="prevScrambleBtn">← Previous</button>
@@ -246,12 +247,6 @@ function renderApp() {
                     <div class="timer-zone" id="timerZone">
                         <div class="timer-display" id="timerDisplay">0.000</div>
                     </div>
-
-                    ${AppState.currentScramble ? `
-                        <div class="scramble-viz" id="scrambleViz">
-                            ${generateVisualization(AppState.currentScramble.hexState)}
-                        </div>
-                    ` : ''}
                 </div>
             `;
     setupEventListeners();
@@ -306,18 +301,35 @@ function generateNewScramble() {
 
         const result = generateHexState(config);
         
-        // Generate scramble using solver
+        // Generate scramble using solver with retry logic
         let scramble = '';
-        try {
-            if (typeof window.Square1Solver !== 'undefined' && typeof window.Square1Solver.solve === 'function') {
-                scramble = window.Square1Solver.solve(result.hexState);
-            } else {
-                console.error('Square1Solver not available:', typeof window.Square1Solver);
-                scramble = 'Solver not loaded - check console';
+        let attempts = 0;
+        const maxAttempts = 10;
+        
+        while (attempts < maxAttempts) {
+            try {
+                if (typeof window.Square1Solver !== 'undefined' && typeof window.Square1Solver.solve === 'function') {
+                    scramble = window.Square1Solver.solve(result.hexState);
+                    break;
+                } else {
+                    console.error('Square1Solver not available:', typeof window.Square1Solver);
+                    scramble = 'Solver not loaded - check console';
+                    break;
+                }
+            } catch (solverError) {
+                attempts++;
+                console.log(`Solver attempt ${attempts} failed:`, solverError.message);
+                
+                if (solverError.message && solverError.message.includes("Cannot read properties of undefined (reading 'shift')")) {
+                    if (attempts < maxAttempts) {
+                        continue;
+                    }
+                }
+                
+                console.error('Solver error after retries:', solverError);
+                scramble = 'Solver error: ' + solverError.message;
+                break;
             }
-        } catch (solverError) {
-            console.error('Solver error:', solverError);
-            scramble = 'Solver error: ' + solverError.message;
         }
         
         AppState.currentScramble = { 
@@ -372,7 +384,8 @@ function handleTimerMouseDown() {
 function handleTimerMouseUp() {
     if (AppState.timerState === 'preparing') {
         const holdDuration = Date.now() - AppState.holdStart;
-        if (holdDuration >= 200) {
+        const requiredDuration = AppState.settings.startingCueDuration * 1000;
+        if (holdDuration >= requiredDuration) {
             startTimer();
         } else {
             AppState.timerState = 'idle';
@@ -414,7 +427,8 @@ function handleKeyUp(e) {
             spacePressed = false;
             if (AppState.timerState === 'preparing') {
                 const holdDuration = Date.now() - AppState.holdStart;
-                if (holdDuration >= 200) {
+                const requiredDuration = AppState.settings.startingCueDuration * 1000;
+                if (holdDuration >= requiredDuration) {
                     startTimer();
                 } else {
                     AppState.timerState = 'idle';
@@ -431,12 +445,17 @@ function startTimer() {
     AppState.timerState = 'running';
     AppState.timerStart = Date.now();
     AppState.timerElapsed = 0;
+    const display = document.getElementById('timerDisplay');
+    if (display) {
+        display.textContent = '0.000';
+    }
     updateTimerDisplay();
     requestAnimationFrame(updateTimer);
 }
 
 function stopTimer() {
     AppState.timerState = 'idle';
+    AppState.timerElapsed = Date.now() - AppState.timerStart;
     updateTimerDisplay();
     generateNewScramble();
 }
@@ -457,12 +476,16 @@ function updateTimerDisplay() {
 
     if (AppState.timerState === 'preparing') {
         const holdDuration = Date.now() - AppState.holdStart;
-        if (holdDuration >= 200) {
+        const requiredDuration = AppState.settings.startingCueDuration * 1000;
+        if (holdDuration >= requiredDuration) {
             display.classList.add('ready');
         } else {
             display.classList.add('preparing');
         }
     } else if (AppState.timerState === 'running') {
+        const seconds = (AppState.timerElapsed / 1000).toFixed(3);
+        display.textContent = seconds;
+    } else if (AppState.timerState === 'idle' && AppState.timerElapsed > 0) {
         const seconds = (AppState.timerElapsed / 1000).toFixed(3);
         display.textContent = seconds;
     } else {
@@ -834,6 +857,16 @@ function openSettingsModal() {
                         <option value="light" ${AppState.settings.theme === 'light' ? 'selected' : ''}>Light</option>
                     </select>
                 </div>
+                <div class="settings-group">
+                    <label class="settings-label">Starting Cue Duration (seconds)</label>
+                    <input type="number" class="settings-input" id="cueDurationInput" 
+                        min="0.0" max="0.5" step="0.05" 
+                        value="${AppState.settings.startingCueDuration}" 
+                        onchange="changeCueDuration(this.value)">
+                    <small style="color: var(--text-tertiary); font-size: 12px; margin-top: 4px; display: block;">
+                        How long to hold before timer starts (0.0 - 0.5 seconds)
+                    </small>
+                </div>
                 <div class="button-group">
                     <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
                 </div>
@@ -910,6 +943,14 @@ window.changeTheme = function(theme) {
     AppState.settings.theme = theme;
     saveSettings();
     applyTheme();
+};
+
+window.changeCueDuration = function(value) {
+    const numValue = parseFloat(value);
+    if (!isNaN(numValue) && numValue >= 0.0 && numValue <= 0.5) {
+        AppState.settings.startingCueDuration = numValue;
+        saveSettings();
+    }
 };
 
 // Import JSON modal
@@ -1040,22 +1081,22 @@ function openScrambleDetailModal() {
                     </div>
                     <div class="modal-body">
                         <div style="margin-bottom: 20px;">
-                            <h3 style="color: #b0b0b0; font-size: 14px; margin-bottom: 8px;">Case Name</h3>
-                            <div style="color: #e0e0e0; font-size: 16px;">${AppState.currentScramble.caseName || 'Unknown Case'}</div>
+                            <h3 style="color: var(--text-tertiary); font-size: 14px; margin-bottom: 8px;">Case Name</h3>
+                            <div style="color: var(--text-primary); font-size: 16px;">${AppState.currentScramble.caseName || 'Unknown Case'}</div>
                         </div>
                         <div style="margin-bottom: 20px;">
-                            <h3 style="color: #b0b0b0; font-size: 14px; margin-bottom: 8px;">Hex State</h3>
-                            <div style="color: #e0e0e0; font-family: monospace; font-size: 14px;">${AppState.currentScramble.hexState}</div>
+                            <h3 style="color: var(--text-tertiary); font-size: 14px; margin-bottom: 8px;">Hex State</h3>
+                            <div style="color: var(--text-primary); font-family: monospace; font-size: 14px;">${AppState.currentScramble.hexState}</div>
                         </div>
                         <div style="margin-bottom: 20px;">
-                            <h3 style="color: #b0b0b0; font-size: 14px; margin-bottom: 12px;">Visualization</h3>
-                            <div style="display: flex; justify-content: center; background: #1a1a1a; padding: 20px; border-radius: 8px;">
+                            <h3 style="color: var(--text-tertiary); font-size: 14px; margin-bottom: 12px;">Visualization</h3>
+                            <div style="display: flex; justify-content: center; background: var(--bg-primary); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color);">
                                 ${generateVisualization(AppState.currentScramble.hexState)}
                             </div>
                         </div>
                         <div style="margin-bottom: 20px;">
-                            <h3 style="color: #b0b0b0; font-size: 14px; margin-bottom: 8px;">Algorithm</h3>
-                            <div style="color: #e0e0e0; font-family: monospace; font-size: 14px; background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                            <h3 style="color: var(--text-tertiary); font-size: 14px; margin-bottom: 8px;">Algorithm</h3>
+                            <div style="color: var(--text-primary); font-family: monospace; font-size: 14px; background: var(--bg-primary); padding: 12px; border-radius: 6px; border: 1px solid var(--border-color);">
                                 ${AppState.currentScramble.alg || 'No algorithm provided'}
                             </div>
                         </div>
