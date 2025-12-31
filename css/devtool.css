@@ -515,9 +515,9 @@
 }
 
 .floating-message.devtool-theme.success {
-    background: #f0fdf4 !important;
-    border-color: #86efac !important;
-    color: #065f46 !important;
+    background: #f5f5f5 !important;
+    border-color: #d0d0d0 !important;
+    color: #1a1a1a !important;
 }
 
 .run-modal-content {
