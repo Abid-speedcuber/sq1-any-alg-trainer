@@ -169,36 +169,71 @@ class JSONCreator {
     }
 
     _createContextMenu(x, y, items) {
-        this.hideContextMenu();
-        this.setupContextMenuListener();
-
-        const menu = document.createElement('div');
-        menu.className = 'context-menu';
-        menu.style.left = `${x}px`;
-        menu.style.top = `${y}px`;
-
-        items.forEach(item => {
-            if (item.separator) {
-                const sep = document.createElement('div');
-                sep.className = 'context-menu-separator';
-                menu.appendChild(sep);
-            } else {
-                const menuItem = document.createElement('div');
-                menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
-                menuItem.textContent = item.text;
-                if (!item.disabled) {
-                    menuItem.onclick = () => {
-                        this.hideContextMenu();
-                        item.action();
-                    };
-                }
-                menu.appendChild(menuItem);
+    this.hideContextMenu();
+    this.setupContextMenuListener();
+    
+    const menu = document.createElement('div');
+    menu.className = 'context-menu';
+    
+    items.forEach(item => {
+        if (item.separator) {
+            const sep = document.createElement('div');
+            sep.className = 'context-menu-separator';
+            menu.appendChild(sep);
+        } else {
+            const menuItem = document.createElement('div');
+            menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
+            menuItem.textContent = item.text;
+            if (!item.disabled) {
+                menuItem.onclick = () => {
+                    this.hideContextMenu();
+                    item.action();
+                };
             }
-        });
-
-        document.body.appendChild(menu);
-        this.contextMenu = menu;
+            menu.appendChild(menuItem);
+        }
+    });
+    
+    // Temporarily add to DOM to measure height
+    menu.style.visibility = 'hidden';
+    document.body.appendChild(menu);
+    
+    const menuHeight = menu.offsetHeight;
+    const menuWidth = menu.offsetWidth;
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    
+    // Calculate position - open upward if not enough space below
+    let finalX = x;
+    let finalY = y;
+    
+    // Check if menu would go off bottom of screen
+    if (y + menuHeight > viewportHeight - 10) {
+        // Open upward instead
+        finalY = y - menuHeight;
+        // If still off screen at top, align to bottom of viewport
+        if (finalY < 10) {
+            finalY = viewportHeight - menuHeight - 10;
+        }
     }
+    
+    // Check if menu would go off right of screen
+    if (x + menuWidth > viewportWidth - 10) {
+        finalX = viewportWidth - menuWidth - 10;
+    }
+    
+    // Ensure menu doesn't go off left of screen
+    if (finalX < 10) {
+        finalX = 10;
+    }
+    
+    menu.style.left = `${finalX}px`;
+    menu.style.top = `${finalY}px`;
+    menu.style.visibility = 'visible';
+    
+    this.contextMenu = menu;
+    this.setupContextMenuScrollListener();
+}
 
     _collectAllCases(obj, path = []) {
         const cases = [];
@@ -1524,11 +1559,20 @@ class JSONCreator {
     }
 
     hideContextMenu() {
-        if (this.contextMenu) {
-            document.body.removeChild(this.contextMenu);
-            this.contextMenu = null;
-        }
+    if (this.contextMenu) {
+        document.body.removeChild(this.contextMenu);
+        this.contextMenu = null;
     }
+    
+    // Clean up scroll listener
+    if (this.scrollHandler) {
+        const treeContainer = document.getElementById('jsonCreatorTree');
+        if (treeContainer) {
+            treeContainer.removeEventListener('scroll', this.scrollHandler);
+        }
+        this.scrollHandler = null;
+    }
+}
 
     setupContextMenuListener() {
         const handleOutsideClick = (e) => {
@@ -1547,6 +1591,34 @@ class JSONCreator {
             document.addEventListener('click', handleOutsideClick);
         }, 10);
     }
+
+    setupContextMenuScrollListener() {
+    const treeContainer = document.getElementById('jsonCreatorTree');
+    if (!treeContainer) return;
+    
+    // Check if tree is actually scrollable
+    const isScrollable = treeContainer.scrollHeight > treeContainer.clientHeight;
+    
+    if (!isScrollable) {
+        // Tree is not scrollable, don't close context menu on scroll
+        return;
+    }
+    
+    const handleScroll = () => {
+        if (this.contextMenu) {
+            this.hideContextMenu();
+            treeContainer.removeEventListener('scroll', handleScroll);
+        }
+    };
+    
+    // Remove old listener if exists
+    if (this.scrollHandler) {
+        treeContainer.removeEventListener('scroll', this.scrollHandler);
+    }
+    
+    this.scrollHandler = handleScroll;
+    treeContainer.addEventListener('scroll', handleScroll);
+}
 
     renameItem(path) {
         setTimeout(() => {
