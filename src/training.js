@@ -11,7 +11,8 @@ const AppState = {
     developingJSONs: {}, // Multiple developing JSONs for JSON creator
     activeDevelopingJSON: 'default', // Currently selected root in JSON creator
     settings: {
-        visualizationSize: 200
+        visualizationSize: 200,
+        theme: 'dark' // 'light' or 'dark'
     }
 };
 
@@ -171,11 +172,36 @@ function saveSelectedCases() {
     localStorage.setItem('sq1SelectedCases', JSON.stringify(AppState.selectedCases));
 }
 
+// Load settings from localStorage
+function loadSettings() {
+    const saved = localStorage.getItem('sq1Settings');
+    if (saved) {
+        try {
+            const settings = JSON.parse(saved);
+            AppState.settings = { ...AppState.settings, ...settings };
+        } catch (e) {
+            console.error('Error loading settings:', e);
+        }
+    }
+}
+
+// Save settings to localStorage
+function saveSettings() {
+    localStorage.setItem('sq1Settings', JSON.stringify(AppState.settings));
+}
+
+// Apply theme to body
+function applyTheme() {
+    document.body.className = `theme-${AppState.settings.theme}`;
+}
+
 // Initialize app
 function initApp() {
     loadTrainingJSONs();
     loadDevelopingJSONs();
     loadSelectedCases();
+    loadSettings();
+    applyTheme();
     
     const lastScreen = loadLastScreen();
     if (lastScreen === 'jsonCreator') {
@@ -196,13 +222,17 @@ function renderApp() {
     app.innerHTML = `
                 <div class="top-navbar">
                     <div class="nav-left">
-                        <button class="nav-button primary" id="selectCasesBtn">Select Cases</button>
+                        <div class="app-logo">
+                            <div class="logo-title">SquanGo</div>
+                            <div class="logo-subtitle">Algset Trainer</div>
+                        </div>
+                        <button class="nav-button primary" id="selectAlgsetBtn">Select Algset</button>
                         <span class="case-count" id="caseCount">${AppState.selectedCases.length} case(s) selected${AppState.activeTrainingJSON ? ` - ${AppState.activeTrainingJSON}` : ''}</span>
                     </div>
                     <div class="nav-right">
                         <button class="nav-button" id="prevScrambleBtn">← Previous</button>
                         <button class="nav-button" id="nextScrambleBtn">Next →</button>
-                        <button class="nav-button" id="settingsBtn">⚙️ Settings</button>
+                        <button class="nav-button nav-menu-btn" id="menuBtn">⋮</button>
                     </div>
                 </div>
 
@@ -310,13 +340,13 @@ function generateNewScramble() {
 
 // Setup event listeners
 function setupEventListeners() {
-    document.getElementById('selectCasesBtn').addEventListener('click', openCaseSelectionModal);
+    document.getElementById('selectAlgsetBtn').addEventListener('click', openAlgsetSelectorModal);
     document.getElementById('prevScrambleBtn').addEventListener('click', () => {
         // For now, just generate a new scramble
         generateNewScramble();
     });
     document.getElementById('nextScrambleBtn').addEventListener('click', generateNewScramble);
-    document.getElementById('settingsBtn').addEventListener('click', openSettingsModal);
+    document.getElementById('menuBtn').addEventListener('click', openMenuModal);
 
     const timerZone = document.getElementById('timerZone');
     timerZone.addEventListener('mousedown', handleTimerMouseDown);
@@ -442,38 +472,233 @@ function updateTimerDisplay() {
 
 // Case selection modal
 // Case selection modal
+// Algset selector modal
+function openAlgsetSelectorModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Select Algset</h2>
+                <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+            </div>
+            <div class="algset-tabs">
+                <button class="algset-tab active" onclick="switchAlgsetTab('default')" id="tab-default">Default</button>
+                <button class="algset-tab" onclick="switchAlgsetTab('imported')" id="tab-imported">Imported</button>
+            </div>
+            <div class="modal-body">
+                <div id="algsetContent"></div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    renderAlgsetTab('default');
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+window.switchAlgsetTab = function(tab) {
+    const allTabs = document.querySelectorAll('.algset-tab');
+    allTabs.forEach(t => {
+        if (t.id === `tab-${tab}`) {
+            t.classList.add('active');
+        } else {
+            t.classList.remove('active');
+        }
+    });
+    renderAlgsetTab(tab);
+};
+
+function renderAlgsetTab(tab) {
+    const content = document.getElementById('algsetContent');
+    if (!content) return;
+
+    if (tab === 'default') {
+        const defaultAlgsets = [
+            'eo.json',
+            'cp.json',
+            'ep.json',
+            'cubeshape.json'
+        ];
+
+        content.innerHTML = `
+            <div class="algset-list">
+                ${defaultAlgsets.map(name => `
+                    <div class="algset-item" onclick="selectDefaultAlgset('${name}')">
+                        <span>${name.replace('.json', '')}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    } else {
+        const importedAlgsets = Object.keys(AppState.trainingJSONs);
+        
+        content.innerHTML = `
+            <div class="algset-list">
+                ${importedAlgsets.length === 0 ? 
+                    '<p style="color: #888; text-align: center; padding: 40px;">No imported algsets</p>' :
+                    importedAlgsets.map(name => `
+                        <div class="algset-item ${name === AppState.activeTrainingJSON ? 'active' : ''}" onclick="selectImportedAlgset('${name}')">
+                            <span>${name}</span>
+                            <button class="algset-remove-btn" onclick="event.stopPropagation(); removeAlgset('${name}')">×</button>
+                        </div>
+                    `).join('')
+                }
+            </div>
+            <div style="margin-top: 16px;">
+                <button class="btn btn-primary" onclick="openImportAlgsetModal()">Add Algset</button>
+            </div>
+        `;
+    }
+}
+
+window.selectDefaultAlgset = function(fileName) {
+    showFloatingMessage(`Default algset "${fileName}" placeholder - will be implemented`, 'info');
+    // Will load from default-algsets/fileName later
+};
+
+window.selectImportedAlgset = function(name) {
+    AppState.activeTrainingJSON = name;
+    saveTrainingJSONs();
+    document.querySelector('.modal').remove();
+    renderApp();
+    openCaseSelectionModal();
+};
+
+window.removeAlgset = function(name) {
+    showConfirmationModal(
+        'Remove Algset',
+        `Remove algset "${name}"?`,
+        () => {
+            delete AppState.trainingJSONs[name];
+            if (AppState.activeTrainingJSON === name) {
+                AppState.activeTrainingJSON = Object.keys(AppState.trainingJSONs)[0] || null;
+                AppState.selectedCases = [];
+                saveSelectedCases();
+            }
+            saveTrainingJSONs();
+            renderAlgsetTab('imported');
+            renderApp();
+        }
+    );
+};
+
+window.openImportAlgsetModal = function() {
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.style.zIndex = '10001';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Import Algset</h2>
+                <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-group">
+                    <label class="settings-label">Algset Name</label>
+                    <input type="text" id="importAlgsetName" class="settings-input" placeholder="Enter algset name">
+                </div>
+                <div class="settings-group">
+                    <label class="settings-label">Paste JSON or Drag & Drop File</label>
+                    <textarea class="settings-input" id="importAlgsetInput" placeholder="Paste your JSON here..."
+                        ondragover="event.preventDefault();"
+                        ondrop="handleAlgsetFileDrop(event)"
+                        style="min-height: 300px; font-family: 'Courier New', monospace;"></textarea>
+                </div>
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                    <button class="btn btn-primary" onclick="importAlgset()">Import</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+};
+
+window.handleAlgsetFileDrop = function(event) {
+    event.preventDefault();
+    const file = event.dataTransfer.files[0];
+    if (file && file.type === 'application/json') {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('importAlgsetInput').value = e.target.result;
+            if (!document.getElementById('importAlgsetName').value) {
+                document.getElementById('importAlgsetName').value = file.name.replace('.json', '');
+            }
+        };
+        reader.readAsText(file);
+    }
+};
+
+window.importAlgset = function() {
+    const name = document.getElementById('importAlgsetName').value.trim();
+    const jsonText = document.getElementById('importAlgsetInput').value.trim();
+
+    if (!name) {
+        showFloatingMessage('Please enter an algset name', 'error');
+        return;
+    }
+
+    if (!jsonText) {
+        showFloatingMessage('Please paste or drop a JSON file', 'error');
+        return;
+    }
+
+    try {
+        const parsed = JSON.parse(jsonText);
+        AppState.trainingJSONs[name] = parsed;
+        if (!AppState.activeTrainingJSON) {
+            AppState.activeTrainingJSON = name;
+        }
+        saveTrainingJSONs();
+
+        showFloatingMessage('Algset imported successfully!', 'success');
+        setTimeout(() => {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(m => m.remove());
+            openAlgsetSelectorModal();
+        }, 500);
+    } catch (error) {
+        showFloatingMessage('Invalid JSON: ' + error.message, 'error');
+    }
+};
+
+// Case selection modal
 function openCaseSelectionModal() {
-    if (Object.keys(AppState.trainingJSONs).length === 0) {
-        showFloatingMessage('Please import a training JSON first from Settings', 'error');
+    if (!AppState.activeTrainingJSON || !AppState.trainingJSONs[AppState.activeTrainingJSON]) {
+        showFloatingMessage('Please select an algset first', 'error');
         return;
     }
 
     const modal = document.createElement('div');
     modal.className = 'modal active';
 
-    const trainingJSONNames = Object.keys(AppState.trainingJSONs);
-    const tabs = trainingJSONNames.map((name, idx) =>
-        `<button class="nav-button ${name === AppState.activeTrainingJSON ? 'primary' : ''}" onclick="switchTrainingTab('${name}')" id="tab-${name}" style="margin-right: 8px;">${name}</button>`
-    ).join('');
-
     modal.innerHTML = `
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h2>Select Cases</h2>
-                        <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
-                    </div>
-                    <div style="padding: 12px 20px; background: #252525; border-bottom: 1px solid #404040;">
-                        <div id="trainingTabs">${tabs}</div>
-                    </div>
-                    <div class="modal-body">
-                        <div class="tree-view" id="caseTree"></div>
-                        <div class="button-group">
-                            <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
-                            <button class="btn btn-primary" onclick="saveCaseSelection()">Save Selection</button>
-                        </div>
-                    </div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Select Cases - ${AppState.activeTrainingJSON}</h2>
+                <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="tree-view" id="caseTree"></div>
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveCaseSelection()">Save Selection</button>
                 </div>
-            `;
+            </div>
+        </div>
+    `;
     document.body.appendChild(modal);
     renderCaseTree();
 
@@ -591,41 +816,30 @@ window.saveCaseSelection = function () {
 
 // Settings modal
 // Settings modal
+// Settings modal
 function openSettingsModal() {
     const modal = document.createElement('div');
     modal.className = 'modal active';
     modal.innerHTML = `
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h2>Settings</h2>
-                        <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="settings-group">
-                            <label class="settings-label">Loaded Training Sets</label>
-                            <div id="trainingSetsList" style="background: #1a1a1a; padding: 12px; border-radius: 6px; margin-bottom: 12px; max-height: 200px; overflow-y: auto;">
-                                ${Object.keys(AppState.trainingJSONs).length === 0 ?
-            '<p style="color: #888;">No training sets loaded</p>' :
-            Object.keys(AppState.trainingJSONs).map(name => `
-                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: ${AppState.activeTrainingJSON === name ? '#0066cc' : '#2d2d2d'}; border-radius: 4px; margin-bottom: 8px;">
-                                            <span style="color: #e0e0e0;">${name}</span>
-                                            <div style="display: flex; gap: 8px;">
-                                                ${AppState.activeTrainingJSON !== name ? `<button class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" onclick="setActiveTrainingJSON('${name}')">Activate</button>` : '<span style="color: #22c55e; font-size: 12px;">Active</span>'}
-                                                <button class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px; background: #991b1b;" onclick="removeTrainingJSON('${name}')">Remove</button>
-                                            </div>
-                                        </div>
-                                    `).join('')
-        }
-                            </div>
-                            <button class="btn btn-primary" onclick="openImportJSONModal()">Import Training JSON</button>
-                        </div>
-                        <div class="button-group">
-                            <button class="btn btn-secondary" onclick="showJsonCreatorFullscreen()">JSON Creator</button>
-                            <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
-                        </div>
-                    </div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-group">
+                    <label class="settings-label">Theme</label>
+                    <select class="settings-input" id="themeSelect" onchange="changeTheme(this.value)">
+                        <option value="dark" ${AppState.settings.theme === 'dark' ? 'selected' : ''}>Dark</option>
+                        <option value="light" ${AppState.settings.theme === 'light' ? 'selected' : ''}>Light</option>
+                    </select>
                 </div>
-            `;
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+                </div>
+            </div>
+        </div>
+    `;
     document.body.appendChild(modal);
 
     modal.addEventListener('click', (e) => {
@@ -634,6 +848,69 @@ function openSettingsModal() {
         }
     });
 }
+
+// Menu modal
+function openMenuModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 300px;">
+            <div class="modal-header">
+                <h2>Menu</h2>
+                <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="menu-list">
+                    <button class="menu-item" onclick="this.closest('.modal').remove(); openSettingsModal();">
+                        Settings
+                    </button>
+                    <button class="menu-item" onclick="this.closest('.modal').remove(); showJsonCreatorFullscreen();">
+                        Open Algset Devtool
+                    </button>
+                    <button class="menu-item" onclick="this.closest('.modal').remove(); openAboutModal();">
+                        About
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+function openAboutModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>About SquanGo</h2>
+                <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+            </div>
+            <div class="modal-body">
+                <p>Placeholder for About content</p>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+window.changeTheme = function(theme) {
+    AppState.settings.theme = theme;
+    saveSettings();
+    applyTheme();
+};
 
 // Import JSON modal
 window.openImportJSONModal = function () {
