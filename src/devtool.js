@@ -1317,32 +1317,43 @@ class JSONCreator {
     }
 
     switchCaseTab(tab) {
-        this.currentCaseTab = tab;
-        const tabs = document.querySelectorAll('.case-editor-tab');
-        tabs.forEach(t => t.classList.remove('active'));
-        event.target.classList.add('active');
-
-        // Force re-render with a small delay to ensure DOM is ready
-        setTimeout(() => {
-            if (this.selectedItem) {
-                const content = document.getElementById('caseEditorContent');
-                if (!content) {
-                    console.error('caseEditorContent not found after tab switch!');
-                    return;
-                }
-                this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
-
-                // Verify the tab content actually rendered
-                setTimeout(() => {
-                    const verifyContent = document.getElementById('caseEditorContent');
-                    if (!verifyContent || verifyContent.children.length === 0) {
-                        console.error('Tab content failed to render, forcing re-render');
-                        this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
-                    }
-                }, 50);
-            }
-        }, 10);
+    this.currentCaseTab = tab;
+    const tabs = document.querySelectorAll('.case-editor-tab');
+    tabs.forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    if (!this.selectedItem) {
+        console.error('No selected item for case tab switch');
+        return;
     }
+    
+    const content = document.getElementById('caseEditorContent');
+    if (!content) {
+        console.error('caseEditorContent not found!');
+        return;
+    }
+    
+    // Render immediately
+    this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
+    
+    // Enforce render check after 20ms
+    setTimeout(() => {
+        const verifyContent = document.getElementById('caseEditorContent');
+        if (!verifyContent || verifyContent.children.length === 0) {
+            console.warn('Tab content failed to render, enforcing re-render');
+            this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
+            
+            // Double-check after another 20ms
+            setTimeout(() => {
+                const doubleCheck = document.getElementById('caseEditorContent');
+                if (!doubleCheck || doubleCheck.children.length === 0) {
+                    console.error('Re-render also failed, forcing full case editor reload');
+                    this.showCaseEditor(this.selectedItem, this.selectedPath.split('/').pop());
+                }
+            }, 20);
+        }
+    }, 20);
+}
 
     renderCaseTab(item, name) {
         const content = document.getElementById('caseEditorContent');
@@ -2035,30 +2046,43 @@ class JSONCreator {
     }
 
     switchTemplateTab(tab) {
-        this.currentTemplateTab = tab;
-        const tabs = document.querySelectorAll('.case-editor-tab');
-        tabs.forEach(t => t.classList.remove('active'));
-        event.target.classList.add('active');
-
-        // Force re-render with a small delay to ensure DOM is ready
-        setTimeout(() => {
-            const content = document.getElementById('templateEditorContent');
-            if (!content) {
-                console.error('templateEditorContent not found after tab switch!');
-                return;
-            }
-            this.renderTemplateTab();
-
-            // Verify the tab content actually rendered
-            setTimeout(() => {
-                const verifyContent = document.getElementById('templateEditorContent');
-                if (!verifyContent || verifyContent.children.length === 0) {
-                    console.error('Template tab content failed to render, forcing re-render');
-                    this.renderTemplateTab();
-                }
-            }, 50);
-        }, 10);
+    this.currentTemplateTab = tab;
+    const tabs = document.querySelectorAll('.case-editor-tab');
+    tabs.forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    if (!this.editingTemplate) {
+        console.error('No template being edited');
+        return;
     }
+    
+    const content = document.getElementById('templateEditorContent');
+    if (!content) {
+        console.error('templateEditorContent not found!');
+        return;
+    }
+    
+    // Render immediately
+    this.renderTemplateTab();
+    
+    // Enforce render check after 20ms
+    setTimeout(() => {
+        const verifyContent = document.getElementById('templateEditorContent');
+        if (!verifyContent || verifyContent.children.length === 0) {
+            console.warn('Template tab content failed to render, enforcing re-render');
+            this.renderTemplateTab();
+            
+            // Double-check after another 20ms
+            setTimeout(() => {
+                const doubleCheck = document.getElementById('templateEditorContent');
+                if (!doubleCheck || doubleCheck.children.length === 0) {
+                    console.error('Template re-render also failed, forcing full template editor reload');
+                    this.openCaseTemplate();
+                }
+            }, 20);
+        }
+    }, 20);
+}
 
     renderTemplateTab() {
         const content = document.getElementById('templateEditorContent');
