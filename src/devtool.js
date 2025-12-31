@@ -4,16 +4,16 @@
 function showFloatingMessage(message, type = 'info', duration = 3000) {
     const existing = document.querySelector('.floating-message');
     if (existing) existing.remove();
-
-    // Detect if we're in JSON Creator context
+    
+    // Detect if we're in Algset Devtool context
     const isDevTool = document.getElementById('jsonCreatorFullscreen') !== null;
     const themeClass = isDevTool ? 'devtool-theme' : '';
-
+    
     const msg = document.createElement('div');
     msg.className = `floating-message ${type} ${themeClass}`;
     msg.textContent = message;
     document.body.appendChild(msg);
-
+    
     setTimeout(() => {
         msg.style.animation = 'slideDown 0.3s ease-out reverse';
         setTimeout(() => msg.remove(), 300);
@@ -24,11 +24,11 @@ function showConfirmationModal(title, message, onConfirm, onCancel = null) {
     const modal = document.createElement('div');
     modal.className = 'modal active confirmation-modal';
     modal.style.zIndex = '100001';
-
-    // Detect if we're in JSON Creator context
+    
+    // Detect if we're in Algset Devtool context
     const isDevTool = document.getElementById('jsonCreatorFullscreen') !== null;
     const modalClass = isDevTool ? 'modal-content devtool-modal' : 'modal-content';
-
+    
     modal.innerHTML = `
         <div class="${modalClass}">
             <div class="modal-header">
@@ -44,17 +44,17 @@ function showConfirmationModal(title, message, onConfirm, onCancel = null) {
         </div>
     `;
     document.body.appendChild(modal);
-
+    
     document.getElementById('confirmOkBtn').onclick = () => {
         modal.remove();
         if (onConfirm) onConfirm();
     };
-
+    
     document.getElementById('confirmCancelBtn').onclick = () => {
         modal.remove();
         if (onCancel) onCancel();
     };
-
+    
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             modal.remove();
@@ -67,11 +67,11 @@ function showRenameModal(title, currentValue, onConfirm) {
     const modal = document.createElement('div');
     modal.className = 'modal active confirmation-modal';
     modal.style.zIndex = '100001';
-
-    // Detect if we're in JSON Creator context
+    
+    // Detect if we're in Algset Devtool context
     const isDevTool = document.getElementById('jsonCreatorFullscreen') !== null;
     const modalClass = isDevTool ? 'modal-content devtool-modal' : 'modal-content';
-
+    
     modal.innerHTML = `
         <div class="${modalClass}">
             <div class="modal-header">
@@ -87,11 +87,11 @@ function showRenameModal(title, currentValue, onConfirm) {
         </div>
     `;
     document.body.appendChild(modal);
-
+    
     const input = document.getElementById('renameInput');
     input.focus();
     input.select();
-
+    
     const handleConfirm = () => {
         const value = input.value.trim();
         if (value) {
@@ -99,21 +99,21 @@ function showRenameModal(title, currentValue, onConfirm) {
             onConfirm(value);
         }
     };
-
+    
     document.getElementById('renameOkBtn').onclick = handleConfirm;
     document.getElementById('renameCancelBtn').onclick = () => modal.remove();
-
+    
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') handleConfirm();
         if (e.key === 'Escape') modal.remove();
     });
-
+    
     modal.addEventListener('click', (e) => {
         if (e.target === modal) modal.remove();
     });
 }
 
-// JSON Creator Implementation
+// Algset Devtool Implementation
 class JSONCreator {
     constructor() {
         this.treeData = {};
@@ -124,86 +124,655 @@ class JSONCreator {
         this.expandedFolders = new Set();
         this.contextMenu = null;
         this.caseTemplate = null;
-        this.itemOrder = {}; // Track insertion order for all paths
-        this.rootOrder = []; // Track order of roots
+        
+        this.DEFAULT_CASE = {
+            caseName: '',
+            inputTop: "RRRRRRRRRRRR",
+            inputBottom: "RRRRRRRRRRRR",
+            equator: ["/", "|"],
+            parity: ["on"],
+            constraints: {},
+            auf: ["U0"],
+            adf: ["D0"],
+            rul: [0],
+            rdl: [0],
+            alg: ""
+        };
     }
 
-    getOrderedKeys(node, path) {
-        const keys = Object.keys(node);
-        const orderKey = path || '__root__';
+    _createModal(title, bodyHTML, options = {}) {
+        const modal = document.createElement('div');
+        modal.className = `modal active ${options.className || ''}`;
+        modal.style.zIndex = options.zIndex || '20000';
+        modal.innerHTML = `
+            <div class="modal-content ${options.contentClass || 'devtool-modal'}" style="max-width: ${options.maxWidth || '500px'};">
+                <div class="modal-header">
+                    <h2>${title}</h2>
+                    <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+                </div>
+                <div class="modal-body">
+                    ${bodyHTML}
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
         
-        if (!this.itemOrder[orderKey]) {
-            // Initialize order for this path
-            this.itemOrder[orderKey] = keys;
-            this.saveItemOrder();
-        } else {
-            // Ensure all current keys are in the order array
-            const existingOrder = this.itemOrder[orderKey];
-            const newKeys = keys.filter(k => !existingOrder.includes(k));
-            if (newKeys.length > 0) {
-                this.itemOrder[orderKey] = [...existingOrder, ...newKeys];
-                this.saveItemOrder();
+        if (options.closeOnOutsideClick !== false) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+        }
+        
+        return modal;
+    }
+
+    _createContextMenu(x, y, items) {
+        this.hideContextMenu();
+        this.setupContextMenuListener();
+        
+        const menu = document.createElement('div');
+        menu.className = 'context-menu';
+        menu.style.left = `${x}px`;
+        menu.style.top = `${y}px`;
+        
+        items.forEach(item => {
+            if (item.separator) {
+                const sep = document.createElement('div');
+                sep.className = 'context-menu-separator';
+                menu.appendChild(sep);
+            } else {
+                const menuItem = document.createElement('div');
+                menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
+                menuItem.textContent = item.text;
+                if (!item.disabled) {
+                    menuItem.onclick = () => {
+                        this.hideContextMenu();
+                        item.action();
+                    };
+                }
+                menu.appendChild(menuItem);
             }
-            // Filter out any keys that no longer exist
-            this.itemOrder[orderKey] = this.itemOrder[orderKey].filter(k => keys.includes(k));
+        });
+        
+        document.body.appendChild(menu);
+        this.contextMenu = menu;
+    }
+
+    _collectAllCases(obj, path = []) {
+        const cases = [];
+        for (const [key, value] of Object.entries(obj)) {
+            if (value && typeof value === 'object') {
+                if (value.caseName) {
+                    cases.push({ ...value, path: [...path, key].join(' > ') });
+                } else {
+                    cases.push(...this._collectAllCases(value, [...path, key]));
+                }
+            }
+        }
+        return cases;
+    }
+
+    _createTreeItemElement(key, item, path, level) {
+        const currentPath = path ? `${path}/${key}` : key;
+        const isFolder = !item.caseName;
+        const isExpanded = this.expandedFolders.has(currentPath);
+        
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'json-creator-tree-item';
+        itemDiv.style.paddingLeft = `${level * 16 + 8}px`;
+        itemDiv.dataset.path = currentPath;
+        
+        if (this.selectedPath === currentPath) {
+            itemDiv.classList.add('selected');
         }
         
-        return this.itemOrder[orderKey];
+        // Expand icon or spacer
+        if (isFolder) {
+            const expandIcon = document.createElement('div');
+            expandIcon.className = 'tree-expand-icon';
+            expandIcon.textContent = isExpanded ? '▼' : '▶';
+            itemDiv.appendChild(expandIcon);
+        } else {
+            const spacer = document.createElement('div');
+            spacer.style.width = '16px';
+            itemDiv.appendChild(spacer);
+        }
+        
+        // Icon
+        const icon = document.createElement('img');
+        icon.className = 'tree-icon';
+        icon.src = isFolder ? 'viz/folder.svg' : 'viz/case.svg';
+        icon.width = 16;
+        icon.height = 16;
+        itemDiv.appendChild(icon);
+        
+        // Text and input
+        const textSpan = document.createElement('span');
+        textSpan.className = 'tree-item-text';
+        textSpan.textContent = key;
+        itemDiv.appendChild(textSpan);
+        
+        const input = document.createElement('input');
+        input.className = 'tree-item-input';
+        input.value = key;
+        itemDiv.appendChild(input);
+        
+        // Event handlers
+        itemDiv.onclick = (e) => this.handleItemClick(e, currentPath, item, key);
+        itemDiv.ondblclick = (e) => this.startRename(itemDiv, input, key);
+        itemDiv.oncontextmenu = (e) => this.showContextMenu(e, currentPath, item, key);
+        
+        input.onblur = () => this.finishRename(currentPath, key, itemDiv, input);
+        input.onkeydown = (e) => {
+            if (e.key === 'Enter') input.blur();
+            if (e.key === 'Escape') { input.value = key; input.blur(); }
+            e.stopPropagation();
+        };
+        
+        return { itemDiv, isFolder, isExpanded, currentPath };
     }
 
-    saveItemOrder() {
-        localStorage.setItem(`itemOrder_${AppState.activeDevelopingJSON}`, JSON.stringify(this.itemOrder));
+    _autoRenameAndFocus(basePath, itemName) {
+        setTimeout(() => {
+            const newPath = basePath ? `${basePath}/${itemName}` : itemName;
+            const itemDiv = document.querySelector(`[data-path="${newPath}"]`);
+            if (itemDiv) {
+                const input = itemDiv.querySelector('.tree-item-input');
+                this.startRename(itemDiv, input, itemName);
+            }
+        }, 100);
     }
 
-    saveRootOrder() {
-        localStorage.setItem('rootOrder', JSON.stringify(this.rootOrder));
+    _saveCurrentRoot() {
+        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+        saveDevelopingJSONs();
     }
 
-    moveItemUp(path) {
+    _loadRoot(rootName) {
+        this.treeData = JSON.parse(JSON.stringify(AppState.developingJSONs[rootName]));
+        this.selectedPath = '';
+        this.selectedItem = null;
+        this.expandedFolders.clear();
+        this.expandAllFolders(this.treeData, '');
+    }
+
+    _navigateToParent(path) {
         const pathParts = path.split('/');
-        const itemName = pathParts.pop();
-        const parentPath = pathParts.join('/') || '__root__';
+        pathParts.pop();
+        let parent = this.treeData;
+        pathParts.forEach(part => parent = parent[part]);
+        return parent;
+    }
+
+    _createFileImportModal(title, onProcess, context = 'general') {
+        const fileIdPrefix = context === 'root' ? 'importRootData' : 'importData';
+        const dropZoneId = context === 'root' ? 'importRootDropZone' : 'importDropZone';
+        const fileNameId = context === 'root' ? 'importRootFileName' : 'importFileName';
+        const actionsId = context === 'root' ? 'importRootActions' : 'importActions';
         
-        const order = this.itemOrder[parentPath];
-        if (!order) return;
+        const modal = document.createElement('div');
+        modal.className = 'modal active extract-json-modal';
+        modal.style.zIndex = '20000';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h2>${title}</h2>
+                    <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div style="margin-bottom: 16px;">
+                        <input type="file" id="${fileIdPrefix}File" accept=".json" style="display: none;">
+                        <div id="${dropZoneId}" 
+                             style="width: 100%; min-height: 200px; background: #f9f9f9; border: 2px dashed #d0d0d0; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #666; text-align: center; padding: 20px;">
+                            <div style="font-size: 48px; margin-bottom: 12px;">📁</div>
+                            <div style="font-size: 14px; font-weight: 500; margin-bottom: 4px;">Drop file here or click to choose</div>
+                            <div style="font-size: 12px; color: #999;">Supports .json files</div>
+                            <div id="${fileNameId}" style="margin-top: 12px; font-size: 13px; color: #0078d4; font-weight: 500;"></div>
+                        </div>
+                    </div>
+                    <div id="${actionsId}" style="display: none; flex-direction: column; gap: 8px;">
+                        <button class="json-creator-btn" data-mode="add">Add to Existing</button>
+                        <button class="json-creator-btn" data-mode="override">Override (Delete Previous)</button>
+                    </div>
+                    <button class="json-creator-btn json-creator-btn-secondary" onclick="this.closest('.modal').remove()" style="margin-top: 12px; width: 100%;">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
         
-        const index = order.indexOf(itemName);
-        if (index > 0) {
-            [order[index], order[index - 1]] = [order[index - 1], order[index]];
-            this.saveItemOrder();
-            this.renderTree();
+        // Setup file handlers
+        const fileInput = document.getElementById(`${fileIdPrefix}File`);
+        const dropZone = document.getElementById(dropZoneId);
+        const fileNameDisplay = document.getElementById(fileNameId);
+        const actionsDiv = document.getElementById(actionsId);
+        
+        let selectedFile = null;
+        
+        const handleFile = (file) => {
+            if (file && file.type === 'application/json') {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    selectedFile = e.target.result;
+                    fileNameDisplay.textContent = `Selected: ${file.name}`;
+                    actionsDiv.style.display = 'flex';
+                };
+                reader.readAsText(file);
+            } else {
+                showFloatingMessage('Please select a valid JSON file', 'error');
+            }
+        };
+        
+        dropZone.onclick = () => fileInput.click();
+        fileInput.onchange = (e) => handleFile(e.target.files[0]);
+        
+        dropZone.ondragover = (e) => {
+            e.preventDefault();
+            dropZone.style.background = '#e0e0e0';
+        };
+        dropZone.ondragleave = () => {
+            dropZone.style.background = '#f9f9f9';
+        };
+        dropZone.ondrop = (e) => {
+            e.preventDefault();
+            dropZone.style.background = '#f9f9f9';
+            handleFile(e.dataTransfer.files[0]);
+        };
+        
+        // Setup action buttons
+        actionsDiv.querySelectorAll('button[data-mode]').forEach(btn => {
+            btn.onclick = () => {
+                if (selectedFile) {
+                    onProcess(selectedFile, btn.dataset.mode);
+                    modal.remove();
+                }
+            };
+        });
+        
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+    }
+
+    _generateAdditionalInfoHTML(item, isTemplate = false) {
+        const prefix = isTemplate ? 'Template' : '';
+        const handler = isTemplate ? 'jsonCreator.updateTemplate' : 'jsonCreator.update';
+        
+        // Determine parity mode
+        let parityMode = 'ignore';
+        if (Array.isArray(item.parity) && item.parity.length > 0) {
+            if (item.parity.includes('on') || item.parity.includes('op')) {
+                parityMode = 'overall';
+            } else {
+                parityMode = 'color-specific';
+            }
+        }
+
+        const parityOptionsHTML = parityMode === 'overall' ? `
+            <div class="json-creator-grid-item">
+                <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('on') ? 'checked' : ''} 
+                       onchange="${handler}MoveArray('parity', 'on', this.checked)">
+                <label>Overall No Parity</label>
+            </div>
+            <div class="json-creator-grid-item">
+                <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('op') ? 'checked' : ''} 
+                       onchange="${handler}MoveArray('parity', 'op', this.checked)">
+                <label>Overall Parity</label>
+            </div>
+        ` : parityMode === 'color-specific' ? `
+            <div class="json-creator-grid-item">
+                <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('tnbn') ? 'checked' : ''} 
+                       onchange="${handler}MoveArray('parity', 'tnbn', this.checked)">
+                <label>Both Color No Parity</label>
+            </div>
+            <div class="json-creator-grid-item">
+                <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('tpbn') ? 'checked' : ''} 
+                       onchange="${handler}MoveArray('parity', 'tpbn', this.checked)">
+                <label>Black Parity, White No Parity</label>
+            </div>
+            <div class="json-creator-grid-item">
+                <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('tnbp') ? 'checked' : ''} 
+                       onchange="${handler}MoveArray('parity', 'tnbp', this.checked)">
+                <label>Black No Parity, White Parity</label>
+            </div>
+            <div class="json-creator-grid-item">
+                <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('tpbp') ? 'checked' : ''} 
+                       onchange="${handler}MoveArray('parity', 'tpbp', this.checked)">
+                <label>Both Color Parity</label>
+            </div>
+        ` : '';
+
+        return `
+            <div class="json-creator-section-compact">
+                <h4>Middle Layer</h4>
+                <div class="json-creator-grid">
+                    <div class="json-creator-grid-item">
+                        <input type="checkbox" ${Array.isArray(item.equator) && item.equator.includes('|') ? 'checked' : ''} 
+                               onchange="${handler}Equator('|', this.checked)">
+                        <label>Solved</label>
+                    </div>
+                    <div class="json-creator-grid-item">
+                        <input type="checkbox" ${Array.isArray(item.equator) && item.equator.includes('/') ? 'checked' : ''} 
+                               onchange="${handler}Equator('/', this.checked)">
+                        <label>Flipped</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="json-creator-section-compact">
+                <h4>
+                    Parity
+                    <span class="info-wrapper">
+                        <button class="info-btn" aria-label="More info">i</button>
+                        <span class="info-box">
+                            Parity here doesn't refer to conventional parity. Overall parity defines a state of the sq1, but probably not the state you are aiming for. So run the case to check if you really want this. Color specific: here you can explicitly decide the arrangement of each color pieces, again test each one to check for yourself what you really want.
+                        </span>
+                    </span>
+                </h4>
+                <div class="parity-radio-group">
+                    <div class="parity-radio-item">
+                        <input type="radio" name="parityMode" value="ignore" ${parityMode === 'ignore' ? 'checked' : ''} 
+                               onchange="${handler}ParityMode('ignore')">
+                        <label>Ignore</label>
+                    </div>
+                    <div class="parity-radio-item">
+                        <input type="radio" name="parityMode" value="overall" ${parityMode === 'overall' ? 'checked' : ''} 
+                               onchange="${handler}ParityMode('overall')">
+                        <label>Overall</label>
+                    </div>
+                    <div class="parity-radio-item">
+                        <input type="radio" name="parityMode" value="color-specific" ${parityMode === 'color-specific' ? 'checked' : ''} 
+                               onchange="${handler}ParityMode('color-specific')">
+                        <label>Color Specific</label>
+                    </div>
+                </div>
+                <div id="parityOptions" class="parity-checkboxes-vertical">
+                    ${parityOptionsHTML}
+                </div>
+            </div>
+
+            <div class="json-creator-section-compact">
+                <h4>
+                    Post ABF
+                    <span class="info-wrapper">
+                        <button class="info-btn" aria-label="More info">i</button>
+                        <span class="info-box">Post ABF is Adjustment of Both Face After the algorithm is done.</span>
+                    </span>
+                </h4>
+                <div class="abf-grid">
+                    ${['U0', 'U', 'U2', "U'", 'D0', 'D', 'D2', "D'"].map((move, idx) => {
+                        const field = idx < 4 ? 'auf' : 'adf';
+                        return `
+                            <div class="json-creator-grid-item">
+                                <input type="checkbox" ${item[field].includes(move) ? 'checked' : ''} 
+                                       onchange="${handler}MoveArray('${field}', '${move}', this.checked)">
+                                <label>${move}</label>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+
+            <div class="json-creator-section-compact">
+                <h4>
+                    Pre ABF
+                    <span class="info-wrapper">
+                        <button class="info-btn" aria-label="More info">i</button>
+                        <span class="info-box">Pre ABF is the adjustment you do before doing an alg.</span>
+                    </span>
+                </h4>
+                <div class="pre-abf-container">
+                    <div class="pre-abf-section">
+                        <h5>Pre AUF</h5>
+                        <div class="pre-abf-grid">
+                            ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
+                                <div class="json-creator-grid-item">
+                                    <input type="checkbox" ${Array.isArray(item.rul) && item.rul.includes(val) ? 'checked' : ''} 
+                                           onchange="${handler}NumberArray('rul', ${val}, this.checked)">
+                                    <label>${val}</label>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="pre-abf-section">
+                        <h5>Pre ADF</h5>
+                        <div class="pre-abf-grid">
+                            ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
+                                <div class="json-creator-grid-item">
+                                    <input type="checkbox" ${Array.isArray(item.rdl) && item.rdl.includes(val) ? 'checked' : ''} 
+                                           onchange="${handler}NumberArray('rdl', ${val}, this.checked)">
+                                    <label>${val}</label>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            ${!isTemplate ? `
+                <div class="json-creator-section-compact">
+                    <h4>Algorithm</h4>
+                    <div class="json-creator-form-group">
+                        <input type="text" onchange="jsonCreator.updateField('alg', this.value)" value="${item.alg || ''}" style="width: 100%; padding: 6px 8px; background: #ffffff; border: 1px solid #c0c0c0; border-radius: 2px; color: #1a1a1a;">
+                    </div>
+                </div>
+            ` : ''}
+        `;
+    }
+
+    _generateShapeInputHTML(item, isTemplate = false) {
+        const constraintHandler = isTemplate ? 'Template' : '';
+        
+        return `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <div class="json-creator-section">
+                    <h4>Top Layer</h4>
+                    <div class="json-creator-form-group">
+                        <input type="text" maxlength="12" id="topLayerInput" value="${item.inputTop || 'RRRRRRRRRRRR'}" 
+                               style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; display: none;">
+                    </div>
+                    <div id="topInteractive" style="display: flex; justify-content: center; margin-top: 12px;"></div>
+                </div>
+
+                <div class="json-creator-section">
+                    <h4>Bottom Layer</h4>
+                    <div class="json-creator-form-group">
+                        <input type="text" maxlength="12" id="bottomLayerInput" value="${item.inputBottom || 'RRRRRRRRRRRR'}" 
+                               style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; display: none;">
+                    </div>
+                    <div id="bottomInteractive" style="display: flex; justify-content: center; margin-top: 12px;"></div>
+                </div>
+            </div>
+
+            <div class="json-creator-section">
+                <h4>Constraints</h4>
+                <p style="font-size: 12px; color: #666; margin: 0 0 12px 0; font-style: italic;">Don't touch this unless you know what you are doing</p>
+                <div class="json-creator-form-group">
+                    <label>Position (e.g., A, BC, D)</label>
+                    <input type="text" id="constraintPosition" placeholder="Enter position...">
+                </div>
+                <div class="json-creator-form-group">
+                    <label>Allowed Pieces (comma-separated)</label>
+                    <input type="text" id="constraintValues" placeholder="e.g., 1,3,5,7">
+                </div>
+                <button class="json-creator-btn" onclick="jsonCreator.add${constraintHandler}Constraint()">Add Constraint</button>
+                <div id="constraintsList" style="margin-top: 10px;">
+                    ${Object.entries(item.constraints || {}).map(([pos, vals]) => `
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 4px; background: #3c3c3c; border-radius: 2px;">
+                            <span style="color: #cccccc; font-size: 12px;">${pos}: ${vals.join(', ')}</span>
+                            <button onclick="jsonCreator.remove${constraintHandler}Constraint('${pos}')" style="background: #d32f2f; border: none; color: white; padding: 2px 8px; border-radius: 2px; cursor: pointer; font-size: 11px;">Remove</button>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    _renderShapeInputTab(item, content, isTemplate) {
+        const alreadyRendered = content.querySelector('#topLayerInput');
+        
+        if (alreadyRendered) {
+            this._updateShapeInputs(item);
+            return;
+        }
+        
+        this._initializeShapeStates(item, isTemplate);
+        content.innerHTML = this._generateShapeInputHTML(item, isTemplate);
+        this._setupShapeVisualization(item);
+        this._setupShapeInputListeners(item, isTemplate);
+    }
+
+    _updateShapeInputs(item) {
+        const topInput = document.getElementById('topLayerInput');
+        const bottomInput = document.getElementById('bottomLayerInput');
+        const topValue = item.inputTop || 'RRRRRRRRRRRR';
+        const bottomValue = item.inputBottom || 'RRRRRRRRRRRR';
+        
+        if (topInput) topInput.value = topValue;
+        if (bottomInput) bottomInput.value = bottomValue;
+        
+        if (this.topState && window.InteractiveScrambleRenderer) {
+            this.topState.topText = topValue;
+            this.topState.bottomText = '';
+            this.topState.parse();
+            const topContainer = document.getElementById('topInteractive');
+            if (topContainer) {
+                topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
+                window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
+            }
+        }
+        
+        if (this.bottomState && window.InteractiveScrambleRenderer) {
+            this.bottomState.topText = '';
+            this.bottomState.bottomText = bottomValue;
+            this.bottomState.parse();
+            const bottomContainer = document.getElementById('bottomInteractive');
+            if (bottomContainer) {
+                bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
+                window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
+            }
         }
     }
 
-    moveItemDown(path) {
-        const pathParts = path.split('/');
-        const itemName = pathParts.pop();
-        const parentPath = pathParts.join('/') || '__root__';
+    _initializeShapeStates(item, isTemplate) {
+        if (!window.InteractiveScrambleRenderer) return;
         
-        const order = this.itemOrder[parentPath];
-        if (!order) return;
+        const target = isTemplate ? this.editingTemplate : this.selectedItem;
         
-        const index = order.indexOf(itemName);
-        if (index < order.length - 1 && index !== -1) {
-            [order[index], order[index + 1]] = [order[index + 1], order[index]];
-            this.saveItemOrder();
-            this.renderTree();
+        this.topState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
+            item.inputTop || 'RRRRRRRRRRRR',
+            '',
+            window.InteractiveScrambleRenderer.DEFAULT_COLOR_SCHEME
+        );
+        this.topState.onChange(() => {
+            if (target) {
+                target.inputTop = this.topState.topText;
+                const topInput = document.getElementById('topLayerInput');
+                if (topInput) topInput.value = this.topState.topText;
+                if (!isTemplate) {
+                    AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+                    saveDevelopingJSONs();
+                }
+            }
+        });
+
+        this.bottomState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
+            '',
+            item.inputBottom || 'RRRRRRRRRRRR',
+            window.InteractiveScrambleRenderer.DEFAULT_COLOR_SCHEME
+        );
+        this.bottomState.onChange(() => {
+            if (target) {
+                target.inputBottom = this.bottomState.bottomText;
+                const bottomInput = document.getElementById('bottomLayerInput');
+                if (bottomInput) bottomInput.value = this.bottomState.bottomText;
+                if (!isTemplate) {
+                    AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+                    saveDevelopingJSONs();
+                }
+            }
+        });
+    }
+
+    _setupShapeVisualization(item) {
+        if (!window.InteractiveScrambleRenderer) return;
+        
+        const topContainer = document.getElementById('topInteractive');
+        const bottomContainer = document.getElementById('bottomInteractive');
+
+        if (topContainer) {
+            this.topState.topText = item.inputTop || 'RRRRRRRRRRRR';
+            this.topState.bottomText = '';
+            this.topState.parse();
+            topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
+            window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
+        }
+
+        if (bottomContainer) {
+            this.bottomState.topText = '';
+            this.bottomState.bottomText = item.inputBottom || 'RRRRRRRRRRRR';
+            this.bottomState.parse();
+            bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
+            window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
         }
     }
 
-    moveRootUp(rootName) {
-        const index = this.rootOrder.indexOf(rootName);
-        if (index > 0) {
-            [this.rootOrder[index], this.rootOrder[index - 1]] = [this.rootOrder[index - 1], this.rootOrder[index]];
-            this.saveRootOrder();
-        }
-    }
+    _setupShapeInputListeners(item, isTemplate) {
+        const topInput = document.getElementById('topLayerInput');
+        const bottomInput = document.getElementById('bottomLayerInput');
+        
+        const handleInputChange = (input, isTop) => {
+            const value = input.value.toUpperCase().substring(0, 12);
+            input.value = value;
+            
+            if (value.length < 12) {
+                input.style.borderColor = '#ef4444';
+                return;
+            }
+            
+            input.style.borderColor = '#404040';
+            
+            if (value.length === 12) {
+                try {
+                    const state = isTop ? this.topState : this.bottomState;
+                    const containerID = isTop ? 'topInteractive' : 'bottomInteractive';
+                    
+                    if (isTop) {
+                        state.topText = value;
+                    } else {
+                        state.bottomText = value;
+                    }
+                    
+                    state.parse();
+                    const container = document.getElementById(containerID);
+                    container.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(state, { size: 200 });
+                    window.InteractiveScrambleRenderer.setupInteractiveEvents(state, containerID);
+                    
+                    const target = isTemplate ? this.editingTemplate : this.selectedItem;
+                    if (isTop) {
+                        target.inputTop = value;
+                    } else {
+                        target.inputBottom = value;
+                    }
+                    
+                    if (!isTemplate) {
+                        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+                        saveDevelopingJSONs();
+                    }
+                } catch (error) {
+                    console.error('Parse error:', error);
+                    alert('Invalid input: ' + error.message);
+                    input.style.borderColor = '#ef4444';
+                }
+            }
+        };
 
-    moveRootDown(rootName) {
-        const index = this.rootOrder.indexOf(rootName);
-        if (index < this.rootOrder.length - 1 && index !== -1) {
-            [this.rootOrder[index], this.rootOrder[index + 1]] = [this.rootOrder[index + 1], this.rootOrder[index]];
-            this.saveRootOrder();
+        if (topInput) {
+            topInput.addEventListener('input', (e) => handleInputChange(e.target, true));
+        }
+
+        if (bottomInput) {
+            bottomInput.addEventListener('input', (e) => handleInputChange(e.target, false));
         }
     }
 
@@ -211,29 +780,18 @@ class JSONCreator {
         saveLastScreen('jsonCreator');
         // Load current developing JSON
         this.treeData = JSON.parse(JSON.stringify(AppState.developingJSONs[AppState.activeDevelopingJSON] || DEFAULT_ALGSET));
-
-        // Load item order
-        this.itemOrder = JSON.parse(localStorage.getItem(`itemOrder_${AppState.activeDevelopingJSON}`) || '{}');
         
-        // Load root order
-        this.rootOrder = JSON.parse(localStorage.getItem('rootOrder') || '[]');
-        // Initialize root order if empty
-        if (this.rootOrder.length === 0) {
-            this.rootOrder = Object.keys(AppState.developingJSONs);
-            this.saveRootOrder();
-        }
-
         // Load case template
         const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
         this.caseTemplate = localStorage.getItem(templateKey) ? JSON.parse(localStorage.getItem(templateKey)) : null;
-
+        
         // Expand all folders on initialization
         this.expandAllFolders(this.treeData, '');
-
+        
         // Load last selected case from localStorage
         const lastSelectedPath = localStorage.getItem('jsonCreator_lastSelectedPath');
         const lastSelectedRoot = localStorage.getItem('jsonCreator_lastSelectedRoot');
-
+        
         if (lastSelectedRoot === AppState.activeDevelopingJSON && lastSelectedPath) {
             this.selectedPath = lastSelectedPath;
             const pathParts = lastSelectedPath.split('/');
@@ -250,7 +808,7 @@ class JSONCreator {
                 this.selectedItem = current;
             }
         }
-
+        
         // If no valid selection, select first case found
         if (!this.selectedPath || !this.selectedItem) {
             const findFirstCase = (obj, path = []) => {
@@ -266,7 +824,7 @@ class JSONCreator {
                 }
                 return null;
             };
-
+            
             const firstCase = findFirstCase(this.treeData);
             if (firstCase) {
                 this.selectedPath = firstCase.path;
@@ -333,15 +891,10 @@ class JSONCreator {
                         </div>
                         <div class="json-creator-content">
                             <div class="json-creator-content-header">
-                                <div id="jsonCreatorTitle" style="display: flex; flex-direction: column; line-height: 1.3;"><span style="font-size: 18px; font-weight: 700;">SquanGo</span><span style="font-size: 12px; font-weight: 400; color: #666666;">Case Editor</span></div>
-                                <div id="jsonCreatorSubtitle" style="font-size: 12px; color: #999; margin-top: 4px;"></div>
+                                <h3 id="jsonCreatorTitle">SquanGo</h3>
+                                <p id="jsonCreatorSubtitle">Case Editor</p>
                             </div>
                             <div class="json-creator-content-body" id="jsonCreatorBody">
-                                <div class="json-creator-welcome">
-                                    <h3>Welcome to Algset Devtool</h3>
-                                    <p>Create your own Square-1 algset trainer.</p>
-                                    <p>Use the toolbar or right click context menu to add folders and cases.</p>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -350,17 +903,18 @@ class JSONCreator {
         document.body.appendChild(fullscreen);
         this.renderTree();
         this.setupEventListeners();
-
-        // Show case editor if a case is selected
+        
+        // Show case editor if a case is selected, otherwise show welcome
         if (this.selectedItem && this.selectedItem.caseName) {
             const caseName = this.selectedPath.split('/').pop();
             this.showCaseEditor(this.selectedItem, caseName);
+        } else {
+            this.showWelcome();
         }
     }
 
     expandAllFolders(node, path) {
-        const keys = this.getOrderedKeys(node, path);
-        keys.forEach(key => {
+        Object.keys(node).forEach(key => {
             const item = node[key];
             if (typeof item === 'object' && item !== null && !item.caseName) {
                 const currentPath = path ? `${path}/${key}` : key;
@@ -371,51 +925,6 @@ class JSONCreator {
     }
 
     setupEventListeners() {
-        // Setup long press for context menu on mobile
-        let longPressTimer = null;
-        let longPressTarget = null;
-        
-        document.addEventListener('touchstart', (e) => {
-            const treeItem = e.target.closest('.json-creator-tree-item');
-            if (treeItem) {
-                longPressTarget = treeItem;
-                longPressTimer = setTimeout(() => {
-                    const path = treeItem.dataset.path;
-                    const pathParts = path.split('/');
-                    let current = this.treeData;
-                    for (const part of pathParts) {
-                        current = current[part];
-                    }
-                    const key = pathParts[pathParts.length - 1];
-                    
-                    // Create a synthetic event for context menu
-                    const syntheticEvent = {
-                        preventDefault: () => {},
-                        stopPropagation: () => {},
-                        pageX: e.touches[0].pageX,
-                        pageY: e.touches[0].pageY
-                    };
-                    this.showContextMenu(syntheticEvent, path, current, key);
-                }, 500); // 500ms long press
-            }
-        }, { passive: true });
-        
-        document.addEventListener('touchend', () => {
-            if (longPressTimer) {
-                clearTimeout(longPressTimer);
-                longPressTimer = null;
-                longPressTarget = null;
-            }
-        }, { passive: true });
-        
-        document.addEventListener('touchmove', () => {
-            if (longPressTimer) {
-                clearTimeout(longPressTimer);
-                longPressTimer = null;
-                longPressTarget = null;
-            }
-        }, { passive: true });
-
         document.addEventListener('keydown', (e) => {
             const fullscreen = document.getElementById('jsonCreatorFullscreen');
             if (!fullscreen) return;
@@ -443,46 +952,46 @@ class JSONCreator {
                 e.preventDefault();
                 this.delete();
             }
-        });
+        });    
 
         // Info button handler
         document.addEventListener('click', (e) => {
             // Close all info boxes first
-            document.querySelectorAll('.info-box').forEach(box =>
+            document.querySelectorAll('.info-box').forEach(box => 
                 box.classList.remove('show')
             );
-
+            
             // If an info button was clicked, open only that one
             if (e.target.classList.contains('info-btn')) {
                 e.preventDefault();
                 e.stopPropagation();
                 const infoBox = e.target.nextElementSibling;
                 infoBox.classList.add('show');
-
+                
                 // Position the info box dynamically
                 const btnRect = e.target.getBoundingClientRect();
                 const boxWidth = 300;
                 const boxHeight = infoBox.offsetHeight || 100;
-
+                
                 // Try to position above the button
                 let top = btnRect.top - boxHeight - 10;
                 let left = btnRect.right - boxWidth;
-
+                
                 // If it goes above viewport, position below
                 if (top < 10) {
                     top = btnRect.bottom + 10;
                 }
-
+                
                 // If it goes off left edge, align to left of button
                 if (left < 10) {
                     left = btnRect.left;
                 }
-
+                
                 // If it goes off right edge, align to right edge
                 if (left + boxWidth > window.innerWidth - 10) {
                     left = window.innerWidth - boxWidth - 10;
                 }
-
+                
                 infoBox.style.top = top + 'px';
                 infoBox.style.left = left + 'px';
             }
@@ -498,19 +1007,19 @@ class JSONCreator {
         });
 
         // Right-click on tree root
-        document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) => {
-            if (e.target.id === 'jsonCreatorTree') {
-                e.preventDefault();
-                this.showTreeRootContextMenu(e);
-            }
-        });
+document.getElementById('jsonCreatorTree').addEventListener('contextmenu', (e) => {
+    if (e.target.id === 'jsonCreatorTree') {
+        e.preventDefault();
+        this.showTreeRootContextMenu(e);
+    }
+});
     }
 
     renderTree() {
         // Auto-save whenever tree is rendered (indicates a change)
         AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
         saveDevelopingJSONs();
-
+        
         const container = document.getElementById('jsonCreatorTree');
         if (!container) return;
         container.innerHTML = '';
@@ -518,65 +1027,13 @@ class JSONCreator {
     }
 
     renderTreeNode(node, container, path, level) {
-        const keys = this.getOrderedKeys(node, path);
-        keys.forEach(key => {
+        Object.keys(node).forEach(key => {
             const item = node[key];
             if (typeof item !== 'object' || item === null) return;
-
-            const currentPath = path ? `${path}/${key}` : key;
-            const isFolder = !item.caseName;
-            const isExpanded = this.expandedFolders.has(currentPath);
-
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'json-creator-tree-item';
-            itemDiv.style.paddingLeft = `${level * 16 + 8}px`;
-            itemDiv.dataset.path = currentPath;
-
-            if (this.selectedPath === currentPath) {
-                itemDiv.classList.add('selected');
-            }
-
-            if (isFolder) {
-                const expandIcon = document.createElement('div');
-                expandIcon.className = 'tree-expand-icon';
-                expandIcon.textContent = isExpanded ? '▼' : '▶';
-                itemDiv.appendChild(expandIcon);
-            } else {
-                const spacer = document.createElement('div');
-                spacer.style.width = '16px';
-                itemDiv.appendChild(spacer);
-            }
-
-            const icon = document.createElement('img');
-            icon.className = 'tree-icon';
-            icon.src = isFolder ? 'viz/folder.svg' : 'viz/case.svg';
-            icon.width = 16;
-            icon.height = 16;
-            itemDiv.appendChild(icon);
-
-            const textSpan = document.createElement('span');
-            textSpan.className = 'tree-item-text';
-            textSpan.textContent = key;
-            itemDiv.appendChild(textSpan);
-
-            const input = document.createElement('input');
-            input.className = 'tree-item-input';
-            input.value = key;
-            itemDiv.appendChild(input);
-
-            itemDiv.onclick = (e) => this.handleItemClick(e, currentPath, item, key);
-            itemDiv.ondblclick = (e) => this.startRename(itemDiv, input, key);
-            itemDiv.oncontextmenu = (e) => this.showContextMenu(e, currentPath, item, key);
-
-            input.onblur = () => this.finishRename(currentPath, key, itemDiv, input);
-            input.onkeydown = (e) => {
-                if (e.key === 'Enter') input.blur();
-                if (e.key === 'Escape') { input.value = key; input.blur(); }
-                e.stopPropagation();
-            };
-
+            
+            const { itemDiv, isFolder, isExpanded, currentPath } = this._createTreeItemElement(key, item, path, level);
             container.appendChild(itemDiv);
-
+            
             if (isFolder && isExpanded) {
                 this.renderTreeNode(item, container, currentPath, level + 1);
             }
@@ -623,10 +1080,7 @@ class JSONCreator {
         const newName = input.value.trim();
         if (!newName || newName === originalName) return;
 
-        const pathParts = path.split('/');
-        pathParts.pop();
-        let parent = this.treeData;
-        pathParts.forEach(part => parent = parent[part]);
+        const parent = this._navigateToParent(path);
 
         if (parent[newName]) {
             showFloatingMessage('An item with this name already exists', 'error');
@@ -653,19 +1107,7 @@ class JSONCreator {
             parent[name] = JSON.parse(JSON.stringify(this.caseTemplate));
             parent[name].caseName = name;
         } else {
-            parent[name] = {
-                caseName: name,
-                inputTop: "RRRRRRRRRRRR",
-                inputBottom: "RRRRRRRRRRRR",
-                equator: ["/", "|"],
-                parity: ["on"],
-                constraints: {},
-                auf: ["U0"],
-                adf: ["D0"],
-                rul: [0],
-                rdl: [0],
-                alg: ""
-            };
+            parent[name] = { ...this.DEFAULT_CASE, caseName: name };
         }
 
         // Auto-expand parent folder if not already expanded
@@ -675,38 +1117,22 @@ class JSONCreator {
 
         this.renderTree();
 
-        // Auto-start rename
-        setTimeout(() => {
-            const newPath = this.selectedPath ? `${this.selectedPath}/${name}` : name;
-            const itemDiv = document.querySelector(`[data-path="${newPath}"]`);
-            if (itemDiv) {
-                const input = itemDiv.querySelector('.tree-item-input');
-                this.startRename(itemDiv, input, name);
-            }
-        }, 100);
+        this._autoRenameAndFocus(this.selectedPath, name);
     }
 
     newFolder() {
         const parent = this.getTargetFolder();
         const name = this.getUniqueName(parent, 'New Folder');
         parent[name] = {};
-
+        
         // Auto-expand parent folder if not already expanded
         if (this.selectedPath && !this.expandedFolders.has(this.selectedPath)) {
             this.expandedFolders.add(this.selectedPath);
         }
-
+        
         this.renderTree();
 
-        // Auto-start rename
-        setTimeout(() => {
-            const newPath = this.selectedPath ? `${this.selectedPath}/${name}` : name;
-            const itemDiv = document.querySelector(`[data-path="${newPath}"]`);
-            if (itemDiv) {
-                const input = itemDiv.querySelector('.tree-item-input');
-                this.startRename(itemDiv, input, name);
-            }
-        }, 100);
+        this._autoRenameAndFocus(this.selectedPath, name);
     }
 
     getTargetFolder() {
@@ -768,15 +1194,7 @@ class JSONCreator {
 
         this.renderTree();
 
-        // Auto-start rename
-        setTimeout(() => {
-            const newPath = this.selectedPath ? `${this.selectedPath}/${name}` : name;
-            const itemDiv = document.querySelector(`[data-path="${newPath}"]`);
-            if (itemDiv) {
-                const input = itemDiv.querySelector('.tree-item-input');
-                this.startRename(itemDiv, input, name);
-            }
-        }, 100);
+        this._autoRenameAndFocus(this.selectedPath, name);
     }
 
     delete() {
@@ -787,12 +1205,11 @@ class JSONCreator {
             `Delete "${this.selectedPath.split('/').pop()}"?`,
             () => {
 
-                const pathParts = this.selectedPath.split('/');
-                const itemName = pathParts.pop();
-                let parent = this.treeData;
-                pathParts.forEach(part => parent = parent[part]);
+        const pathParts = this.selectedPath.split('/');
+        const itemName = pathParts.pop();
+        const parent = this._navigateToParent(this.selectedPath);
 
-                delete parent[itemName];
+        delete parent[itemName];
                 this.selectedPath = '';
                 this.selectedItem = null;
                 this.renderTree();
@@ -806,12 +1223,13 @@ class JSONCreator {
         const title = document.getElementById('jsonCreatorTitle');
         const subtitle = document.getElementById('jsonCreatorSubtitle');
 
-        title.innerHTML = '<div style="display: flex; flex-direction: column; line-height: 1.3;"><span style="font-size: 18px; font-weight: 600;">SquanGo</span><span style="font-size: 12px; font-weight: 400; color: #666666;">Case Editor</span></div>';
+        title.textContent = 'SquanGo';
+        subtitle.textContent = 'Case Editor';
         body.innerHTML = `
                     <div class="json-creator-welcome">
-                        <h3>Welcome to JSON Creator</h3>
-                        <p>Create your Square-1 algset trainer.</p>
-                        <p>Use the toolbar or right click context menu to add folders and cases.</p>
+                        <h3>Welcome to Algset Devtool</h3>
+                        <p>Create and organize your Square-1 algset cases.</p>
+                        <p>Use the toolbar to add folders and cases.</p>
                     </div>
                 `;
     }
@@ -821,7 +1239,7 @@ class JSONCreator {
         // Just update the title to show folder is selected
         const title = document.getElementById('jsonCreatorTitle');
         const subtitle = document.getElementById('jsonCreatorSubtitle');
-
+        
         title.textContent = `Folder: ${name}`;
         subtitle.textContent = 'Folder selected - use toolbar to add cases or subfolders';
     }
@@ -854,32 +1272,32 @@ class JSONCreator {
     }
 
     switchCaseTab(tab) {
-        this.currentCaseTab = tab;
-        const tabs = document.querySelectorAll('.case-editor-tab');
-        tabs.forEach(t => t.classList.remove('active'));
-        event.target.classList.add('active');
-
-        // Force re-render with a small delay to ensure DOM is ready
-        setTimeout(() => {
-            if (this.selectedItem) {
-                const content = document.getElementById('caseEditorContent');
-                if (!content) {
-                    console.error('caseEditorContent not found after tab switch!');
-                    return;
-                }
-                this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
-
-                // Verify the tab content actually rendered
-                setTimeout(() => {
-                    const verifyContent = document.getElementById('caseEditorContent');
-                    if (!verifyContent || verifyContent.children.length === 0) {
-                        console.error('Tab content failed to render, forcing re-render');
-                        this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
-                    }
-                }, 50);
+    this.currentCaseTab = tab;
+    const tabs = document.querySelectorAll('.case-editor-tab');
+    tabs.forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    // Force re-render with a small delay to ensure DOM is ready
+    setTimeout(() => {
+        if (this.selectedItem) {
+            const content = document.getElementById('caseEditorContent');
+            if (!content) {
+                console.error('caseEditorContent not found after tab switch!');
+                return;
             }
-        }, 10);
-    }
+            this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
+            
+            // Verify the tab content actually rendered
+            setTimeout(() => {
+                const verifyContent = document.getElementById('caseEditorContent');
+                if (!verifyContent || verifyContent.children.length === 0) {
+                    console.error('Tab content failed to render, forcing re-render');
+                    this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
+                }
+            }, 50);
+        }
+    }, 10);
+}
 
     renderCaseTab(item, name) {
         const content = document.getElementById('caseEditorContent');
@@ -887,391 +1305,16 @@ class JSONCreator {
             console.error('caseEditorContent not found!');
             return;
         }
-
+        
         if (!item) {
             console.error('No item provided to renderCaseTab');
             return;
         }
 
         if (this.currentCaseTab === 'shape') {
-            // Check if we already rendered this tab - if so, just update the states
-            const alreadyRendered = content.querySelector('#topLayerInput');
-
-            if (alreadyRendered) {
-                // Update input values
-                const topInput = document.getElementById('topLayerInput');
-                const bottomInput = document.getElementById('bottomLayerInput');
-                const topValue = item.inputTop || 'RRRRRRRRRRRR';
-                const bottomValue = item.inputBottom || 'RRRRRRRRRRRR';
-                if (topInput) topInput.value = topValue;
-                if (bottomInput) bottomInput.value = bottomValue;
-
-                // Update visualizations
-                if (this.topState && window.InteractiveScrambleRenderer) {
-                    this.topState.topText = topValue;
-                    this.topState.bottomText = '';
-                    this.topState.parse();
-                    const topContainer = document.getElementById('topInteractive');
-                    if (topContainer) {
-                        topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
-                        window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
-                    }
-                }
-
-                if (this.bottomState && window.InteractiveScrambleRenderer) {
-                    this.bottomState.topText = '';
-                    this.bottomState.bottomText = bottomValue;
-                    this.bottomState.parse();
-                    const bottomContainer = document.getElementById('bottomInteractive');
-                    if (bottomContainer) {
-                        bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
-                        window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
-                    }
-                }
-
-                return;
-            }
-
-            // Always recreate states to ensure they're fresh
-            if (window.InteractiveScrambleRenderer) {
-                this.topState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
-                    item.inputTop || 'RRRRRRRRRRRR',
-                    '',
-                    window.InteractiveScrambleRenderer.DEFAULT_COLOR_SCHEME
-                );
-                this.topState.onChange(() => {
-                    if (this.selectedItem) {
-                        this.selectedItem.inputTop = this.topState.topText;
-                        const topInput = document.getElementById('topLayerInput');
-                        if (topInput) {
-                            topInput.value = this.topState.topText;
-                        }
-                        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
-                        saveDevelopingJSONs();
-                    }
-                });
-            }
-
-            if (window.InteractiveScrambleRenderer) {
-                this.bottomState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
-                    '',
-                    item.inputBottom || 'RRRRRRRRRRRR',
-                    window.InteractiveScrambleRenderer.DEFAULT_COLOR_SCHEME
-                );
-                this.bottomState.onChange(() => {
-                    if (this.selectedItem) {
-                        this.selectedItem.inputBottom = this.bottomState.bottomText;
-                        const bottomInput = document.getElementById('bottomLayerInput');
-                        if (bottomInput) {
-                            bottomInput.value = this.bottomState.bottomText;
-                        }
-                        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
-                        saveDevelopingJSONs();
-                    }
-                });
-            }
-
-            content.innerHTML = `
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                    <div class="json-creator-section">
-                        <h4>Top Layer</h4>
-                        <div class="json-creator-form-group">
-                            <input type="text" maxlength="12" id="topLayerInput" value="${item.inputTop || 'RRRRRRRRRRRR'}" 
-                                   style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; display: none;">
-                        </div>
-                        <div id="topInteractive" style="display: flex; justify-content: center; margin-top: 12px;"></div>
-                    </div>
-
-                    <div class="json-creator-section">
-                        <h4>Bottom Layer</h4>
-                        <div class="json-creator-form-group">
-                            <input type="text" maxlength="12" id="bottomLayerInput" value="${item.inputBottom || 'RRRRRRRRRRRR'}" 
-                                   style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; display: none;">
-                        </div>
-                        <div id="bottomInteractive" style="display: flex; justify-content: center; margin-top: 12px;"></div>
-                    </div>
-                </div>
-
-                <div class="json-creator-section">
-                    <h4>Constraints</h4>
-                    <p style="font-size: 12px; color: #666; margin: 0 0 12px 0; font-style: italic;">Don't touch this unless you know what you are doing</p>
-                    <div class="json-creator-form-group">
-                        <label>Position (e.g., A, BC, D)</label>
-                        <input type="text" id="constraintPosition" placeholder="Enter position...">
-                    </div>
-                    <div class="json-creator-form-group">
-                        <label>Allowed Pieces (comma-separated)</label>
-                        <input type="text" id="constraintValues" placeholder="e.g., 1,3,5,7">
-                    </div>
-                    <button class="json-creator-btn" onclick="jsonCreator.addConstraint()">Add Constraint</button>
-                    <div id="constraintsList" style="margin-top: 10px;">
-                        ${Object.entries(item.constraints || {}).map(([pos, vals]) => `
-                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 4px; background: #3c3c3c; border-radius: 2px;">
-                                <span style="color: #cccccc; font-size: 12px;">${pos}: ${vals.join(', ')}</span>
-                                <button onclick="jsonCreator.removeConstraint('${pos}')" style="background: #d32f2f; border: none; color: white; padding: 2px 8px; border-radius: 2px; cursor: pointer; font-size: 11px;">Remove</button>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-
-            // Render interactive visualizations
-            const topContainer = document.getElementById('topInteractive');
-            const bottomContainer = document.getElementById('bottomInteractive');
-
-            if (topContainer && window.InteractiveScrambleRenderer) {
-                this.topState.topText = item.inputTop || 'RRRRRRRRRRRR';
-                this.topState.bottomText = '';
-                this.topState.parse();
-                topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
-                window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
-            }
-
-            if (bottomContainer && window.InteractiveScrambleRenderer) {
-                this.bottomState.topText = '';
-                this.bottomState.bottomText = item.inputBottom || 'RRRRRRRRRRRR';
-                this.bottomState.parse();
-                bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
-                window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
-            }
-
-            // Setup input listeners
-            const topInput = document.getElementById('topLayerInput');
-            const bottomInput = document.getElementById('bottomLayerInput');
-            // Debug: Watch for DOM removal
-            if (topInput) {
-                const observer = new MutationObserver((mutations) => {
-                    mutations.forEach((mutation) => {
-                        mutation.removedNodes.forEach((node) => {
-                            if (node === topInput || (node.contains && node.contains(topInput))) {
-                                console.error('TOP INPUT WAS REMOVED FROM DOM!');
-                                console.trace('Removal call stack');
-                            }
-                        });
-                    });
-                });
-                observer.observe(topInput.parentElement, { childList: true, subtree: true });
-            }
-
-            if (topInput) {
-                topInput.addEventListener('input', (e) => {
-                    const value = e.target.value.toUpperCase().substring(0, 12);
-                    e.target.value = value;
-
-                    if (value.length < 12) {
-                        e.target.style.borderColor = '#ef4444';
-                        return;
-                    }
-
-                    e.target.style.borderColor = '#404040';
-
-                    if (value.length === 12) {
-                        try {
-                            this.topState.topText = value;
-                            this.topState.parse();
-                            const topContainer = document.getElementById('topInteractive');
-                            topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
-                            window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
-                            this.selectedItem.inputTop = value;
-                            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
-                            saveDevelopingJSONs();
-                        } catch (error) {
-                            console.error('Parse error:', error);
-                            alert('Invalid input: ' + error.message);
-                            e.target.style.borderColor = '#ef4444';
-                        }
-                    }
-                });
-            }
-
-            if (bottomInput) {
-                bottomInput.addEventListener('input', (e) => {
-                    const value = e.target.value.toUpperCase().substring(0, 12);
-                    e.target.value = value;
-
-                    if (value.length < 12) {
-                        e.target.style.borderColor = '#ef4444';
-                        return;
-                    }
-
-                    e.target.style.borderColor = '#404040';
-
-                    if (value.length === 12) {
-                        try {
-                            this.bottomState.bottomText = value;
-                            this.bottomState.parse();
-                            const bottomContainer = document.getElementById('bottomInteractive');
-                            bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
-                            window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
-                            this.selectedItem.inputBottom = value;
-                            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
-                            saveDevelopingJSONs();
-                        } catch (error) {
-                            console.error('Parse error:', error);
-                            alert('Invalid input: ' + error.message);
-                            e.target.style.borderColor = '#ef4444';
-                        }
-                    }
-                });
-            }
-
+            this._renderShapeInputTab(item, content, false);
         } else if (this.currentCaseTab === 'additional') {
-            // Determine current parity mode
-            let parityMode = 'ignore';
-            if (Array.isArray(item.parity) && item.parity.length > 0) {
-                if (item.parity.includes('on') || item.parity.includes('op')) {
-                    parityMode = 'overall';
-                } else {
-                    parityMode = 'color-specific';
-                }
-            }
-
-            content.innerHTML = `
-                <div class="json-creator-section-compact">
-                    <h4>Middle Layer</h4>
-                    <div class="json-creator-grid">
-                        <div class="json-creator-grid-item">
-                            <input type="checkbox" ${Array.isArray(item.equator) && item.equator.includes('|') ? 'checked' : ''} 
-                                   onchange="jsonCreator.updateEquator('|', this.checked)">
-                            <label>Solved</label>
-                        </div>
-                        <div class="json-creator-grid-item">
-                            <input type="checkbox" ${Array.isArray(item.equator) && item.equator.includes('/') ? 'checked' : ''} 
-                                   onchange="jsonCreator.updateEquator('/', this.checked)">
-                            <label>Flipped</label>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="json-creator-section-compact">
-                    <h4>
-                        Parity
-                        <span class="info-wrapper">
-                            <button class="info-btn" aria-label="More info">i</button>
-                            <span class="info-box">
-                                Parity here doesn't refer to conventional parity. Overall parity defines a state of the sq1, but probably not the state you are aiming for. So run the case to check if you really want this. Color specific: here you can explicitly decide the arrangement of each color pieces, again test each one to check for yourself what you really want.
-                            </span>
-                        </span>
-                    </h4>
-                    <div class="parity-radio-group">
-                        <div class="parity-radio-item">
-                            <input type="radio" name="parityMode" value="ignore" ${parityMode === 'ignore' ? 'checked' : ''} 
-                                   onchange="jsonCreator.updateParityMode('ignore')">
-                            <label>Ignore</label>
-                        </div>
-                        <div class="parity-radio-item">
-                            <input type="radio" name="parityMode" value="overall" ${parityMode === 'overall' ? 'checked' : ''} 
-                                   onchange="jsonCreator.updateParityMode('overall')">
-                            <label>Overall</label>
-                        </div>
-                        <div class="parity-radio-item">
-                            <input type="radio" name="parityMode" value="color-specific" ${parityMode === 'color-specific' ? 'checked' : ''} 
-                                   onchange="jsonCreator.updateParityMode('color-specific')">
-                            <label>Color Specific</label>
-                        </div>
-                    </div>
-                    <div id="parityOptions" class="parity-checkboxes-vertical">
-                        ${parityMode === 'overall' ? `
-                            <div class="json-creator-grid-item">
-                                <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('on') ? 'checked' : ''} 
-                                       onchange="jsonCreator.updateMoveArray('parity', 'on', this.checked)">
-                                <label>Overall No Parity</label>
-                            </div>
-                            <div class="json-creator-grid-item">
-                                <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('op') ? 'checked' : ''} 
-                                       onchange="jsonCreator.updateMoveArray('parity', 'op', this.checked)">
-                                <label>Overall Parity</label>
-                            </div>
-                        ` : parityMode === 'color-specific' ? `
-                            <div class="json-creator-grid-item">
-                                <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('tnbn') ? 'checked' : ''} 
-                                       onchange="jsonCreator.updateMoveArray('parity', 'tnbn', this.checked)">
-                                <label>Both Color No Parity</label>
-                            </div>
-                            <div class="json-creator-grid-item">
-                                <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('tpbn') ? 'checked' : ''} 
-                                       onchange="jsonCreator.updateMoveArray('parity', 'tpbn', this.checked)">
-                                <label>Black Parity, White No Parity</label>
-                            </div>
-                            <div class="json-creator-grid-item">
-                                <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('tnbp') ? 'checked' : ''} 
-                                       onchange="jsonCreator.updateMoveArray('parity', 'tnbp', this.checked)">
-                                <label>Black No Parity, White Parity</label>
-                            </div>
-                            <div class="json-creator-grid-item">
-                                <input type="checkbox" ${Array.isArray(item.parity) && item.parity.includes('tpbp') ? 'checked' : ''} 
-                                       onchange="jsonCreator.updateMoveArray('parity', 'tpbp', this.checked)">
-                                <label>Both Color Parity</label>
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
-
-                <div class="json-creator-section-compact">
-                    <h4>
-                        Post ABF
-                        <span class="info-wrapper">
-                            <button class="info-btn" aria-label="More info">i</button>
-                            <span class="info-box">Post ABF is Adjustment of Both Face After the algorithm is done.</span>
-                        </span>
-                    </h4>
-                    <div class="abf-grid">
-                        ${['U0', 'U', 'U2', "U'", 'D0', 'D', 'D2', "D'"].map((move, idx) => {
-                const field = idx < 4 ? 'auf' : 'adf';
-                return `
-                                <div class="json-creator-grid-item">
-                                    <input type="checkbox" ${item[field].includes(move) ? 'checked' : ''} 
-                                           onchange="jsonCreator.updateMoveArray('${field}', '${move}', this.checked)">
-                                    <label>${move}</label>
-                                </div>
-                            `;
-            }).join('')}
-                    </div>
-                </div>
-
-                <div class="json-creator-section-compact">
-                    <h4>
-                        Pre ABF
-                        <span class="info-wrapper">
-                            <button class="info-btn" aria-label="More info">i</button>
-                            <span class="info-box">Pre ABF is the adjustment you do before doing an alg.</span>
-                        </span>
-                    </h4>
-                    <div class="pre-abf-container">
-                        <div class="pre-abf-section">
-                            <h5>Pre AUF</h5>
-                            <div class="pre-abf-grid">
-                                ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
-                                    <div class="json-creator-grid-item">
-                                        <input type="checkbox" ${Array.isArray(item.rul) && item.rul.includes(val) ? 'checked' : ''} 
-                                               onchange="jsonCreator.updateNumberArray('rul', ${val}, this.checked)">
-                                        <label>${val}</label>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                        <div class="pre-abf-section">
-                            <h5>Pre ADF</h5>
-                            <div class="pre-abf-grid">
-                                ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
-                                    <div class="json-creator-grid-item">
-                                        <input type="checkbox" ${Array.isArray(item.rdl) && item.rdl.includes(val) ? 'checked' : ''} 
-                                               onchange="jsonCreator.updateNumberArray('rdl', ${val}, this.checked)">
-                                        <label>${val}</label>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="json-creator-section-compact">
-                    <h4>Algorithm</h4>
-                    <div class="json-creator-form-group">
-                        <input type="text" onchange="jsonCreator.updateField('alg', this.value)" value="${item.alg || ''}" style="width: 100%; padding: 6px 8px; background: #ffffff; border: 1px solid #c0c0c0; border-radius: 2px; color: #1a1a1a;">
-                    </div>
-                </div>
-            `;
+            content.innerHTML = this._generateAdditionalInfoHTML(item, false);
         }
     }
 
@@ -1283,42 +1326,33 @@ class JSONCreator {
         }
     }
 
+    _updateArray(target, field, value, checked) {
+        if (!target) return;
+        if (!Array.isArray(target[field])) {
+            target[field] = [];
+        }
+        if (checked) {
+            if (!target[field].includes(value)) {
+                target[field].push(value);
+            }
+        } else {
+            target[field] = target[field].filter(v => v !== value);
+        }
+    }
+
+    _saveAndRefresh(isTemplate = false) {
+        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+        saveDevelopingJSONs();
+        if (!isTemplate) {
+            this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
+        } else {
+            this.renderTemplateTab();
+        }
+    }
+
     updateEquator(symbol, checked) {
-        if (this.selectedItem) {
-            if (!Array.isArray(this.selectedItem.equator)) {
-                this.selectedItem.equator = [];
-            }
-            if (checked) {
-                if (!this.selectedItem.equator.includes(symbol)) {
-                    this.selectedItem.equator.push(symbol);
-                }
-            } else {
-                this.selectedItem.equator = this.selectedItem.equator.filter(s => s !== symbol);
-            }
-            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
-            saveDevelopingJSONs();
-        }
-    }
-
-    updateParity(type, value) {
-        if (this.selectedItem) {
-            this.selectedItem.parity[type] = value;
-        }
-    }
-
-    updateParityMode(mode, value) {
-        if (this.selectedItem) {
-            if (!Array.isArray(this.selectedItem.parity)) {
-                this.selectedItem.parity = [];
-            }
-            if (value) {
-                if (!this.selectedItem.parity.includes(mode)) {
-                    this.selectedItem.parity.push(mode);
-                }
-            } else {
-                this.selectedItem.parity = this.selectedItem.parity.filter(m => m !== mode);
-            }
-        }
+        this._updateArray(this.selectedItem, 'equator', symbol, checked);
+        this._saveAndRefresh();
     }
 
     updateParityMode(mode) {
@@ -1330,190 +1364,102 @@ class JSONCreator {
             } else if (mode === 'color-specific') {
                 this.selectedItem.parity = ['tnbn'];
             }
-            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
-            saveDevelopingJSONs();
-            this.renderCaseTab(this.selectedItem, this.selectedPath.split('/').pop());
+            this._saveAndRefresh();
         }
     }
 
     updateMoveArray(field, move, checked) {
-        if (this.selectedItem) {
-            if (!Array.isArray(this.selectedItem[field])) {
-                this.selectedItem[field] = [];
-            }
-            if (checked) {
-                if (!this.selectedItem[field].includes(move)) {
-                    this.selectedItem[field].push(move);
-                }
-            } else {
-                this.selectedItem[field] = this.selectedItem[field].filter(m => m !== move);
-            }
-            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
-            saveDevelopingJSONs();
-        }
+        this._updateArray(this.selectedItem, field, move, checked);
+        this._saveAndRefresh();
     }
 
     updateNumberArray(field, num, checked) {
-        if (this.selectedItem) {
-            if (!Array.isArray(this.selectedItem[field])) {
-                this.selectedItem[field] = [];
+        this._updateArray(this.selectedItem, field, num, checked);
+        this._saveAndRefresh();
+    }
+
+    _handleConstraint(target, action, position = null) {
+        if (!target) return;
+
+        if (action === 'add') {
+            const posInput = document.getElementById('constraintPosition');
+            const valsInput = document.getElementById('constraintValues');
+
+            const pos = posInput.value.trim().toUpperCase();
+            const values = valsInput.value.trim().split(',').map(v => v.trim().toLowerCase());
+
+            if (!pos || !values.length || !values[0]) {
+                showFloatingMessage('Please enter both position and values', 'error');
+                return;
             }
-            if (checked) {
-                if (!this.selectedItem[field].includes(num)) {
-                    this.selectedItem[field].push(num);
-                }
-            } else {
-                this.selectedItem[field] = this.selectedItem[field].filter(n => n !== num);
+
+            if (!target.constraints) target.constraints = {};
+            target.constraints[pos] = values;
+
+            posInput.value = '';
+            valsInput.value = '';
+        } else if (action === 'remove' && position) {
+            if (target.constraints) {
+                delete target.constraints[position];
             }
-            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
-            saveDevelopingJSONs();
         }
     }
 
     addConstraint() {
-        if (!this.selectedItem) return;
-
-        const posInput = document.getElementById('constraintPosition');
-        const valsInput = document.getElementById('constraintValues');
-
-        const position = posInput.value.trim().toUpperCase();
-        const values = valsInput.value.trim().split(',').map(v => v.trim().toLowerCase());
-
-        if (!position || !values.length || !values[0]) {
-            showFloatingMessage('Please enter both position and values', 'error');
-            return;
-        }
-
-        if (!this.selectedItem.constraints) this.selectedItem.constraints = {};
-        this.selectedItem.constraints[position] = values;
-
-        posInput.value = '';
-        valsInput.value = '';
-
-        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
-        saveDevelopingJSONs();
-
-        // Refresh the case editor
-        this.showCaseEditor(this.selectedItem, this.selectedPath.split('/').pop());
+        this._handleConstraint(this.selectedItem, 'add');
+        this._saveAndRefresh();
     }
 
     removeConstraint(position) {
-        if (this.selectedItem && this.selectedItem.constraints) {
-            delete this.selectedItem.constraints[position];
-            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
-            saveDevelopingJSONs();
-            // Refresh the case editor
-            this.showCaseEditor(this.selectedItem, this.selectedPath.split('/').pop());
-        }
+        this._handleConstraint(this.selectedItem, 'remove', position);
+        this._saveAndRefresh();
     }
 
     showContextMenu(e, path, item, key) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        // Switch focus first
-        this.selectedPath = path;
-        this.selectedItem = item;
-        this.renderTree();
-
-        this.hideContextMenu();
-
-        this.setupContextMenuListener();
-
-        const menu = document.createElement('div');
-        menu.className = 'context-menu';
-        menu.style.left = `${e.pageX}px`;
-        menu.style.top = `${e.pageY}px`;
-
-        const isFolder = !item.caseName;
-        const items = [];
-
-        if (isFolder) {
-            items.push({ text: 'New Case', action: () => this.newCase() });
-            items.push({ text: 'New Folder', action: () => this.newFolder() });
-            items.push({ separator: true });
-        }
-
-        items.push({ text: 'Rename', action: () => this.renameItem(path) });
-        items.push({ text: 'Run', action: () => this.runItem(item, key) });
-        if (!isFolder) {
-            items.push({ text: 'Set as Template', action: () => this.setAsTemplate(item) });
-        }
+    e.preventDefault();
+    e.stopPropagation();
+    
+    this.selectedPath = path;
+    this.selectedItem = item;
+    this.renderTree();
+    
+    const isFolder = !item.caseName;
+    const items = [];
+    
+    if (isFolder) {
+        items.push({ text: 'New Case', action: () => this.newCase() });
+        items.push({ text: 'New Folder', action: () => this.newFolder() });
         items.push({ separator: true });
-        items.push({ text: 'Move Up', action: () => this.moveItemUp(path) });
-        items.push({ text: 'Move Down', action: () => this.moveItemDown(path) });
-        items.push({ separator: true });
-        items.push({ text: 'Copy', action: () => this.copy() });
-        items.push({ text: 'Paste', action: () => this.paste(), disabled: !this.clipboard });
-        items.push({ separator: true });
-        items.push({ text: 'Delete', action: () => this.delete() });
-
-        items.forEach(item => {
-            if (item.separator) {
-                const sep = document.createElement('div');
-                sep.className = 'context-menu-separator';
-                menu.appendChild(sep);
-            } else {
-                const menuItem = document.createElement('div');
-                menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
-                menuItem.textContent = item.text;
-                if (!item.disabled) {
-                    menuItem.onclick = () => {
-                        this.hideContextMenu();
-                        item.action();
-                    };
-                }
-                menu.appendChild(menuItem);
-            }
-        });
-
-        document.body.appendChild(menu);
-        this.contextMenu = menu;
     }
-
-    showTreeRootContextMenu(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        this.hideContextMenu();
-
-        this.setupContextMenuListener();
-
-        const menu = document.createElement('div');
-        menu.className = 'context-menu tree-root-context-menu';
-        menu.style.left = `${e.pageX}px`;
-        menu.style.top = `${e.pageY}px`;
-        menu.style.zIndex = '10001';
-
-        const items = [
-            { text: 'New Case', action: () => { this.selectedPath = ''; this.selectedItem = null; this.newCase(); } },
-            { text: 'New Folder', action: () => { this.selectedPath = ''; this.selectedItem = null; this.newFolder(); } },
-            { text: 'Paste', action: () => { this.selectedPath = ''; this.selectedItem = null; this.paste(); }, disabled: !this.clipboard },
-            { separator: true },
-            { text: 'Run All', action: () => this.runJSON() }
-        ];
-
-        items.forEach(item => {
-            if (item.separator) {
-                const sep = document.createElement('div');
-                sep.className = 'context-menu-separator';
-                menu.appendChild(sep);
-            } else {
-                const menuItem = document.createElement('div');
-                menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
-                menuItem.textContent = item.text;
-                if (!item.disabled) {
-                    menuItem.onclick = () => {
-                        this.hideContextMenu();
-                        item.action();
-                    };
-                }
-                menu.appendChild(menuItem);
-            }
-        });
-
-        document.body.appendChild(menu);
-        this.contextMenu = menu;
+    
+    items.push({ text: 'Rename', action: () => this.renameItem(path) });
+    items.push({ text: 'Run', action: () => this.runItem(item, key) });
+    if (!isFolder) {
+        items.push({ text: 'Set as Template', action: () => this.setAsTemplate(item) });
     }
+    items.push({ separator: true });
+    items.push({ text: 'Copy', action: () => this.copy() });
+    items.push({ text: 'Paste', action: () => this.paste(), disabled: !this.clipboard });
+    items.push({ separator: true });
+    items.push({ text: 'Delete', action: () => this.delete() });
+    
+    this._createContextMenu(e.pageX, e.pageY, items);
+}
+
+showTreeRootContextMenu(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const items = [
+        { text: 'New Case', action: () => { this.selectedPath = ''; this.selectedItem = null; this.newCase(); } },
+        { text: 'New Folder', action: () => { this.selectedPath = ''; this.selectedItem = null; this.newFolder(); } },
+        { text: 'Paste', action: () => { this.selectedPath = ''; this.selectedItem = null; this.paste(); }, disabled: !this.clipboard },
+        { separator: true },
+        { text: 'Run All', action: () => this.runJSON() }
+    ];
+    
+    this._createContextMenu(e.pageX, e.pageY, items);
+}
 
     hideContextMenu() {
         if (this.contextMenu) {
@@ -1528,12 +1474,12 @@ class JSONCreator {
                 this.hideContextMenu();
             }
         };
-
+        
         // Remove old listener if exists
         if (this.outsideClickHandler) {
             document.removeEventListener('click', this.outsideClickHandler);
         }
-
+        
         this.outsideClickHandler = handleOutsideClick;
         setTimeout(() => {
             document.addEventListener('click', handleOutsideClick);
@@ -1552,34 +1498,18 @@ class JSONCreator {
     }
 
     runItem(item, key) {
-        this.openRunModal(item, key);
-    }
+    this.openRunModal(item, key);
+}
 
     switchRoot(rootName) {
-        // Save current root and its item order
-        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
-        this.saveItemOrder();
-        saveDevelopingJSONs();
-
-        // Switch to new root
+        this._saveCurrentRoot();
         AppState.activeDevelopingJSON = rootName;
-        this.treeData = JSON.parse(JSON.stringify(AppState.developingJSONs[rootName]));
-        
-        // Load item order for new root
-        this.itemOrder = JSON.parse(localStorage.getItem(`itemOrder_${AppState.activeDevelopingJSON}`) || '{}');
-        
-        this.selectedPath = '';
-        this.selectedItem = null;
-        this.expandedFolders.clear();
-        this.expandAllFolders(this.treeData, '');
+        this._loadRoot(rootName);
         this.renderTree();
         this.showWelcome();
-
-        // Update button text
+        
         const rootBtn = document.getElementById('rootSelectorBtn');
-        if (rootBtn) {
-            rootBtn.textContent = rootName;
-        }
+        if (rootBtn) rootBtn.textContent = rootName;
     }
 
     openRootSelectorModal() {
@@ -1606,13 +1536,10 @@ class JSONCreator {
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             z-index: 20000;
         `;
-
-        // Get ordered roots
-        const orderedRoots = this.rootOrder.filter(r => AppState.developingJSONs[r]);
         
         modal.innerHTML = `
             <div id="rootList" style="max-height: 400px; overflow-y: auto;">
-                ${orderedRoots.map(root => `
+                ${Object.keys(AppState.developingJSONs).map(root => `
                     <div class="root-list-item ${root === AppState.activeDevelopingJSON ? 'active' : ''}" 
                          data-root="${root}"
                          onclick="jsonCreator.selectRootFromModal('${root}')"
@@ -1626,9 +1553,9 @@ class JSONCreator {
                 + Add Root
             </button>
         `;
-
+        
         document.body.appendChild(modal);
-
+        
         // Close on outside click
         setTimeout(() => {
             const closeOnOutsideClick = (e) => {
@@ -1647,63 +1574,29 @@ class JSONCreator {
         if (modal) modal.remove();
     }
 
-    showModalRootContextMenu(e, rootName) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        this.hideContextMenu();
-        this.setupContextMenuListener();
-
-        const menu = document.createElement('div');
-        menu.className = 'context-menu root-context-menu';
-        menu.style.left = `${e.pageX}px`;
-        menu.style.top = `${e.pageY}px`;
-        menu.style.zIndex = '20001';
-
-        const items = [
-            { text: 'Rename', action: () => this.renameRootFromModal(rootName) },
-            { text: 'Move Up', action: () => { this.moveRootUp(rootName); this.openRootSelectorModal(); } },
-            { text: 'Move Down', action: () => { this.moveRootDown(rootName); this.openRootSelectorModal(); } },
-            { separator: true },
-            { text: 'Delete', action: () => this.deleteRootFromModal(rootName), disabled: Object.keys(AppState.developingJSONs).length === 1 }
-        ];
-
-        items.forEach(item => {
-            if (item.separator) {
-                const sep = document.createElement('div');
-                sep.className = 'context-menu-separator';
-                menu.appendChild(sep);
-            } else {
-                const menuItem = document.createElement('div');
-                menuItem.className = `context-menu-item ${item.disabled ? 'disabled' : ''}`;
-                menuItem.textContent = item.text;
-                if (!item.disabled) {
-                    menuItem.onclick = () => {
-                        this.hideContextMenu();
-                        item.action();
-                    };
-                }
-                menu.appendChild(menuItem);
-            }
-        });
-
-        document.body.appendChild(menu);
-        this.contextMenu = menu;
-    }
+showModalRootContextMenu(e, rootName) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const items = [
+        { text: 'Rename', action: () => this.renameRootFromModal(rootName) },
+        { text: 'Delete', action: () => this.deleteRootFromModal(rootName), disabled: Object.keys(AppState.developingJSONs).length === 1 }
+    ];
+    
+    this._createContextMenu(e.pageX, e.pageY, items);
+}
 
     addRootFromModal() {
         const modal = document.querySelector('.root-selector-modal');
         if (modal) modal.remove();
-
+        
         showRenameModal('New Root', '', (name) => {
             if (AppState.developingJSONs[name]) {
                 showFloatingMessage('A root with this name already exists', 'error');
                 return;
             }
 
-            AppState.developingJSONs[name] = {};
-            this.rootOrder.push(name);
-            this.saveRootOrder();
+        AppState.developingJSONs[name] = {};
             saveDevelopingJSONs();
 
             this.switchRoot(name);
@@ -1713,7 +1606,7 @@ class JSONCreator {
     renameRootFromModal(currentName) {
         const modal = document.querySelector('.root-selector-modal');
         if (modal) modal.remove();
-
+        
         showRenameModal(`Rename Root: ${currentName}`, currentName, (newName) => {
             if (newName === currentName) return;
 
@@ -1722,21 +1615,14 @@ class JSONCreator {
                 return;
             }
 
-            AppState.developingJSONs[newName] = AppState.developingJSONs[currentName];
+        AppState.developingJSONs[newName] = AppState.developingJSONs[currentName];
             delete AppState.developingJSONs[currentName];
-
-            // Update root order
-            const index = this.rootOrder.indexOf(currentName);
-            if (index !== -1) {
-                this.rootOrder[index] = newName;
-                this.saveRootOrder();
-            }
-
+            
             if (AppState.activeDevelopingJSON === currentName) {
                 AppState.activeDevelopingJSON = newName;
                 this.treeData = AppState.developingJSONs[newName];
             }
-
+            
             saveDevelopingJSONs();
 
             // Update button text if this was the active root
@@ -1752,33 +1638,26 @@ class JSONCreator {
             showFloatingMessage('Cannot delete the last root', 'error');
             return;
         }
-
+        
         const modal = document.querySelector('.root-selector-modal');
         if (modal) modal.remove();
-
+        
         showConfirmationModal(
             'Delete Root',
             `Delete root "${currentName}"? This cannot be undone.`,
             () => {
 
-                delete AppState.developingJSONs[currentName];
-
-                // Remove from root order
-                const index = this.rootOrder.indexOf(currentName);
-                if (index !== -1) {
-                    this.rootOrder.splice(index, 1);
-                    this.saveRootOrder();
-                }
-
+        delete AppState.developingJSONs[currentName];
+                
                 if (AppState.activeDevelopingJSON === currentName) {
-                    AppState.activeDevelopingJSON = this.rootOrder[0] || Object.keys(AppState.developingJSONs)[0];
+                    AppState.activeDevelopingJSON = Object.keys(AppState.developingJSONs)[0];
                     this.switchRoot(AppState.activeDevelopingJSON);
                 }
-
+                
                 saveDevelopingJSONs();
             }
         );
-    }
+    } 
 
     copyJSON() {
         navigator.clipboard.writeText(JSON.stringify(this.treeData, null, 2))
@@ -1787,19 +1666,17 @@ class JSONCreator {
     }
 
     extractJSON() {
+    
+    this._saveCurrentRoot();
+    
+    const jsonString = JSON.stringify(this.treeData, null, 2);
 
-        // Save current root before extracting
-        AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
-        saveDevelopingJSONs();
-
-        const jsonString = JSON.stringify(this.treeData, null, 2);
-
-        // Remove any existing extract modal first
-        const existingModal = document.querySelector('.extract-json-modal');
-        if (existingModal) {
-            existingModal.remove();
-        }
-
+    // Remove any existing extract modal first
+    const existingModal = document.querySelector('.extract-json-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+        
         const modal = document.createElement('div');
         modal.className = 'modal active extract-json-modal';
         modal.style.zIndex = '20000'; // Higher than json-creator-fullscreen (10000)
@@ -1820,13 +1697,13 @@ class JSONCreator {
         </div>
     `;
         document.body.appendChild(modal);
-
+        
         // Check for elements that might be covering the modal
         const allElements = Array.from(document.body.children);
         allElements.forEach((el, idx) => {
             const styles = window.getComputedStyle(el);
         });
-
+        
         // Check if json-creator-fullscreen exists
         const jsonCreatorFullscreen = document.getElementById('jsonCreatorFullscreen');
         if (jsonCreatorFullscreen) {
@@ -1835,12 +1712,12 @@ class JSONCreator {
         // Add event listeners after modal is in DOM
         const copyBtn = document.getElementById('copyJSONBtn');
         const downloadBtn = document.getElementById('downloadJSONBtn');
-
+        
         if (!copyBtn || !downloadBtn) {
             console.error('[extractJSON] Buttons not found!', { copyBtn, downloadBtn });
             return;
         }
-
+        
         copyBtn.addEventListener('click', () => {
             const textarea = document.getElementById('extractedJSON');
             navigator.clipboard.writeText(textarea.value).then(() => {
@@ -1871,13 +1748,13 @@ class JSONCreator {
     }
 
     runJSON() {
-        this.openRunModal(this.treeData, AppState.activeDevelopingJSON);
-    }
+    this.openRunModal(this.treeData, AppState.activeDevelopingJSON);
+}
 
     openRunModal(jsonData, name) {
-        const modal = document.createElement('div');
-        modal.className = 'run-modal';
-        modal.innerHTML = `
+    const modal = document.createElement('div');
+    modal.className = 'run-modal';
+    modal.innerHTML = `
         <div class="run-modal-content">
             <div class="run-modal-header">
                 <h2>Running: ${name}</h2>
@@ -1893,110 +1770,97 @@ class JSONCreator {
             <div class="run-modal-body" id="runResultsContainer"></div>
         </div>
     `;
-        document.body.appendChild(modal);
+    document.body.appendChild(modal);
 
-        let stopped = false;
-        const stopButton = document.getElementById('stopRunButton');
-        stopButton.onclick = () => {
-            stopped = true;
-            stopButton.disabled = true;
-            stopButton.textContent = 'Stopped';
-        };
+    let stopped = false;
+    const stopButton = document.getElementById('stopRunButton');
+    stopButton.onclick = () => {
+        stopped = true;
+        stopButton.disabled = true;
+        stopButton.textContent = 'Stopped';
+    };
 
-        // Wrap single case in an object structure if needed
-        const dataToRun = jsonData.caseName ? { [name]: jsonData } : jsonData;
-        this.generateScrambles(dataToRun, modal, () => stopped);
+    // Wrap single case in an object structure if needed
+    const dataToRun = jsonData.caseName ? { [name]: jsonData } : jsonData;
+    this.generateScrambles(dataToRun, modal, () => stopped);
+}
+
+async generateScrambles(jsonData, modal, isStopped) {
+    const resultsContainer = document.getElementById('runResultsContainer');
+    const progressBar = document.getElementById('runProgressBar');
+    const progressText = document.getElementById('runProgressText');
+    
+    const cases = this._collectAllCases(jsonData);
+
+    if (cases.length === 0) {
+        resultsContainer.innerHTML = '<div style="color: #888; text-align: center; padding: 40px;">No cases found in this JSON</div>';
+        return;
     }
 
-    async generateScrambles(jsonData, modal, isStopped) {
-        const resultsContainer = document.getElementById('runResultsContainer');
-        const progressBar = document.getElementById('runProgressBar');
-        const progressText = document.getElementById('runProgressText');
+    const totalScrambles = 100;
+    let generated = 0;
 
-        // Collect all cases
-        const cases = [];
-        const collectCases = (obj, path = []) => {
-            for (const [key, value] of Object.entries(obj)) {
-                if (value && typeof value === 'object') {
-                    if (value.caseName) {
-                        cases.push({ ...value, path: [...path, key].join(' > ') });
-                    } else {
-                        collectCases(value, [...path, key]);
-                    }
-                }
-            }
-        };
-        collectCases(jsonData);
-
-        if (cases.length === 0) {
-            resultsContainer.innerHTML = '<div style="color: #888; text-align: center; padding: 40px;">No cases found in this JSON</div>';
+    const generateOne = async () => {
+        if (isStopped() || generated >= totalScrambles) {
             return;
         }
 
-        const totalScrambles = 100;
-        let generated = 0;
+        try {
+            const randomCase = cases[Math.floor(Math.random() * cases.length)];
+            
+            const config = {
+                topLayer: randomCase.inputTop,
+                bottomLayer: randomCase.inputBottom,
+                middleLayer: randomCase.equator || ['/'],
+                RUL: randomCase.rul || [0],
+                RDL: randomCase.rdl || [0],
+                AUF: randomCase.auf || ['U0'],
+                ADF: randomCase.adf || ['D0'],
+                constraints: randomCase.constraints || {},
+                parity: randomCase.parity || ['on']
+            };
 
-        const generateOne = async () => {
-            if (isStopped() || generated >= totalScrambles) {
-                return;
-            }
-
-            try {
-                const randomCase = cases[Math.floor(Math.random() * cases.length)];
-
-                const config = {
-                    topLayer: randomCase.inputTop,
-                    bottomLayer: randomCase.inputBottom,
-                    middleLayer: randomCase.equator || ['/'],
-                    RUL: randomCase.rul || [0],
-                    RDL: randomCase.rdl || [0],
-                    AUF: randomCase.auf || ['U0'],
-                    ADF: randomCase.adf || ['D0'],
-                    constraints: randomCase.constraints || {},
-                    parity: randomCase.parity || ['on']
-                };
-
-                const result = generateHexState(config);
-
-                let scramble = '';
-                let solverAttempts = 0;
-                const maxSolverAttempts = 10;
-                let solverSuccess = false;
-
-                while (!solverSuccess && solverAttempts < maxSolverAttempts) {
-                    solverAttempts++;
-                    try {
-                        if (typeof window.Square1Solver !== 'undefined') {
-                            scramble = window.Square1Solver.solve(result.hexState);
-                            solverSuccess = true;
-                        } else {
-                            scramble = '⚠ Solver not loaded';
-                            solverSuccess = true;
-                        }
-                    } catch (solverError) {
-                        const isShiftError = solverError.message && solverError.message.includes("Cannot read properties of undefined (reading 'shift')");
-
-                        if (isShiftError && solverAttempts < maxSolverAttempts) {
-                            await new Promise(resolve => setTimeout(resolve, 10));
-                            continue;
-                        }
-
-                        scramble = `⚠ Error: ${solverError.message}`;
+            const result = generateHexState(config);
+            
+            let scramble = '';
+            let solverAttempts = 0;
+            const maxSolverAttempts = 10;
+            let solverSuccess = false;
+            
+            while (!solverSuccess && solverAttempts < maxSolverAttempts) {
+                solverAttempts++;
+                try {
+                    if (typeof window.Square1Solver !== 'undefined') {
+                        scramble = window.Square1Solver.solve(result.hexState);
+                        solverSuccess = true;
+                    } else {
+                        scramble = '⚠ Solver not loaded';
                         solverSuccess = true;
                     }
+                } catch (solverError) {
+                    const isShiftError = solverError.message && solverError.message.includes("Cannot read properties of undefined (reading 'shift')");
+                    
+                    if (isShiftError && solverAttempts < maxSolverAttempts) {
+                        await new Promise(resolve => setTimeout(resolve, 10));
+                        continue;
+                    }
+                    
+                    scramble = `⚠ Error: ${solverError.message}`;
+                    solverSuccess = true;
                 }
+            }
 
-                const inputHex = config.topLayer + '|' + config.bottomLayer;
+            const inputHex = config.topLayer + '|' + config.bottomLayer;
+            
+            // Extract ABF and RBL details
+            const [auf, adf] = result.abf.split('-');
+            const rblMatch = result.rbl.match(/RUL:(-?\d+), RDL:(-?\d+)/);
+            const rul = rblMatch ? rblMatch[1] : '0';
+            const rdl = rblMatch ? rblMatch[2] : '0';
 
-                // Extract ABF and RBL details
-                const [auf, adf] = result.abf.split('-');
-                const rblMatch = result.rbl.match(/RUL:(-?\d+), RDL:(-?\d+)/);
-                const rul = rblMatch ? rblMatch[1] : '0';
-                const rdl = rblMatch ? rblMatch[2] : '0';
-
-                const resultDiv = document.createElement('div');
-                resultDiv.className = 'scramble-result-item';
-                resultDiv.innerHTML = `
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'scramble-result-item';
+            resultDiv.innerHTML = `
                 <div class="scramble-result-info">
                     <div><strong>Case Name:</strong> ${randomCase.caseName}</div>
                     <div><strong>Case Path:</strong> ${randomCase.path}</div>
@@ -2006,7 +1870,7 @@ class JSONCreator {
                     <div><strong>Equator:</strong> ${result.equator}</div>
                 </div>
                 <div class="scramble-result-viz">
-                    ${typeof window.Square1VisualizerLibraryWithSillyNames !== 'undefined'
+                    ${typeof window.Square1VisualizerLibraryWithSillyNames !== 'undefined' 
                         ? window.Square1VisualizerLibraryWithSillyNames.visualizeFromHexCodePlease(
                             result.hexState,
                             150,
@@ -2026,103 +1890,74 @@ class JSONCreator {
                     }
                 </div>
             `;
+            
+            resultsContainer.appendChild(resultDiv);
+            generated++;
 
-                resultsContainer.appendChild(resultDiv);
-                generated++;
+            const progress = (generated / totalScrambles) * 100;
+            progressBar.style.width = `${progress}%`;
+            progressText.textContent = `${generated} / ${totalScrambles}`;
 
-                const progress = (generated / totalScrambles) * 100;
-                progressBar.style.width = `${progress}%`;
-                progressText.textContent = `${generated} / ${totalScrambles}`;
+            // Debounce: wait 50ms before next generation
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
+            // Continue generating
+            generateOne();
+            
+        } catch (error) {
+            console.error('Error generating scramble:', error);
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = 'color: #ef4444; padding: 12px; background: #3a1a1a; border-radius: 6px; margin-bottom: 12px;';
+            errorDiv.textContent = `Error: ${error.message}`;
+            resultsContainer.appendChild(errorDiv);
+            
+            // Continue despite error
+            generated++;
+            await new Promise(resolve => setTimeout(resolve, 50));
+            generateOne();
+        }
+    };
 
-                // Debounce: wait 50ms before next generation
-                await new Promise(resolve => setTimeout(resolve, 50));
+    // Start generation
+    generateOne();
+}
 
-                // Continue generating
-                generateOne();
+showExtraTools(event) {
+    event.stopPropagation();
+    
+    const buttonRect = event.currentTarget.getBoundingClientRect();
+    const items = [
+        { text: 'Case Template', action: () => this.openCaseTemplate() },
+        { text: 'Import Data to Root', action: () => this.importDataToRoot() },
+        { text: 'Reset Root', action: () => this.resetRoot() }
+    ];
+    
+    this._createContextMenu(buttonRect.left, buttonRect.bottom + 2, items);
+}
 
-            } catch (error) {
-                console.error('Error generating scramble:', error);
-                const errorDiv = document.createElement('div');
-                errorDiv.style.cssText = 'color: #ef4444; padding: 12px; background: #3a1a1a; border-radius: 6px; margin-bottom: 12px;';
-                errorDiv.textContent = `Error: ${error.message}`;
-                resultsContainer.appendChild(errorDiv);
+openCaseTemplate() {
+    // Store the last selected case path so we can return to it
+    this.lastCaseBeforeTemplate = {
+        path: this.selectedPath,
+        item: this.selectedItem
+    };
 
-                // Continue despite error
-                generated++;
-                await new Promise(resolve => setTimeout(resolve, 50));
-                generateOne();
-            }
-        };
+    const title = document.getElementById('jsonCreatorTitle');
+    const subtitle = document.getElementById('jsonCreatorSubtitle');
+    const body = document.getElementById('jsonCreatorBody');
 
-        // Start generation
-        generateOne();
-    }
+    title.innerHTML = `Case Template <button class="json-creator-icon-btn" onclick="jsonCreator.saveCaseTemplate()" title="Save Template" style="margin-left: 8px; display: inline-flex; align-items: center; vertical-align: middle;"><img src="viz/save.svg" width="14" height="14" onerror="this.outerHTML='Save'"></button> <button class="json-creator-icon-btn" onclick="jsonCreator.clearCaseTemplate()" title="Clear Template" style="margin-left: 4px; display: inline-flex; align-items: center; vertical-align: middle;"><img src="viz/reset.svg" width="14" height="14" onerror="this.outerHTML='Reset'"></button>`;
+    subtitle.innerHTML = `Any new case from now on will be pre-configured according to this case template.`;
 
-    showExtraTools(event) {
-        event.stopPropagation();
-        this.hideContextMenu();
-        this.setupContextMenuListener();
+    // Use existing template or create default
+    const template = this.caseTemplate || { ...this.DEFAULT_CASE };
+    delete template.caseName;
+    delete template.alg;
 
-        const button = event.currentTarget;
-        const buttonRect = button.getBoundingClientRect();
+    // Store the template temporarily for editing
+    this.editingTemplate = JSON.parse(JSON.stringify(template));
 
-        const menu = document.createElement('div');
-        menu.className = 'context-menu';
-        menu.style.left = `${buttonRect.left}px`;
-        menu.style.top = `${buttonRect.bottom + 2}px`;
-
-        const items = [
-            { text: 'Case Template', action: () => this.openCaseTemplate() },
-            { text: 'Import Data to Root', action: () => this.importDataToRoot() },
-            { text: 'Reset Root', action: () => this.resetRoot() }
-        ];
-
-        items.forEach(item => {
-            const menuItem = document.createElement('div');
-            menuItem.className = 'context-menu-item';
-            menuItem.textContent = item.text;
-            menuItem.onclick = () => {
-                this.hideContextMenu();
-                item.action();
-            };
-            menu.appendChild(menuItem);
-        });
-
-        document.body.appendChild(menu);
-        this.contextMenu = menu;
-    }
-
-    openCaseTemplate() {
-        // Store the last selected case path so we can return to it
-        this.lastCaseBeforeTemplate = {
-            path: this.selectedPath,
-            item: this.selectedItem
-        };
-
-        const title = document.getElementById('jsonCreatorTitle');
-        const subtitle = document.getElementById('jsonCreatorSubtitle');
-        const body = document.getElementById('jsonCreatorBody');
-
-        title.innerHTML = `Case Template <button class="json-creator-icon-btn" onclick="jsonCreator.saveCaseTemplate()" title="Save Template" style="margin-left: 8px; display: inline-flex; align-items: center; vertical-align: middle;"><img src="viz/save.svg" width="14" height="14" onerror="this.outerHTML='Save'"></button> <button class="json-creator-icon-btn" onclick="jsonCreator.clearCaseTemplate()" title="Clear Template" style="margin-left: 4px; display: inline-flex; align-items: center; vertical-align: middle;"><img src="viz/reset.svg" width="14" height="14" onerror="this.outerHTML='Reset'"></button>`;
-        subtitle.innerHTML = `Any new case from now on will be pre-configured according to this case template.`;
-
-        // Use existing template or create default
-        const template = this.caseTemplate || {
-            inputTop: "RRRRRRRRRRRR",
-            inputBottom: "RRRRRRRRRRRR",
-            equator: ["/", "|"],
-            parity: ["on"],
-            constraints: {},
-            auf: ["U0"],
-            adf: ["D0"],
-            rul: [0],
-            rdl: [0]
-        };
-
-        // Store the template temporarily for editing
-        this.editingTemplate = JSON.parse(JSON.stringify(template));
-
-        body.innerHTML = `
+    body.innerHTML = `
         <div class="case-editor-tabs">
             <button class="case-editor-tab active" onclick="jsonCreator.switchTemplateTab('shape')">Shape Input</button>
             <button class="case-editor-tab" onclick="jsonCreator.switchTemplateTab('additional')">Additional Information</button>
@@ -2130,896 +1965,321 @@ class JSONCreator {
         <div id="templateEditorContent"></div>
     `;
 
-        this.currentTemplateTab = 'shape';
-        this.renderTemplateTab();
-    }
+    this.currentTemplateTab = 'shape';
+    this.renderTemplateTab();
+}
 
-    switchTemplateTab(tab) {
-        this.currentTemplateTab = tab;
-        const tabs = document.querySelectorAll('.case-editor-tab');
-        tabs.forEach(t => t.classList.remove('active'));
-        event.target.classList.add('active');
-
-        // Force re-render with a small delay to ensure DOM is ready
-        setTimeout(() => {
-            const content = document.getElementById('templateEditorContent');
-            if (!content) {
-                console.error('templateEditorContent not found after tab switch!');
-                return;
-            }
-            this.renderTemplateTab();
-
-            // Verify the tab content actually rendered
-            setTimeout(() => {
-                const verifyContent = document.getElementById('templateEditorContent');
-                if (!verifyContent || verifyContent.children.length === 0) {
-                    console.error('Template tab content failed to render, forcing re-render');
-                    this.renderTemplateTab();
-                }
-            }, 50);
-        }, 10);
-    }
-
-    renderTemplateTab() {
+switchTemplateTab(tab) {
+    this.currentTemplateTab = tab;
+    const tabs = document.querySelectorAll('.case-editor-tab');
+    tabs.forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    // Force re-render with a small delay to ensure DOM is ready
+    setTimeout(() => {
         const content = document.getElementById('templateEditorContent');
-        if (!content || !this.editingTemplate) return;
-
-        if (this.currentTemplateTab === 'shape') {
-            const alreadyRendered = content.querySelector('#topLayerInput');
-
-            if (alreadyRendered) {
-                const topInput = document.getElementById('topLayerInput');
-                const bottomInput = document.getElementById('bottomLayerInput');
-                const topValue = this.editingTemplate.inputTop || 'RRRRRRRRRRRR';
-                const bottomValue = this.editingTemplate.inputBottom || 'RRRRRRRRRRRR';
-                if (topInput) topInput.value = topValue;
-                if (bottomInput) bottomInput.value = bottomValue;
-
-                if (this.topState && window.InteractiveScrambleRenderer) {
-                    this.topState.topText = topValue;
-                    this.topState.bottomText = '';
-                    this.topState.parse();
-                    const topContainer = document.getElementById('topInteractive');
-                    if (topContainer) {
-                        topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
-                        window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
-                    }
-                }
-
-                if (this.bottomState && window.InteractiveScrambleRenderer) {
-                    this.bottomState.topText = '';
-                    this.bottomState.bottomText = bottomValue;
-                    this.bottomState.parse();
-                    const bottomContainer = document.getElementById('bottomInteractive');
-                    if (bottomContainer) {
-                        bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
-                        window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
-                    }
-                }
-
-                return;
+        if (!content) {
+            console.error('templateEditorContent not found after tab switch!');
+            return;
+        }
+        this.renderTemplateTab();
+        
+        // Verify the tab content actually rendered
+        setTimeout(() => {
+            const verifyContent = document.getElementById('templateEditorContent');
+            if (!verifyContent || verifyContent.children.length === 0) {
+                console.error('Template tab content failed to render, forcing re-render');
+                this.renderTemplateTab();
             }
+        }, 50);
+    }, 10);
+}
 
-            if (window.InteractiveScrambleRenderer) {
-                this.topState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
-                    this.editingTemplate.inputTop || 'RRRRRRRRRRRR',
-                    '',
-                    window.InteractiveScrambleRenderer.DEFAULT_COLOR_SCHEME
-                );
-                this.topState.onChange(() => {
-                    this.editingTemplate.inputTop = this.topState.topText;
-                    const topInput = document.getElementById('topLayerInput');
-                    if (topInput) {
-                        topInput.value = this.topState.topText;
-                    }
-                });
-            }
+renderTemplateTab() {
+    const content = document.getElementById('templateEditorContent');
+    if (!content || !this.editingTemplate) return;
 
-            if (window.InteractiveScrambleRenderer) {
-                this.bottomState = new window.InteractiveScrambleRenderer.InteractiveScrambleState(
-                    '',
-                    this.editingTemplate.inputBottom || 'RRRRRRRRRRRR',
-                    window.InteractiveScrambleRenderer.DEFAULT_COLOR_SCHEME
-                );
-                this.bottomState.onChange(() => {
-                    this.editingTemplate.inputBottom = this.bottomState.bottomText;
-                    const bottomInput = document.getElementById('bottomLayerInput');
-                    if (bottomInput) {
-                        bottomInput.value = this.bottomState.bottomText;
-                    }
-                });
-            }
-
-            content.innerHTML = `
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                <div class="json-creator-section">
-                    <h4>Top Layer</h4>
-                    <div class="json-creator-form-group">
-                        <input type="text" maxlength="12" id="topLayerInput" value="${this.editingTemplate.inputTop || 'RRRRRRRRRRRR'}" 
-                               style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; display: none;">
-                    </div>
-                    <div id="topInteractive" style="display: flex; justify-content: center; margin-top: 12px;"></div>
-                </div>
-
-                <div class="json-creator-section">
-                    <h4>Bottom Layer</h4>
-                    <div class="json-creator-form-group">
-                        <input type="text" maxlength="12" id="bottomLayerInput" value="${this.editingTemplate.inputBottom || 'RRRRRRRRRRRR'}" 
-                               style="font-family: monospace; width: 100%; padding: 8px; background: #2d2d2d; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; display: none;">
-                    </div>
-                    <div id="bottomInteractive" style="display: flex; justify-content: center; margin-top: 12px;"></div>
-                </div>
-            </div>
-
-            <div class="json-creator-section">
-                <h4>Constraints</h4>
-                <p style="font-size: 12px; color: #666; margin: 0 0 12px 0; font-style: italic;">Don't touch this unless you know what you are doing</p>
-                <div class="json-creator-form-group">
-                    <label>Position (e.g., A, BC, D)</label>
-                    <input type="text" id="constraintPosition" placeholder="Enter position...">
-                </div>
-                <div class="json-creator-form-group">
-                    <label>Allowed Pieces (comma-separated)</label>
-                    <input type="text" id="constraintValues" placeholder="e.g., 1,3,5,7">
-                </div>
-                <button class="json-creator-btn" onclick="jsonCreator.addTemplateConstraint()">Add Constraint</button>
-                <div id="constraintsList" style="margin-top: 10px;">
-                    ${Object.entries(this.editingTemplate.constraints || {}).map(([pos, vals]) => `
-                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 4px; background: #3c3c3c; border-radius: 2px;">
-                            <span style="color: #cccccc; font-size: 12px;">${pos}: ${vals.join(', ')}</span>
-                            <button onclick="jsonCreator.removeTemplateConstraint('${pos}')" style="background: #d32f2f; border: none; color: white; padding: 2px 8px; border-radius: 2px; cursor: pointer; font-size: 11px;">Remove</button>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-
-            const topContainer = document.getElementById('topInteractive');
-            const bottomContainer = document.getElementById('bottomInteractive');
-
-            if (topContainer && window.InteractiveScrambleRenderer) {
-                this.topState.topText = this.editingTemplate.inputTop || 'RRRRRRRRRRRR';
-                this.topState.bottomText = '';
-                this.topState.parse();
-                topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
-                window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
-            }
-
-            if (bottomContainer && window.InteractiveScrambleRenderer) {
-                this.bottomState.topText = '';
-                this.bottomState.bottomText = this.editingTemplate.inputBottom || 'RRRRRRRRRRRR';
-                this.bottomState.parse();
-                bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
-                window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
-            }
-
-            const topInput = document.getElementById('topLayerInput');
-            const bottomInput = document.getElementById('bottomLayerInput');
-
-            if (topInput) {
-                topInput.addEventListener('input', (e) => {
-                    const value = e.target.value.toUpperCase().substring(0, 12);
-                    e.target.value = value;
-
-                    if (value.length < 12) {
-                        e.target.style.borderColor = '#ef4444';
-                        return;
-                    }
-
-                    e.target.style.borderColor = '#404040';
-
-                    if (value.length === 12) {
-                        try {
-                            this.topState.topText = value;
-                            this.topState.parse();
-                            const topContainer = document.getElementById('topInteractive');
-                            topContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.topState, { size: 200 });
-                            window.InteractiveScrambleRenderer.setupInteractiveEvents(this.topState, 'topInteractive');
-                            this.editingTemplate.inputTop = value;
-                        } catch (error) {
-                            console.error('Parse error:', error);
-                            alert('Invalid input: ' + error.message);
-                            e.target.style.borderColor = '#ef4444';
-                        }
-                    }
-                });
-            }
-
-            if (bottomInput) {
-                bottomInput.addEventListener('input', (e) => {
-                    const value = e.target.value.toUpperCase().substring(0, 12);
-                    e.target.value = value;
-
-                    if (value.length < 12) {
-                        e.target.style.borderColor = '#ef4444';
-                        return;
-                    }
-
-                    e.target.style.borderColor = '#404040';
-
-                    if (value.length === 12) {
-                        try {
-                            this.bottomState.bottomText = value;
-                            this.bottomState.parse();
-                            const bottomContainer = document.getElementById('bottomInteractive');
-                            bottomContainer.innerHTML = window.InteractiveScrambleRenderer.createInteractiveSVG(this.bottomState, { size: 200 });
-                            window.InteractiveScrambleRenderer.setupInteractiveEvents(this.bottomState, 'bottomInteractive');
-                            this.editingTemplate.inputBottom = value;
-                        } catch (error) {
-                            console.error('Parse error:', error);
-                            alert('Invalid input: ' + error.message);
-                            e.target.style.borderColor = '#ef4444';
-                        }
-                    }
-                });
-            }
-
+    if (this.currentTemplateTab === 'shape') {
+            this._renderShapeInputTab(this.editingTemplate, content, true);
         } else if (this.currentTemplateTab === 'additional') {
-            let parityMode = 'ignore';
-            if (Array.isArray(this.editingTemplate.parity) && this.editingTemplate.parity.length > 0) {
-                if (this.editingTemplate.parity.includes('on') || this.editingTemplate.parity.includes('op')) {
-                    parityMode = 'overall';
-                } else {
-                    parityMode = 'color-specific';
-                }
+        content.innerHTML = this._generateAdditionalInfoHTML(this.editingTemplate, true);
+    }
+}
+
+updateTemplateEquator(symbol, checked) {
+    this._updateArray(this.editingTemplate, 'equator', symbol, checked);
+}
+
+updateTemplateParityMode(mode) {
+    if (mode === 'ignore') {
+        this.editingTemplate.parity = [];
+    } else if (mode === 'overall') {
+        this.editingTemplate.parity = ['on'];
+    } else if (mode === 'color-specific') {
+        this.editingTemplate.parity = ['tnbn'];
+    }
+    this.renderTemplateTab();
+}
+
+updateTemplateMoveArray(field, move, checked) {
+    this._updateArray(this.editingTemplate, field, move, checked);
+}
+
+updateTemplateNumberArray(field, num, checked) {
+    this._updateArray(this.editingTemplate, field, num, checked);
+}
+
+addTemplateConstraint() {
+    this._handleConstraint(this.editingTemplate, 'add');
+    this.renderTemplateTab();
+}
+
+removeTemplateConstraint(position) {
+    this._handleConstraint(this.editingTemplate, 'remove', position);
+    this.renderTemplateTab();
+}
+
+saveCaseTemplate() {
+    this.caseTemplate = JSON.parse(JSON.stringify(this.editingTemplate));
+    const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
+    localStorage.setItem(templateKey, JSON.stringify(this.caseTemplate));
+    showFloatingMessage('Case template saved successfully!', 'success');
+    
+    // Restore the last selected case
+    if (this.lastCaseBeforeTemplate && this.lastCaseBeforeTemplate.item && this.lastCaseBeforeTemplate.item.caseName) {
+        this.selectedPath = this.lastCaseBeforeTemplate.path;
+        this.selectedItem = this.lastCaseBeforeTemplate.item;
+        this.renderTree();
+        const caseName = this.selectedPath.split('/').pop();
+        this.showCaseEditor(this.selectedItem, caseName);
+    } else {
+        this.showWelcome();
+    }
+}
+
+clearCaseTemplate() {
+    showConfirmationModal(
+        'Clear Template',
+        'Are you sure you want to clear the case template?',
+        () => {
+            this.caseTemplate = null;
+            this.editingTemplate = null;
+            const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
+            localStorage.removeItem(templateKey);
+            showFloatingMessage('Case template cleared!', 'success');
+            
+            // Restore the last selected case
+            if (this.lastCaseBeforeTemplate && this.lastCaseBeforeTemplate.item && this.lastCaseBeforeTemplate.item.caseName) {
+                this.selectedPath = this.lastCaseBeforeTemplate.path;
+                this.selectedItem = this.lastCaseBeforeTemplate.item;
+                this.renderTree();
+                const caseName = this.selectedPath.split('/').pop();
+                this.showCaseEditor(this.selectedItem, caseName);
+            } else {
+                this.showWelcome();
             }
-
-            content.innerHTML = `
-            <div class="json-creator-section-compact">
-                <h4>Middle Layer</h4>
-                <div class="json-creator-grid">
-                    <div class="json-creator-grid-item">
-                        <input type="checkbox" ${Array.isArray(this.editingTemplate.equator) && this.editingTemplate.equator.includes('|') ? 'checked' : ''} 
-                               onchange="jsonCreator.updateTemplateEquator('|', this.checked)">
-                        <label>Solved</label>
-                    </div>
-                    <div class="json-creator-grid-item">
-                        <input type="checkbox" ${Array.isArray(this.editingTemplate.equator) && this.editingTemplate.equator.includes('/') ? 'checked' : ''} 
-                               onchange="jsonCreator.updateTemplateEquator('/', this.checked)">
-                        <label>Flipped</label>
-                    </div>
-                </div>
-            </div>
-
-            <div class="json-creator-section-compact">
-                <h4>
-                    Parity
-                    <span class="info-wrapper">
-                        <button class="info-btn" aria-label="More info">i</button>
-                        <span class="info-box">
-                            Parity here doesn't refer to conventional parity. Overall parity defines a state of the sq1, but probably not the state you are aiming for. So run the case to check if you really want this. Color specific: here you can explicitly decide the arrangement of each color pieces, again test each one to check for yourself what you really want.
-                        </span>
-                    </span>
-                </h4>
-                <div class="parity-radio-group">
-                    <div class="parity-radio-item">
-                        <input type="radio" name="parityMode" value="ignore" ${parityMode === 'ignore' ? 'checked' : ''} 
-                               onchange="jsonCreator.updateTemplateParityMode('ignore')">
-                        <label>Ignore</label>
-                    </div>
-                    <div class="parity-radio-item">
-                        <input type="radio" name="parityMode" value="overall" ${parityMode === 'overall' ? 'checked' : ''} 
-                               onchange="jsonCreator.updateTemplateParityMode('overall')">
-                        <label>Overall</label>
-                    </div>
-                    <div class="parity-radio-item">
-                        <input type="radio" name="parityMode" value="color-specific" ${parityMode === 'color-specific' ? 'checked' : ''} 
-                               onchange="jsonCreator.updateTemplateParityMode('color-specific')">
-                        <label>Color Specific</label>
-                    </div>
-                </div>
-                <div id="parityOptions" class="parity-checkboxes-vertical">
-                    ${parityMode === 'overall' ? `
-                        <div class="json-creator-grid-item">
-                            <input type="checkbox" ${Array.isArray(this.editingTemplate.parity) && this.editingTemplate.parity.includes('on') ? 'checked' : ''} 
-                                   onchange="jsonCreator.updateTemplateMoveArray('parity', 'on', this.checked)">
-                            <label>Overall No Parity</label>
-                        </div>
-                        <div class="json-creator-grid-item">
-                            <input type="checkbox" ${Array.isArray(this.editingTemplate.parity) && this.editingTemplate.parity.includes('op') ? 'checked' : ''} 
-                                   onchange="jsonCreator.updateTemplateMoveArray('parity', 'op', this.checked)">
-                            <label>Overall Parity</label>
-                        </div>
-                    ` : parityMode === 'color-specific' ? `
-                        <div class="json-creator-grid-item">
-                            <input type="checkbox" ${Array.isArray(this.editingTemplate.parity) && this.editingTemplate.parity.includes('tnbn') ? 'checked' : ''} 
-                                   onchange="jsonCreator.updateTemplateMoveArray('parity', 'tnbn', this.checked)">
-                            <label>Both Color No Parity</label>
-                        </div>
-                        <div class="json-creator-grid-item">
-                            <input type="checkbox" ${Array.isArray(this.editingTemplate.parity) && this.editingTemplate.parity.includes('tpbn') ? 'checked' : ''} 
-                                   onchange="jsonCreator.updateTemplateMoveArray('parity', 'tpbn', this.checked)">
-                            <label>Black Parity, White No Parity</label>
-                        </div>
-                        <div class="json-creator-grid-item">
-                            <input type="checkbox" ${Array.isArray(this.editingTemplate.parity) && this.editingTemplate.parity.includes('tnbp') ? 'checked' : ''} 
-                                   onchange="jsonCreator.updateTemplateMoveArray('parity', 'tnbp', this.checked)">
-                            <label>Black No Parity, White Parity</label>
-                        </div>
-                        <div class="json-creator-grid-item">
-                            <input type="checkbox" ${Array.isArray(this.editingTemplate.parity) && this.editingTemplate.parity.includes('tpbp') ? 'checked' : ''} 
-                                   onchange="jsonCreator.updateTemplateMoveArray('parity', 'tpbp', this.checked)">
-                            <label>Both Color Parity</label>
-                        </div>
-                    ` : ''}
-                </div>
-            </div>
-
-            <div class="json-creator-section-compact">
-                <h4>
-                    Post ABF
-                    <button class="quick-info-btn" onclick="(function(e){ e.stopPropagation(); alert('Post ABF is Adjustment of Both Face After the algorithm is done.'); })(event)">?</button>
-                </h4>
-                <div class="abf-grid">
-                    ${['U0', 'U', 'U2', "U'", 'D0', 'D', 'D2', "D'"].map((move, idx) => {
-                const field = idx < 4 ? 'auf' : 'adf';
-                return `
-                            <div class="json-creator-grid-item">
-                                <input type="checkbox" ${this.editingTemplate[field].includes(move) ? 'checked' : ''} 
-                                       onchange="jsonCreator.updateTemplateMoveArray('${field}', '${move}', this.checked)">
-                                <label>${move}</label>
-                            </div>
-                        `;
-            }).join('')}
-                </div>
-            </div>
-
-            <div class="json-creator-section-compact">
-                <h4>
-                    Pre ABF
-                    <span class="info-wrapper">
-                        <button class="info-btn" aria-label="More info">i</button>
-                        <span class="info-box">Pre ABF is the adjustment you do before doing an alg.</span>
-                    </span>
-                </h4>
-                <div class="pre-abf-container">
-                    <div class="pre-abf-section">
-                        <h5>Pre AUF</h5>
-                        <div class="pre-abf-grid">
-                            ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
-                                <div class="json-creator-grid-item">
-                                    <input type="checkbox" ${Array.isArray(this.editingTemplate.rul) && this.editingTemplate.rul.includes(val) ? 'checked' : ''} 
-                                           onchange="jsonCreator.updateTemplateNumberArray('rul', ${val}, this.checked)">
-                                    <label>${val}</label>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                    <div class="pre-abf-section">
-                        <h5>Pre ADF</h5>
-                        <div class="pre-abf-grid">
-                            ${[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(val => `
-                                <div class="json-creator-grid-item">
-                                    <input type="checkbox" ${Array.isArray(this.editingTemplate.rdl) && this.editingTemplate.rdl.includes(val) ? 'checked' : ''} 
-                                           onchange="jsonCreator.updateTemplateNumberArray('rdl', ${val}, this.checked)">
-                                    <label>${val}</label>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
         }
-    }
+    );
+}
 
-    updateTemplateEquator(symbol, checked) {
-        if (!Array.isArray(this.editingTemplate.equator)) {
-            this.editingTemplate.equator = [];
+setAsTemplate(item) {
+    showConfirmationModal(
+        'Override Template',
+        'Do you want to override your current template? This cannot be undone.',
+        () => {
+            const template = JSON.parse(JSON.stringify(item));
+            delete template.alg;
+            delete template.caseName;
+            
+            this.caseTemplate = template;
+            const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
+            localStorage.setItem(templateKey, JSON.stringify(this.caseTemplate));
+            showFloatingMessage('Case set as template successfully!', 'success');
         }
-        if (checked) {
-            if (!this.editingTemplate.equator.includes(symbol)) {
-                this.editingTemplate.equator.push(symbol);
-            }
-        } else {
-            this.editingTemplate.equator = this.editingTemplate.equator.filter(s => s !== symbol);
-        }
-    }
+    );
+}
 
-    updateTemplateParityMode(mode) {
-        if (mode === 'ignore') {
-            this.editingTemplate.parity = [];
-        } else if (mode === 'overall') {
-            this.editingTemplate.parity = ['on'];
-        } else if (mode === 'color-specific') {
-            this.editingTemplate.parity = ['tnbn'];
-        }
-        this.renderTemplateTab();
-    }
+importDataToRoot() {
+    this._createFileImportModal(
+        `Import Data to Root: ${AppState.activeDevelopingJSON}`,
+        (jsonText, mode) => this._processRootImport(jsonText, mode),
+        'root'
+    );
+}
 
-    updateTemplateMoveArray(field, move, checked) {
-        if (!Array.isArray(this.editingTemplate[field])) {
-            this.editingTemplate[field] = [];
-        }
-        if (checked) {
-            if (!this.editingTemplate[field].includes(move)) {
-                this.editingTemplate[field].push(move);
-            }
-        } else {
-            this.editingTemplate[field] = this.editingTemplate[field].filter(m => m !== move);
-        }
-    }
-
-    updateTemplateNumberArray(field, num, checked) {
-        if (!Array.isArray(this.editingTemplate[field])) {
-            this.editingTemplate[field] = [];
-        }
-        if (checked) {
-            if (!this.editingTemplate[field].includes(num)) {
-                this.editingTemplate[field].push(num);
-            }
-        } else {
-            this.editingTemplate[field] = this.editingTemplate[field].filter(n => n !== num);
-        }
-    }
-
-    addTemplateConstraint() {
-        const posInput = document.getElementById('constraintPosition');
-        const valsInput = document.getElementById('constraintValues');
-
-        const position = posInput.value.trim().toUpperCase();
-        const values = valsInput.value.trim().split(',').map(v => v.trim().toLowerCase());
-
-        if (!position || !values.length || !values[0]) {
-            alert('Please enter both position and values');
-            return;
-        }
-
-        if (!this.editingTemplate.constraints) this.editingTemplate.constraints = {};
-        this.editingTemplate.constraints[position] = values;
-
-        posInput.value = '';
-        valsInput.value = '';
-
-        this.renderTemplateTab();
-    }
-
-    removeTemplateConstraint(position) {
-        if (this.editingTemplate && this.editingTemplate.constraints) {
-            delete this.editingTemplate.constraints[position];
-            this.renderTemplateTab();
-        }
-    }
-
-    saveCaseTemplate() {
-        this.caseTemplate = JSON.parse(JSON.stringify(this.editingTemplate));
-        const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
-        localStorage.setItem(templateKey, JSON.stringify(this.caseTemplate));
-        showFloatingMessage('Case template saved successfully!', 'success');
-
-        // Restore the last selected case
-        if (this.lastCaseBeforeTemplate && this.lastCaseBeforeTemplate.item && this.lastCaseBeforeTemplate.item.caseName) {
-            this.selectedPath = this.lastCaseBeforeTemplate.path;
-            this.selectedItem = this.lastCaseBeforeTemplate.item;
-            this.renderTree();
-            const caseName = this.selectedPath.split('/').pop();
-            this.showCaseEditor(this.selectedItem, caseName);
-        } else {
-            this.showWelcome();
-        }
-    }
-
-    clearCaseTemplate() {
-        showConfirmationModal(
-            'Clear Template',
-            'Are you sure you want to clear the case template?',
-            () => {
-                this.caseTemplate = null;
-                this.editingTemplate = null;
-                const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
-                localStorage.removeItem(templateKey);
-                showFloatingMessage('Case template cleared!', 'success');
-
-                // Restore the last selected case
-                if (this.lastCaseBeforeTemplate && this.lastCaseBeforeTemplate.item && this.lastCaseBeforeTemplate.item.caseName) {
-                    this.selectedPath = this.lastCaseBeforeTemplate.path;
-                    this.selectedItem = this.lastCaseBeforeTemplate.item;
-                    this.renderTree();
-                    const caseName = this.selectedPath.split('/').pop();
-                    this.showCaseEditor(this.selectedItem, caseName);
-                } else {
-                    this.showWelcome();
-                }
-            }
-        );
-    }
-
-    setAsTemplate(item) {
-        showConfirmationModal(
-            'Override Template',
-            'Do you want to override your current template? This cannot be undone.',
-            () => {
-                const template = JSON.parse(JSON.stringify(item));
-                delete template.alg;
-                delete template.caseName;
-
-                this.caseTemplate = template;
-                const templateKey = `caseTemplate_${AppState.activeDevelopingJSON}`;
-                localStorage.setItem(templateKey, JSON.stringify(this.caseTemplate));
-                showFloatingMessage('Case set as template successfully!', 'success');
-            }
-        );
-    }
-
-    importDataToRoot() {
-        const modal = document.createElement('div');
-        modal.className = 'modal active extract-json-modal';
-        modal.style.zIndex = '20000';
-        modal.innerHTML = `
-        <div class="modal-content" style="max-width: 600px;">
-            <div class="modal-header">
-                <h2>Import Data to Root: ${AppState.activeDevelopingJSON}</h2>
-                <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
-            </div>
-            <div class="modal-body">
-                <div style="margin-bottom: 16px;">
-                    <input type="file" id="importRootDataFile" accept=".json" style="display: none;" onchange="jsonCreator.handleImportRootFileSelect(event)">
-                    <div id="importRootDropZone" 
-                         onclick="document.getElementById('importRootDataFile').click()"
-                         ondragover="event.preventDefault(); this.style.background='#e0e0e0';"
-                         ondragleave="this.style.background='#f9f9f9';"
-                         ondrop="jsonCreator.handleImportRootFileDrop(event)"
-                         style="width: 100%; min-height: 200px; background: #f9f9f9; border: 2px dashed #d0d0d0; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #666; text-align: center; padding: 20px;">
-                        <div style="font-size: 48px; margin-bottom: 12px;">📁</div>
-                        <div style="font-size: 14px; font-weight: 500; margin-bottom: 4px;">Drop file here or click to choose</div>
-                        <div style="font-size: 12px; color: #999;">Supports .json files</div>
-                        <div id="importRootFileName" style="margin-top: 12px; font-size: 13px; color: #0078d4; font-weight: 500;"></div>
-                    </div>
-                </div>
-                <div id="importRootActions" style="display: none; flex-direction: column; gap: 8px;">
-                    <button class="json-creator-btn" onclick="jsonCreator.processImportToRoot('add')">Add to Existing</button>
-                    <button class="json-creator-btn" onclick="jsonCreator.processImportToRoot('override')">Override (Delete Previous)</button>
-                </div>
-                <button class="json-creator-btn json-creator-btn-secondary" onclick="this.closest('.modal').remove()" style="margin-top: 12px; width: 100%;">Cancel</button>
-            </div>
-        </div>
-    `;
-        document.body.appendChild(modal);
-
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
-    }
-
-    handleImportRootFileDrop(event) {
-        event.preventDefault();
-        const dropZone = document.getElementById('importRootDropZone');
-        dropZone.style.background = '#f9f9f9';
-
-        const file = event.dataTransfer.files[0];
-        if (file && file.type === 'application/json') {
-            this.loadImportRootFile(file);
-        } else {
-            showFloatingMessage('Please drop a valid JSON file', 'error');
-        }
-    }
-
-    handleImportRootFileSelect(event) {
-        const file = event.target.files[0];
-        if (file && file.type === 'application/json') {
-            this.loadImportRootFile(file);
-        } else {
-            showFloatingMessage('Please select a valid JSON file', 'error');
-        }
-    }
-
-    loadImportRootFile(file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            window.importedRootJSONData = e.target.result;
-            document.getElementById('importRootFileName').textContent = `Selected: ${file.name}`;
-            document.getElementById('importRootActions').style.display = 'flex';
-        };
-        reader.readAsText(file);
-    }
-
-    processImportToRoot(mode) {
-        const jsonText = window.importedRootJSONData;
-
-        if (!jsonText) {
-            showFloatingMessage('Please select a file to import', 'error');
-            return;
-        }
-
-        try {
-            const importedData = JSON.parse(jsonText);
-
-            if (mode === 'override') {
-                // Replace current root entirely
-                this.treeData = importedData;
-                AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(importedData));
-            } else if (mode === 'add') {
-                // Merge with existing root, auto-rename conflicts
-                const mergeObjects = (target, source, path = []) => {
-                    Object.keys(source).forEach(key => {
-                        const sourcePath = [...path, key];
-
-                        if (source[key] && typeof source[key] === 'object' && !source[key].caseName) {
-                            // It's a folder
-                            if (!target[key]) {
-                                target[key] = {};
-                            }
-                            mergeObjects(target[key], source[key], sourcePath);
-                        } else {
-                            // It's a case or primitive value
-                            let finalKey = key;
-                            let counter = 1;
-                            while (target[finalKey]) {
-                                finalKey = `${key}_${counter}`;
-                                counter++;
-                            }
-                            target[finalKey] = JSON.parse(JSON.stringify(source[key]));
-                            if (target[finalKey].caseName) {
-                                target[finalKey].caseName = finalKey;
-                            }
+_processRootImport(jsonText, mode) {
+    try {
+        const importedData = JSON.parse(jsonText);
+        
+        if (mode === 'override') {
+            this.treeData = importedData;
+            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(importedData));
+        } else if (mode === 'add') {
+            const mergeObjects = (target, source) => {
+                Object.keys(source).forEach(key => {
+                    if (source[key] && typeof source[key] === 'object' && !source[key].caseName) {
+                        if (!target[key]) target[key] = {};
+                        mergeObjects(target[key], source[key]);
+                    } else {
+                        let finalKey = key;
+                        let counter = 1;
+                        while (target[finalKey]) {
+                            finalKey = `${key}_${counter}`;
+                            counter++;
                         }
-                    });
-                };
+                        target[finalKey] = JSON.parse(JSON.stringify(source[key]));
+                        if (target[finalKey].caseName) {
+                            target[finalKey].caseName = finalKey;
+                        }
+                    }
+                });
+            };
+            mergeObjects(this.treeData, importedData);
+            AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
+        }
+        
+        saveDevelopingJSONs();
+        this.expandedFolders.clear();
+        this.expandAllFolders(this.treeData, '');
+        this.renderTree();
+        showFloatingMessage('Data imported to root successfully!', 'success');
+    } catch (error) {
+        showFloatingMessage('Invalid JSON: ' + error.message, 'error');
+    }
+}
 
-                mergeObjects(this.treeData, importedData);
-                AppState.developingJSONs[AppState.activeDevelopingJSON] = JSON.parse(JSON.stringify(this.treeData));
-            }
-
+resetRoot() {
+    showConfirmationModal(
+        'Reset Root',
+        `Are you sure you want to reset the root "${AppState.activeDevelopingJSON}"? This will delete all cases and folders. This cannot be undone.`,
+        () => {
+            this.treeData = {};
+            AppState.developingJSONs[AppState.activeDevelopingJSON] = {};
             saveDevelopingJSONs();
+            
+            this.selectedPath = '';
+            this.selectedItem = null;
+            this.expandedFolders.clear();
+            this.renderTree();
+            this.showWelcome();
+            
+            showFloatingMessage('Root reset successfully!', 'success');
+        }
+    );
+}
 
-            // Reload current root
+close() {
+    showConfirmationModal(
+        'Close Algset Devtool',
+        'Close Algset Devtool? All changes are auto-saved.',
+        () => {
+            this._saveCurrentRoot();
+            saveLastScreen('training');
+            
+            const fullscreen = document.getElementById('jsonCreatorFullscreen');
+            if (fullscreen) {
+                fullscreen.remove();
+            }
+            
+            // Return to training screen
+            renderApp();
+            setupEventListeners();
+            if (AppState.selectedCases.length > 0) {
+                generateNewScramble();
+            }
+        }
+    );
+}
+
+openDataManagement() {
+    this._createModal('Data Management', `
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            <button class="json-creator-btn" onclick="jsonCreator.exportAllData()">Export All Data</button>
+            <button class="json-creator-btn" onclick="jsonCreator.importData()">Import Data</button>
+            <button class="json-creator-btn" onclick="jsonCreator.resetAllData()">Reset All Data</button>
+        </div>
+    `, { className: 'data-management-modal' });
+}
+
+resetAllData() {
+    showConfirmationModal(
+        'Reset All Data',
+        'Are you sure you want to reset ALL data? This will delete all developing JSONs and cannot be undone.',
+        () => {
+            AppState.developingJSONs = { 'default': DEFAULT_ALGSET };
+            AppState.activeDevelopingJSON = 'default';
+            saveDevelopingJSONs();
+            
+            this.treeData = JSON.parse(JSON.stringify(DEFAULT_ALGSET));
+            this.selectedPath = '';
+            this.selectedItem = null;
             this.expandedFolders.clear();
             this.expandAllFolders(this.treeData, '');
             this.renderTree();
-
-            document.querySelector('.modal').remove();
-            showFloatingMessage('Data imported to root successfully!', 'success');
-        } catch (error) {
-            showFloatingMessage('Invalid JSON: ' + error.message, 'error');
+            this.showWelcome();
+            
+            const rootBtn = document.getElementById('rootSelectorBtn');
+            if (rootBtn) rootBtn.textContent = 'default';
+            
+            showFloatingMessage('All data has been reset', 'success');
+            document.querySelector('.data-management-modal').remove();
         }
-    }
+    );
+}
 
-    resetRoot() {
-        showConfirmationModal(
-            'Reset Root',
-            `Are you sure you want to reset the root "${AppState.activeDevelopingJSON}"? This will delete all cases and folders. This cannot be undone.`,
-            () => {
-                this.treeData = {};
-                AppState.developingJSONs[AppState.activeDevelopingJSON] = {};
-                saveDevelopingJSONs();
+exportAllData() {
+    this._saveCurrentRoot();
+    
+    const allData = JSON.stringify(AppState.developingJSONs, null, 2);
+    const blob = new Blob([allData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sq1-all-data.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
 
-                this.selectedPath = '';
-                this.selectedItem = null;
-                this.expandedFolders.clear();
-                this.renderTree();
-                this.showWelcome();
+importData() {
+    document.querySelector('.modal').remove();
+    
+    this._createFileImportModal(
+        'Import Data',
+        (jsonText, mode) => this._processGeneralImport(jsonText, mode),
+        'general'
+    );
+}
 
-                showFloatingMessage('Root reset successfully!', 'success');
-            }
-        );
-    }
-
-    close() {
-        showConfirmationModal(
-            'Close JSON Creator',
-            'Close JSON Creator? All changes are auto-saved.',
-            () => {
-                // Save current root before closing
-                AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
-                saveDevelopingJSONs();
-                saveLastScreen('training');
-
-                const fullscreen = document.getElementById('jsonCreatorFullscreen');
-                if (fullscreen) {
-                    fullscreen.remove();
+_processGeneralImport(jsonText, mode) {
+    try {
+        const importedData = JSON.parse(jsonText);
+        
+        if (mode === 'override') {
+            AppState.developingJSONs = importedData;
+            AppState.activeDevelopingJSON = Object.keys(importedData)[0] || 'default';
+        } else if (mode === 'add') {
+            Object.keys(importedData).forEach(rootName => {
+                let finalName = rootName;
+                let counter = 1;
+                while (AppState.developingJSONs[finalName]) {
+                    finalName = `${rootName}_${counter}`;
+                    counter++;
                 }
-
-                // Return to training screen
-                renderApp();
-                setupEventListeners();
-                if (AppState.selectedCases.length > 0) {
-                    generateNewScramble();
-                }
-            }
-        );
-    }
-
-    openDataManagement() {
-        const modal = document.createElement('div');
-        modal.className = 'modal active data-management-modal';
-        modal.style.zIndex = '20000';
-        modal.innerHTML = `
-        <div class="modal-content devtool-modal" style="max-width: 500px;">
-            <div class="modal-header">
-                <h2>Data Management</h2>
-                <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
-            </div>
-            <div class="modal-body">
-                <div style="display: flex; flex-direction: column; gap: 12px;">
-                    <button class="json-creator-btn" onclick="jsonCreator.exportAllData()">Export All Data</button>
-                    <button class="json-creator-btn" onclick="jsonCreator.importData()">Import Data</button>
-                    <button class="json-creator-btn" onclick="jsonCreator.resetAllData()">Reset All Data</button>
-                </div>
-            </div>
-        </div>
-    `;
-        document.body.appendChild(modal);
-
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
-    }
-
-    resetAllData() {
-        showConfirmationModal(
-            'Reset All Data',
-            'Are you sure you want to reset ALL data? This will delete all developing JSONs and cannot be undone.',
-            () => {
-                AppState.developingJSONs = { 'default': DEFAULT_ALGSET };
-                AppState.activeDevelopingJSON = 'default';
-                saveDevelopingJSONs();
-
-                this.treeData = JSON.parse(JSON.stringify(DEFAULT_ALGSET));
-                this.selectedPath = '';
-                this.selectedItem = null;
-                this.expandedFolders.clear();
-                this.expandAllFolders(this.treeData, '');
-                this.renderTree();
-                this.showWelcome();
-
-                const rootBtn = document.getElementById('rootSelectorBtn');
-                if (rootBtn) rootBtn.textContent = 'default';
-
-                showFloatingMessage('All data has been reset', 'success');
-                document.querySelector('.data-management-modal').remove();
-            }
-        );
-    }
-
-    exportAllData() {
-        // Save current root first
-        AppState.developingJSONs[AppState.activeDevelopingJSON] = this.treeData;
+                AppState.developingJSONs[finalName] = importedData[rootName];
+            });
+        }
+        
         saveDevelopingJSONs();
-
-        const allData = JSON.stringify(AppState.developingJSONs, null, 2);
-        const blob = new Blob([allData], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'sq1-all-data.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        this.switchRoot(AppState.activeDevelopingJSON);
+        showFloatingMessage('Data imported successfully!', 'success');
+    } catch (error) {
+        showFloatingMessage('Invalid JSON: ' + error.message, 'error');
     }
+}
 
-    importData() {
-        document.querySelector('.modal').remove();
-
-        const importModal = document.createElement('div');
-        importModal.className = 'modal active extract-json-modal';
-        importModal.style.zIndex = '20000';
-        importModal.innerHTML = `
-        <div class="modal-content" style="max-width: 600px;">
-            <div class="modal-header">
-                <h2>Import Data</h2>
-                <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
-            </div>
-            <div class="modal-body">
-                <div style="margin-bottom: 16px;">
-                    <input type="file" id="importDataFile" accept=".json" style="display: none;" onchange="jsonCreator.handleImportFileSelect(event)">
-                    <div id="importDropZone" 
-                         onclick="document.getElementById('importDataFile').click()"
-                         ondragover="event.preventDefault(); this.style.background='#e0e0e0';"
-                         ondragleave="this.style.background='#f9f9f9';"
-                         ondrop="jsonCreator.handleImportFileDrop(event)"
-                         style="width: 100%; min-height: 200px; background: #f9f9f9; border: 2px dashed #d0d0d0; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #666; text-align: center; padding: 20px;">
-                        <div style="font-size: 48px; margin-bottom: 12px;">📁</div>
-                        <div style="font-size: 14px; font-weight: 500; margin-bottom: 4px;">Drop file here or click to choose</div>
-                        <div style="font-size: 12px; color: #999;">Supports .json files</div>
-                        <div id="importFileName" style="margin-top: 12px; font-size: 13px; color: #0078d4; font-weight: 500;"></div>
-                    </div>
-                </div>
-                <div id="importActions" style="display: none; flex-direction: column; gap: 8px;">
-                    <button class="json-creator-btn" onclick="jsonCreator.processImport('add')">Add to Existing</button>
-                    <button class="json-creator-btn" onclick="jsonCreator.processImport('override')">Override (Delete Previous)</button>
-                </div>
-                <button class="json-creator-btn json-creator-btn-secondary" onclick="this.closest('.modal').remove()" style="margin-top: 12px; width: 100%;">Cancel</button>
-            </div>
-        </div>
-    `;
-        document.body.appendChild(importModal);
-
-        importModal.addEventListener('click', (e) => {
-            if (e.target === importModal) {
-                importModal.remove();
-            }
-        });
-    }
-
-    handleImportFileDrop(event) {
-        event.preventDefault();
-        const dropZone = document.getElementById('importDropZone');
-        dropZone.style.background = '#f9f9f9';
-
-        const file = event.dataTransfer.files[0];
-        if (file && file.type === 'application/json') {
-            this.loadImportFile(file);
-        } else {
-            showFloatingMessage('Please drop a valid JSON file', 'error');
-        }
-    }
-
-    handleImportFileSelect(event) {
-        const file = event.target.files[0];
-        if (file && file.type === 'application/json') {
-            this.loadImportFile(file);
-        } else {
-            showFloatingMessage('Please select a valid JSON file', 'error');
-        }
-    }
-
-    loadImportFile(file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            window.importedJSONData = e.target.result;
-            document.getElementById('importFileName').textContent = `Selected: ${file.name}`;
-            document.getElementById('importActions').style.display = 'flex';
-        };
-        reader.readAsText(file);
-    }
-
-    processImport(mode) {
-        const jsonText = window.importedJSONData;
-
-        if (!jsonText) {
-            showFloatingMessage('Please select a file to import', 'error');
-            return;
-        }
-
-        try {
-            const importedData = JSON.parse(jsonText);
-
-            if (mode === 'override') {
-                AppState.developingJSONs = importedData;
-                this.rootOrder = Object.keys(importedData);
-                this.saveRootOrder();
-                AppState.activeDevelopingJSON = this.rootOrder[0] || 'default';
-            } else if (mode === 'add') {
-                // Add to existing, auto-rename conflicts
-                Object.keys(importedData).forEach(rootName => {
-                    let finalName = rootName;
-                    let counter = 1;
-                    while (AppState.developingJSONs[finalName]) {
-                        finalName = `${rootName}_${counter}`;
-                        counter++;
-                    }
-                    AppState.developingJSONs[finalName] = importedData[rootName];
-                    this.rootOrder.push(finalName);
-                });
-                this.saveRootOrder();
-            }
-
-            saveDevelopingJSONs();
-
-            // Update selector
-            const selector = document.getElementById('rootSelector');
-            if (selector) {
-                selector.innerHTML = this.rootOrder.map(root =>
-                    `<option value="${root}" ${root === AppState.activeDevelopingJSON ? 'selected' : ''}>${root}</option>`
-                ).join('');
-            }
-
-            // Reload current root
-            this.switchRoot(AppState.activeDevelopingJSON);
-
-            document.querySelector('.modal').remove();
-            showFloatingMessage('Data imported successfully!', 'success');
-        } catch (error) {
-            showFloatingMessage('Invalid JSON: ' + error.message, 'error');
-        }
-    }
-
-    toggleSidebar() {
+toggleSidebar() {
         const sidebar = document.querySelector('.json-creator-sidebar');
         if (sidebar) {
             sidebar.classList.toggle('hidden');

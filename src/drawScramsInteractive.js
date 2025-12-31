@@ -11,8 +11,8 @@ const DEFAULT_COLOR_SCHEME = {
     rightColor: '#00AA00',
     backColor: '#FF8C00',
     leftColor: '#0066CC',
-    placeholderEdge: '#525252ff',
-    placeholderCorner: '#444444ff',
+    placeholderEdge: '#888888',
+    placeholderCorner: '#888888',
     placeholderBlackEdge: '#000000ff',
     placeholderBlackCorner: '#000000ff',
     placeholderWhiteEdge: '#ffffffff',
@@ -45,7 +45,7 @@ function createPieceDefinitions(colorScheme = DEFAULT_COLOR_SCHEME) {
         'b': { type: 'corner', colors: { top: colorScheme.bottomColor, left: colorScheme.frontColor, right: colorScheme.rightColor } },
         'd': { type: 'corner', colors: { top: colorScheme.bottomColor, left: colorScheme.leftColor, right: colorScheme.frontColor } },
         'f': { type: 'corner', colors: { top: colorScheme.bottomColor, left: colorScheme.backColor, right: colorScheme.leftColor } },
-        'C': { type: 'corner', colors: { top: colorScheme.placeholderCorner, left: colorScheme.placeholderCorner, right: colorScheme.placeholderCorner } },
+        'C': { type: 'corner', colors: { top: colorScheme.placeholderCorner, left: colorScheme.placeholderCorner, right: colorScheme.placeholderCorner },  },
 
         // Placeholders
         'W': { type: 'edge', colors: { inner: colorScheme.placeholderBlackEdge, outer: colorScheme.placeholderBlackEdge } },
@@ -344,7 +344,12 @@ function renderCluster(cluster, state, targetCx, targetCy, centerAngle, layer, p
         if (currentPiece === 'R') {
             mainSVG += `<polygon points="${pointsToString([pInner, pA, pB])}" fill="${pieceData.colors.fill}" stroke="${pieceData.colors.stroke}" stroke-width="0.6" pointer-events="none"/>`;
         } else if (currentPiece === 'E') {
-            mainSVG += `<polygon points="${pointsToString([pInner, pA, pB])}" fill="${pieceData.colors.inner}" stroke="#333" stroke-width="0.6" pointer-events="none"/>`;
+            const midRadius = r_inner + (r_outer - r_inner) * 0.8;
+            const pMidA = polarToCartesian(targetCx, targetCy, midRadius, centerAngle - half);
+            const pMidB = polarToCartesian(targetCx, targetCy, midRadius, centerAngle + half);
+
+            mainSVG += `<polygon points="${pointsToString([pMidA, pA, pB, pMidB])}" fill="${pieceData.colors.outer}" stroke="#333" stroke-width="1" pointer-events="none"/>`;
+            mainSVG += `<polygon points="${pointsToString([pInner, pMidA, pMidB])}" fill="${pieceData.colors.inner}" stroke="#333" stroke-width="0.8" pointer-events="none"/>`;
         } else {
             const midRadius = r_inner + (r_outer - r_inner) * 0.8;
             const pMidA = polarToCartesian(targetCx, targetCy, midRadius, centerAngle - half);
@@ -360,7 +365,16 @@ function renderCluster(cluster, state, targetCx, targetCy, centerAngle, layer, p
         const pOuterL = polarToCartesian(targetCx, targetCy, r_outer, centerAngle + half);
 
         if (currentPiece === 'C') {
-            mainSVG += `<polygon points="${pointsToString([pInner, pOuterR, pApex, pOuterL])}" fill="#ff6b6b" stroke="#333" stroke-width="0.6" pointer-events="none"/>`;
+            const scale = 0.80;
+            const pSmallL = lerpPoint(pInner, pOuterL, scale);
+            const pSmallR = lerpPoint(pInner, pOuterR, scale);
+            const pSmallBottom = lerpPoint(pInner, pApex, scale);
+
+            mainSVG += `<polygon points="${pointsToString([pInner, pOuterL, pApex, pSmallBottom, pSmallL])}" fill="${pieceData.colors.left}" stroke="#333" stroke-width="1" pointer-events="none"/>`;
+            mainSVG += `<polygon points="${pointsToString([pInner, pSmallR, pSmallBottom, pApex, pOuterR])}" fill="${pieceData.colors.right}" stroke="#333" stroke-width="1" pointer-events="none"/>`;
+            mainSVG += `<polygon points="${pointsToString([pInner, pSmallL, pSmallBottom, pSmallR])}" fill="${pieceData.colors.top}" stroke="#333" stroke-width="0.8" pointer-events="none"/>`;
+            mainSVG += `<polygon points="${pointsToString([pInner, pOuterL, pApex, pOuterR])}" fill="none" stroke="#333" stroke-width="1" pointer-events="none"/>`;
+            mainSVG += `<line x1="${pApex.x.toFixed(2)}" y1="${pApex.y.toFixed(2)}" x2="${pSmallBottom.x.toFixed(2)}" y2="${pSmallBottom.y.toFixed(2)}" stroke="#333" stroke-width="1" stroke-linecap="round" pointer-events="none"/>`;
         } else {
             const scale = 0.80;
             const pSmallL = lerpPoint(pInner, pOuterL, scale);
@@ -628,7 +642,6 @@ function createPieceSelectionModal() {
 }
 
 // === INTERACTIVE EVENT SETUP ===
-// === INTERACTIVE EVENT SETUP ===
 function setupInteractiveEvents(state, containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -642,26 +655,150 @@ function setupInteractiveEvents(state, containerId) {
 
     const slots = container.querySelectorAll('.edge-interaction-zone, .corner-interaction-zone');
 
+    // Scroll-switch mode state (shared across all slots)
+    let scrollSwitchActive = false;
+    let scrollSwitchData = null;
+    let clickTimer = null;
+    let mouseDownSlot = null;
+
+    // Global mouse up handler to properly exit scroll-switch mode
+    const globalMouseUpHandler = (e) => {
+        if (scrollSwitchActive) {
+            scrollSwitchActive = false;
+            scrollSwitchData = null;
+            
+            // Remove orange cursor style
+            const cursorStyle = document.getElementById('scroll-switch-cursor-style');
+            if (cursorStyle) {
+                cursorStyle.remove();
+            }
+            document.body.style.cursor = '';
+            
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        clearTimeout(clickTimer);
+        clickTimer = null;
+        mouseDownSlot = null;
+    };
+
+    // Helper function to update scroll cursor
+    const updateScrollCursor = (state) => {
+        let cursorStyle = document.getElementById('scroll-switch-cursor-style');
+        if (!cursorStyle) {
+            cursorStyle = document.createElement('style');
+            cursorStyle.id = 'scroll-switch-cursor-style';
+            document.head.appendChild(cursorStyle);
+        }
+        
+        let svgContent = '';
+        if (state === 'neutral') {
+            // Ball with up and down arrows
+            svgContent = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="3" fill="%23fff" stroke="%23000" stroke-width="0.2"/><path d="M16 6 L12 10 L20 10 Z" fill="%23fff" stroke="%23000" stroke-width="0.5"/><path d="M16 26 L12 22 L20 22 Z" fill="%23fff" stroke="%23000" stroke-width="0.5"/></svg>';
+        } else if (state === 'up') {
+            // Ball with only up arrow (inverted/filled)
+            svgContent = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="3" fill="%23666666" stroke="%23000" stroke-width="0.2"/><path d="M16 6 L12 10 L20 10 Z" fill="%23666666" stroke="%23000" stroke-width="0.5"/></svg>';
+        } else if (state === 'down') {
+            // Ball with only down arrow (inverted/filled)
+            svgContent = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="3" fill="%23666666" stroke="%23000" stroke-width="0.2"/><path d="M16 26 L12 22 L20 22 Z" fill="%23666666" stroke="%23000" stroke-width="0.5"/></svg>';
+        }
+        
+        cursorStyle.textContent = `
+            * {
+                cursor: url('data:image/svg+xml;utf8,${svgContent}') 16 16, ns-resize !important;
+            }
+        `;
+    };
+
+    // Global wheel listener for scroll-switch mode
+    const wheelHandler = (e) => {
+        if (scrollSwitchActive && scrollSwitchData) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const direction = e.deltaY > 0 ? 1 : -1;
+            
+            // Update cursor based on scroll direction
+            updateScrollCursor(direction > 0 ? 'down' : 'up');
+            
+            // Reset cursor back to neutral after a short delay
+            clearTimeout(scrollSwitchData.cursorResetTimer);
+            scrollSwitchData.cursorResetTimer = setTimeout(() => {
+                if (scrollSwitchActive) {
+                    updateScrollCursor('neutral');
+                }
+            }, 150);
+            
+            cyclePiece(state, scrollSwitchData.position, scrollSwitchData.layer, scrollSwitchData.isCornerZone, direction);
+            
+            // Re-render immediately for snappy interaction
+            const targetContainer = document.getElementById(scrollSwitchData.containerId);
+            if (targetContainer) {
+                targetContainer.innerHTML = createInteractiveSVG(state, { size: 200 });
+                setupInteractiveEvents(state, scrollSwitchData.containerId);
+            }
+        }
+    };
+
     slots.forEach((slot, index) => {
         // Remove any existing listeners
         const newSlot = slot.cloneNode(true);
         slot.parentNode.replaceChild(newSlot, slot);
 
-        // Left click to cycle pieces
-        newSlot.addEventListener('click', (e) => {
+        let mouseDownTime = 0;
+
+        // Mouse down - start timer for scroll-switch mode
+        newSlot.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return; // Only left click
+            
             e.preventDefault();
             e.stopPropagation();
-            const position = parseInt(newSlot.dataset.position);
-            const layer = newSlot.dataset.layer;
-            const isCornerZone = newSlot.classList.contains('corner-interaction-zone');
-
-            cyclePiece(state, position, layer, isCornerZone, 1);
             
-            // Re-render just THIS container (topInteractive or bottomInteractive)
-            const container = document.getElementById(containerId);
-            if (container) {
-                container.innerHTML = createInteractiveSVG(state, { size: 200 });
-                setupInteractiveEvents(state, containerId);
+            mouseDownSlot = newSlot;
+            mouseDownTime = Date.now();
+            
+            clickTimer = setTimeout(() => {
+                // Enter scroll-switch mode
+                scrollSwitchActive = true;
+                
+                const position = parseInt(newSlot.dataset.position);
+                const layer = newSlot.dataset.layer;
+                const isCornerZone = newSlot.classList.contains('corner-interaction-zone');
+                
+                scrollSwitchData = { position, layer, isCornerZone, containerId };
+                
+                // Change cursor to orange scroll mode (neutral state)
+                updateScrollCursor('neutral');
+            }, 300);
+        });
+
+        // Mouse up handler - check for quick click
+        newSlot.addEventListener('mouseup', (e) => {
+            if (e.button !== 0) return; // Only left click
+            
+            const mouseUpTime = Date.now();
+            const pressDuration = mouseUpTime - mouseDownTime;
+            
+            // If released before 300ms, treat as normal click
+            if (pressDuration < 300 && mouseDownSlot === newSlot && !scrollSwitchActive) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                clearTimeout(clickTimer);
+                clickTimer = null;
+                
+                const position = parseInt(newSlot.dataset.position);
+                const layer = newSlot.dataset.layer;
+                const isCornerZone = newSlot.classList.contains('corner-interaction-zone');
+
+                cyclePiece(state, position, layer, isCornerZone, 1);
+                
+                // Re-render just THIS container
+                const targetContainer = document.getElementById(containerId);
+                if (targetContainer) {
+                    targetContainer.innerHTML = createInteractiveSVG(state, { size: 200 });
+                    setupInteractiveEvents(state, containerId);
+                }
             }
         });
 
@@ -697,6 +834,19 @@ function setupInteractiveEvents(state, containerId) {
         newSlot.addEventListener('touchmove', () => {
             clearTimeout(pressTimer);
         });
+    });
+
+    // Add global listeners
+    document.addEventListener('mouseup', globalMouseUpHandler);
+    container.addEventListener('wheel', wheelHandler, { passive: false });
+    
+    // Store cleanup function
+    if (!container._cleanupListeners) {
+        container._cleanupListeners = [];
+    }
+    container._cleanupListeners.push(() => {
+        document.removeEventListener('mouseup', globalMouseUpHandler);
+        container.removeEventListener('wheel', wheelHandler);
     });
 }
 
