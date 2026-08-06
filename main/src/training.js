@@ -170,7 +170,7 @@ const DEFAULT_TRAINING_ALGSETS = [
     { id: 'lin-rsb', file: 'rsb.json', name: 'RSB', label: 'Ricci\'s Second Block', category: 'Lin', author: 'Amalogu'},
     { id: 'lin-pll-plus-1', file: 'pll-plus-1.json', name: 'PLL+1', label: 'PLL+1', category: 'Lin', author: 'Amalogu'},
     { id: 'lin-opll-plus-1', file: 'opll-1.json', name: 'OPLL+1', label: 'OPLL+1', category: 'Lin', author: 'Amalogu'},
-    { id: 'lin-m2-pll', file: 'linm2pll.json', name: 'M2+PLL', label: 'M2+PLL', category: 'Lin', author: 'Woofle'},
+    { id: 'lin-m2-pll', file: 'linm2pll.json', name: 'PLL+M2', label: 'PLL+M2', category: 'Lin', author: 'Woofle'},
     { id: 'eocp', file: 'EOCP.json', name: 'EOCP', label: 'EOCP', category: 'Other', author: 'Abid'}
 ];
 
